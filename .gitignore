@@ -1,0 +1,53 @@
+# Experiment results
+Runs/
+
+# Byte-compiled / cached files
+__pycache__/
+*.py[cod]
+*.so
+*.dll
+*.dylib
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+env/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs & Debug files
+logs/
+*.log
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Python dependency files
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# MyPy type checking cache
+.mypy_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+.cache/
+nosetests.xml
+coverage.xml
+
+# Build & Distribution files
+build/
+dist/
+*.egg-info/
