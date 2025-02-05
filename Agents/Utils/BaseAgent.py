@@ -1,17 +1,50 @@
 import numpy as np
 import random
 
+class BasePolicy:
+    """Abstract base class for policies."""
+    def __init__(self, action_space, seed=None):
+        self.action_space = action_space
+        self.seed = seed
+
+        if seed is not None:
+            self.action_space.seed(seed)
+            self._py_rng = random.Random(seed)
+        else:
+            self._py_rng = random
+
+            
+    def select_action(self, observation):
+        """
+        Given an observation, return an action.
+        This must be implemented by subclasses.
+        
+        Args:
+            observation: The state from the environment.
+        
+        Returns:
+            An action to take.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses.")
+    
+    def reset(self, seed=None):
+        if seed is not None:
+            self.action_space.seed(seed)
+            self._py_rng = random.Random(seed)
+        else:
+            self._py_rng = random
+
 class BaseAgent:
     """Base class for an RL agent."""
     
-    def __init__(self, policy, hyper_params=None, seed=None):
+    def __init__(self, action_space, hyper_params=None, seed=None):
         """
         Initialize an agent with a policy.
 
         """
         self.hp = hyper_params
         self.seed = seed
-        self.policy = policy
+        self.policy = BasePolicy(action_space)
         
     
     def act(self, observation):
@@ -30,11 +63,13 @@ class BaseAgent:
         """
         pass  # Default: No learning
 
-    def reset(self):
+    def reset(self, seed=None):
         """
         Reset the agent's learning state.
         """
-        pass
+        if seed is not None:
+            self.seed = seed
+        self.policy.reset(seed)
     
     def set_hp(self, hp):
         """

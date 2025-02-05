@@ -1,6 +1,7 @@
 from Environments.MiniGrid.EmptyGrid import get_empty_grid
 from Agents.RandomAgent.RandomAgent import RandomAgent
 from Agents.TabularAgent.QLearningAgent import QLearningAgent
+from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
 from Agents.Utils.HyperParams import HyperParameters
 from Experiments.BaseExperiment import BaseExperiment
 from Experiments.LoggerExperiment import LoggerExperiment
@@ -27,15 +28,19 @@ def main():
     seed = 2500
 
     # agent = RandomAgent(env.action_space, seed=seed)
-    hp = HyperParameters(alpha=0.5, gamma=0.99, epsilon=0.1)
-    agent = QLearningAgent(env.action_space, hp, seed=seed)
+
+    # hp = HyperParameters(alpha=0.5, gamma=0.99, epsilon=0.1)
+    # agent = QLearningAgent(env.action_space, hp, seed=seed)
+
+    hp = HyperParameters(alpha=0.5, gamma=0.99, epsilon=0.1, n_steps=1)
+    agent = NStepQLearningAgent(env.action_space, hp, seed=seed)
 
     # Create and run the experiment
     exp_name = f"{agent}_seed [{seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = LoggerExperiment(env, agent, exp_dir)
-    metrics = experiment.multi_run(num_runs=10, num_episodes=200)    
+    metrics = experiment.multi_run(num_runs=3, num_episodes=200)    
     
 
     # Analyze and plot the results.

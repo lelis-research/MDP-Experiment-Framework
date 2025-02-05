@@ -1,7 +1,6 @@
 import numpy as np
 import random
-from Agents.Utils.BaseAgent import BaseAgent
-from Agents.Utils.BasePolicy import BasePolicy
+from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 
 def get_state(observation):
     """
@@ -22,16 +21,10 @@ class QLearningPolicy(BasePolicy):
             action_space: The environment's action space (assumed gym.spaces.Discrete)
             epsilon: The exploration rate.
         """
-        super().__init__(seed)
-        self.action_space = action_space
+        super().__init__(action_space, seed)  
         self.epsilon = epsilon
 
-        if seed is not None:
-            self.action_space.seed(seed)
-            self._py_rng = random.Random(seed)
-        else:
-            self._py_rng = random
-
+        
     def select_action(self, observation, q_table):
         """
         Select an action using epsilon-greedy exploration.
@@ -46,12 +39,7 @@ class QLearningPolicy(BasePolicy):
             # ...otherwise, choose the action with the highest Q-value.
             return int(np.argmax(q_table[state]))
 
-    def reset(self, seed=None):
-        if seed is not None:
-            self.action_space.seed(seed)
-            self._py_rng = random.Random(seed)
-        else:
-            self._py_rng = random
+    
 
 
 class QLearningAgent(BaseAgent):
@@ -70,17 +58,18 @@ class QLearningAgent(BaseAgent):
             epsilon: Exploration rate for epsilon-greedy policy.
         """
         
+        super().__init__(action_space, hyper_params, seed)
+        
         # Initialize the Q-table as an empty dictionary.
         self.q_table = {}
-        self.hp = hyper_params
 
         # These will store the state and action taken at the previous time step.
         self.last_state = None
         self.last_action = None
         
         # Create the Q-Learning policy, providing it with the Q-table.
-        policy = QLearningPolicy(action_space, hyper_params.epsilon, seed)
-        super().__init__(policy, hyper_params, seed)
+        self.policy = QLearningPolicy(action_space, hyper_params.epsilon, seed)
+        
     
     def act(self, observation):
         """
@@ -127,11 +116,17 @@ class QLearningAgent(BaseAgent):
         # Perform the Q-Learning update.
         self.q_table[self.last_state][self.last_action] += self.hp.alpha * (target - self.q_table[self.last_state][self.last_action])
         
+        # If the episode terminated, clear the last state and action.
+        if terminated or truncated:
+            self.last_state = None
+            self.last_action = None
+
     def reset(self, seed=None):
+        """
+        Reset the agent's learning state.
+        """
         self.q_table = {}
         self.last_state = None
         self.last_action = None
-        if seed is not None:
-            self.seed = seed
-        self.policy.reset(seed)
+        super().reset(seed)    
     
