@@ -1,18 +1,12 @@
 import numpy as np
 import random
+import torch
 
 class BasePolicy:
     """Abstract base class for policies."""
-    def __init__(self, action_space, seed=None):
+    def __init__(self, action_space, hyper_params=None):
         self.action_space = action_space
-        self.seed = seed
-
-        if seed is not None:
-            self.action_space.seed(seed)
-            self._py_rng = random.Random(seed)
-        else:
-            self._py_rng = random
-
+        self.set_hp(hyper_params)
             
     def select_action(self, observation):
         """
@@ -27,23 +21,26 @@ class BasePolicy:
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
     
-    def reset(self, seed=None):
-        if seed is not None:
-            self.action_space.seed(seed)
-            self._py_rng = random.Random(seed)
-        else:
-            self._py_rng = random
-
+    def reset(self, seed):
+        self.action_space.seed(seed)
+        
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    
+    def set_hp(self, hp):
+        self.hp = hp
+        
 class BaseAgent:
     """Base class for an RL agent."""
     
-    def __init__(self, action_space, hyper_params=None, seed=None):
+    def __init__(self, action_space, hyper_params=None):
         """
         Initialize an agent with a policy.
-
         """
         self.hp = hyper_params
-        self.seed = seed
         self.policy = BasePolicy(action_space)
         
     
@@ -63,12 +60,10 @@ class BaseAgent:
         """
         pass  # Default: No learning
 
-    def reset(self, seed=None):
+    def reset(self, seed):
         """
         Reset the agent's learning state.
         """
-        if seed is not None:
-            self.seed = seed
         self.policy.reset(seed)
     
     def set_hp(self, hp):
@@ -76,6 +71,7 @@ class BaseAgent:
         Update the set of Hyper-Params
         """
         self.hp = hp
+        self.policy.set_hp(hp)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.hp})"

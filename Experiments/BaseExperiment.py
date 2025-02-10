@@ -1,8 +1,7 @@
-import gymnasium as gym
-import numpy as np
 from tqdm import tqdm
 import os
 import pickle
+import random
 
 class BaseExperiment:
     """
@@ -25,7 +24,7 @@ class BaseExperiment:
             os.makedirs(exp_dir, exist_ok=True)
             self.exp_dir = exp_dir
 
-    def run_episode(self, seed=None):
+    def run_episode(self, seed):
         """
         Run a single episode.
         
@@ -38,7 +37,6 @@ class BaseExperiment:
         observation, info = self.env.reset(seed=seed)
         total_reward = 0.0
         steps = 0
-        
         terminated = False
         truncated = False
         
@@ -50,20 +48,21 @@ class BaseExperiment:
             total_reward += reward
             steps += 1
         
-        return {"total_reward": total_reward, "steps": steps}
+        return {"total_reward": total_reward, "steps": steps, "seed": seed}
 
-    def single_run(self, num_episodes=100, seed_offset=0):
+    def _single_run(self, num_episodes, seed):
         """
         Run the experiment for a specified number of episodes.
         
         Returns:
             A list of episode metrics for analysis.
         """
+        self.agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode in pbar:
-            # Use a seed that may be offset to ensure reproducibility.
-            metrics = self.run_episode(seed=episode + seed_offset)
+            # Use a seed to ensure reproducibility.
+            metrics = self.run_episode(episode + seed)
             all_metrics.append(metrics)
                         
             # Update the progress bar.
@@ -71,27 +70,26 @@ class BaseExperiment:
                 "Reward": metrics['total_reward'], 
                 "Steps": metrics['steps']
             })
+        
         return all_metrics
     
-    def multi_run(self, num_runs=10, num_episodes=100, seed_offset=0, dump_metrics=True):
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True):
         """
         Run multiple independent runs of the experiment.
         
         Returns:
             A list of run metrics, where each run's metrics is a list of
             episode metrics.
-        """
+        """            
+
         all_runs_metrics = []
         for run in range(1, num_runs + 1):
             print(f"Starting Run {run}")
             
             # Set a seed offset for this run.
-            seed = run * num_episodes + seed_offset
-            run_metrics = self.single_run(num_episodes, seed_offset=seed)
+            seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset
+            run_metrics = self._single_run(num_episodes, seed)
             all_runs_metrics.append(run_metrics)
-            
-            # Reset the agent's state to ensure independent runs.
-            self.agent.reset(seed=seed)
             
             # Save the metrics for this run.
             if dump_metrics:

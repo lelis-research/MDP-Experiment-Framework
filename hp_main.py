@@ -4,17 +4,19 @@ import optuna
 import datetime
 from Agents.Utils.HyperParams import HyperParameters
 from Experiments.BaseExperiment import BaseExperiment
+from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
 
 def Tune_Hyper_Params(env, agent, hp, hp_range, n_trials=20, num_runs=3, num_episodes=50, seed_offset=1):
     """
     Automatically tune hyper-parameters using Optuna.
     
     Args:
-        env: Either a callable that returns a fresh environment instance or an environment instance.
-        agent_class: The agent class (e.g., QLearningAgent).
+        env: Instance of teh environment
+        agent_class: An instance of the agent
         hp: An instance of HyperParameters containing the default hyper-parameter values.
         n_trials (int): Number of Optuna trials.
-        num_episodes (int): Number of episodes to run per trial.
+        num_runs (int): Number of runs per trial (single hyper-params)
+        num_episodes (int): Number of episodes per run.
         seed_offset (int): A fixed seed for reproducibility.
         
     Returns:
@@ -45,23 +47,20 @@ def Tune_Hyper_Params(env, agent, hp, hp_range, n_trials=20, num_runs=3, num_epi
         tuned_hp = HyperParameters(**new_params)
         agent.set_hp(tuned_hp)
         
-        # Create a fresh environment instance. If env is callable, call it.
-        new_env = env() if callable(env) else env
-
-        # Update agent using the tuned hyper-parameter and reset the agent
-        agent.set_hp(tuned_hp)
-        agent.reset()
 
         # Create a unique logging directory for this trial.
         trial_dir = os.path.join(runs_dir, f"trial_{trial.number}_{agent}")
 
-        experiment = BaseExperiment(new_env, agent, exp_dir=trial_dir)
+        experiment = BaseExperiment(env, agent, exp_dir=trial_dir)
 
         # Run the experiment for a fixed number of episodes.
         metrics = experiment.multi_run(num_episodes=num_episodes,
                                         num_runs=num_runs, 
                                         seed_offset=seed_offset, 
                                         dump_metrics=True)
+        analyzer = SingleExpAnalyzer(metrics)
+        analyzer.save_seeds(save_dir=trial_dir)
+        
         # Compute the  total reward
         rewards = np.array([[episode.get("total_reward") for episode in run]for run in metrics])
         
@@ -83,11 +82,13 @@ def Tune_Hyper_Params(env, agent, hp, hp_range, n_trials=20, num_runs=3, num_epi
 if __name__ == "__main__":
     from Environments.MiniGrid.EmptyGrid import get_empty_grid
     from Agents.TabularAgent.QLearningAgent import QLearningAgent
+    from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
 
     # Create a default HyperParameters instance.
-    default_hp = HyperParameters(alpha=0.1, gamma=0.99, epsilon=0.01)
-    hp_range = {"alpha": [0.01, 0.5],
-                "epsilon": [0.01, 0.1]}
+    default_hp = HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.01, n_steps=2)
+    hp_range = {"step_size": [0.01, 0.5],
+                "epsilon": [0.01, 0.1],
+                "n_steps": [1, 7]}
                 
     env = get_empty_grid(
         render_mode=None,
@@ -95,12 +96,13 @@ if __name__ == "__main__":
         wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
         wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {}]
     )
-    agent = QLearningAgent(env.action_space, default_hp, seed=None)
+    agent = QLearningAgent(env.action_space, default_hp)
 
     # Call the tuning function.
-    best_hp, study, runs_dir = Tune_Hyper_Params(env, agent, default_hp, hp_range,
-                                       n_trials=100, num_runs=3, 
-                                       num_episodes=200, seed_offset=123123)
+    best_hp, study, runs_dir = Tune_Hyper_Params(env, agent, default_hp, 
+                                                 hp_range, n_trials=10, 
+                                                 num_runs=3, num_episodes=20, 
+                                                 seed_offset=1)
     
     print("Best hyper-parameters found:")
     print(best_hp)

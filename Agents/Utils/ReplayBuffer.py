@@ -1,0 +1,23 @@
+import random
+
+class BasicReplayBuffer:
+    def __init__(self, capacity):
+        self.buffer = []
+        self.capacity = capacity
+    
+    @property
+    def size(self):
+        return len(self.buffer)
+    
+    def add_single_item(self, item):
+        self.buffer.append(item)
+        if self.size > self.capacity:
+            self.buffer.pop(0)
+    
+    def get_random_batch(self, batch_size):
+        batch = random.sample(self.buffer, batch_size)
+        return batch
+    
+    def reset(self):
+        self.buffer = []
+    

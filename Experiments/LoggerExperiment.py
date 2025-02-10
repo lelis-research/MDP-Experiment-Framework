@@ -4,6 +4,8 @@ from torch.utils.tensorboard import SummaryWriter
 import os
 from tqdm import tqdm
 import pickle
+import random
+
 class LoggerExperiment(BaseExperiment):
     """
     This class handles running episodes and collecting metrics.
@@ -13,7 +15,7 @@ class LoggerExperiment(BaseExperiment):
         super().__init__(env, agent, exp_dir)
         self.writer = SummaryWriter(log_dir=exp_dir)
     
-    def single_run(self, num_episodes=100, seed_offset=0, run_prefix="run"):
+    def _single_run(self, num_episodes, seed, run_prefix="run"):
         """
         Run the experiment for a specified number of episodes.
         
@@ -27,14 +29,13 @@ class LoggerExperiment(BaseExperiment):
             A list of episode metrics for analysis.
         """
 
-
+        self.agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode in pbar:
-            # Use a seed that may be offset to ensure reproducibility.
-            metrics = self.run_episode(seed=episode + seed_offset)
+            # Use a seed to ensure reproducibility.
+            metrics = self.run_episode(episode + seed)
             all_metrics.append(metrics)
-            
             
             self.writer.add_scalar(f"total_reward/{run_prefix}", 
                                    metrics["total_reward"], episode)
@@ -48,7 +49,7 @@ class LoggerExperiment(BaseExperiment):
             })
         return all_metrics
 
-    def multi_run(self, num_runs=10, num_episodes=100, seed_offset=0, dump_metrics=True):
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True):
         """
         Run multiple independent runs of the experiment.
         
@@ -56,13 +57,15 @@ class LoggerExperiment(BaseExperiment):
             A list of run metrics, where each run's metrics is a list of
             episode metrics.
         """
+
         all_runs_metrics = []
         for run in range(1, num_runs + 1):
             print(f"Starting Run {run}")
             
             # Set a seed offset for this run.
-            seed = run * num_episodes + seed_offset
-            run_metrics = self.single_run(num_episodes, seed_offset=seed, run_prefix=f"run_{run}")
+            seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset 
+            run_metrics = self._single_run(num_episodes, seed)
+
             all_runs_metrics.append(run_metrics)
             
             # Reset the agent's state to ensure independent runs.

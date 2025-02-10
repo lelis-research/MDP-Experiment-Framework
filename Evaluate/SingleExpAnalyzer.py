@@ -92,3 +92,17 @@ class SingleExpAnalyzer:
             fig.savefig(os.path.join(save_dir, "Combined.png"))
         if show:  
             plt.show()
+
+    def save_seeds(self, save_dir):
+        """
+        Shows the seed for each episode for reproducing the results
+        """
+        seed_lst = []
+
+        for r, run in enumerate(self.metrics):
+            for e, episode in enumerate(run):
+                seed = episode.get("seed")
+                seed_lst.append(f"run {r}, episode {e} -> seed = {seed}\n")
+        
+        with open(os.path.join(save_dir, "seed.txt"), "w") as file:
+            file.writelines(seed_lst)
