@@ -1,39 +1,47 @@
-from Environments.MiniGrid.EmptyGrid import get_empty_grid
-
-from Agents.RandomAgent.RandomAgent import RandomAgent
-from Agents.TabularAgent.QLearningAgent import QLearningAgent
-from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
-from Agents.TabularAgent.SarsaAgent import SarsaAgent
-from Agents.TabularAgent.DoubleQLearningAgent import DoubleQLearningAgent
-
-from Agents.DeepAgent.DQNAgent import DQNAgent
-from Agents.DeepAgent.DoubleDQNAgent import DoubleDQNAgent
-from Agents.DeepAgent.ReinforceAgent import ReinforceAgent
-from Agents.DeepAgent.ReinforceWithBaseline import ReinforceAgentWithBaseline
-
-from Agents.Utils.HyperParams import HyperParameters
-
-from Experiments.BaseExperiment import BaseExperiment
-from Experiments.LoggerExperiment import LoggerExperiment
-from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
-
-import pickle
+# main.py
+import argparse
 import os
 import datetime
+from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
+from Experiments.LoggerExperiment import LoggerExperiment
+from Environments.MiniGrid.EmptyGrid import get_empty_grid
+from config import AGENT_DICT
 
-import numpy as np
-import random
-import torch
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--agent",
+        type=str,
+        default="RandomAgent",
+        choices=list(AGENT_DICT.keys()),
+        help="Which agent to run"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=123123,
+        help="Random seed for reproducibility"
+    )
+    parser.add_argument(
+        "--num_runs",
+        type=int,
+        default=3,
+        help="number of runs"
+    )
+    parser.add_argument(
+        "--num_episodes",
+        type=int,
+        default=200,
+        help="number of episode in each run"
+    )
+    args = parser.parse_args()
     
-
-    # Create the environment with any desired wrappers
     runs_dir = "Runs/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    
 
+    # Create the environment
     env = get_empty_grid(
         render_mode=None,
         max_steps=200,
@@ -41,48 +49,17 @@ def main():
         wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {}]
     )
 
-    seed = 5050
-
-    # agent = RandomAgent(env.action_space)
-
-    # hp = HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1)
-    # agent = QLearningAgent(env.action_space, hp)
-
-    # hp = HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1)
-    # agent = SarsaAgent(env.action_space, hp)
-
-    # hp = HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1)
-    # agent = DoubleQLearningAgent(env.action_space, hp)
-
-    # hp = HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1, n_steps=3)
-    # agent = NStepQLearningAgent(env.action_space, hp)
-
-    # hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
-    #                      replay_buffer_cap=512, batch_size=32,
-    #                      target_update_freq=20)
-    # agent = DQNAgent(env.action_space, env.observation_space, hp)
-
-    # hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
-    #                      replay_buffer_cap=512, batch_size=32,
-    #                      target_update_freq=20)
-    # agent = DoubleDQNAgent(env.action_space, env.observation_space, hp)
-
-    hp = HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1)
-    agent = ReinforceAgent(env.action_space, env.observation_space, hp)
-
-    # hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1,
-    #                      actor_step_size=0.001, critic_step_size=0.001)
-    # agent = ReinforceAgentWithBaseline(env.action_space, env.observation_space, hp)
+    # Instantiate the agent using our factory
+    agent = AGENT_DICT[args.agent](env)
 
     # Create and run the experiment
-    exp_name = f"{agent}_seed [{seed}]_{timestamp}"
+    exp_name = f"{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = LoggerExperiment(env, agent, exp_dir)
-    metrics = experiment.multi_run(num_runs=3, num_episodes=1000, seed_offset=seed)    
-    
+    metrics = experiment.multi_run(num_runs=agent.runs, num_episodes=args.num_episodes, seed_offset=args.seed)
 
-    # Analyze and plot the results.
+    # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics)
     analyzer.plot_combined(save_dir=exp_dir)
     analyzer.save_seeds(save_dir=exp_dir)
