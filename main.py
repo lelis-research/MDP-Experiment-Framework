@@ -5,8 +5,12 @@ from Agents.TabularAgent.QLearningAgent import QLearningAgent
 from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
 from Agents.TabularAgent.SarsaAgent import SarsaAgent
 from Agents.TabularAgent.DoubleQLearningAgent import DoubleQLearningAgent
+
 from Agents.DeepAgent.DQNAgent import DQNAgent
 from Agents.DeepAgent.DoubleDQNAgent import DoubleDQNAgent
+from Agents.DeepAgent.ReinforceAgent import ReinforceAgent
+from Agents.DeepAgent.ReinforceWithBaseline import ReinforceAgentWithBaseline
+
 from Agents.Utils.HyperParams import HyperParameters
 
 from Experiments.BaseExperiment import BaseExperiment
@@ -37,7 +41,7 @@ def main():
         wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {}]
     )
 
-    seed = 200
+    seed = 5050
 
     # agent = RandomAgent(env.action_space)
 
@@ -58,17 +62,24 @@ def main():
     #                      target_update_freq=20)
     # agent = DQNAgent(env.action_space, env.observation_space, hp)
 
-    hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
-                         replay_buffer_cap=512, batch_size=32,
-                         target_update_freq=20)
-    agent = DoubleDQNAgent(env.action_space, env.observation_space, hp)
+    # hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
+    #                      replay_buffer_cap=512, batch_size=32,
+    #                      target_update_freq=20)
+    # agent = DoubleDQNAgent(env.action_space, env.observation_space, hp)
+
+    hp = HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1)
+    agent = ReinforceAgent(env.action_space, env.observation_space, hp)
+
+    # hp = HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1,
+    #                      actor_step_size=0.001, critic_step_size=0.001)
+    # agent = ReinforceAgentWithBaseline(env.action_space, env.observation_space, hp)
 
     # Create and run the experiment
     exp_name = f"{agent}_seed [{seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = LoggerExperiment(env, agent, exp_dir)
-    metrics = experiment.multi_run(num_runs=3, num_episodes=400, seed_offset=seed)    
+    metrics = experiment.multi_run(num_runs=3, num_episodes=1000, seed_offset=seed)    
     
 
     # Analyze and plot the results.

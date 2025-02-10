@@ -20,4 +20,7 @@ class BasicReplayBuffer:
     
     def reset(self):
         self.buffer = []
+
+    def get_all(self):
+        return self.buffer
     
