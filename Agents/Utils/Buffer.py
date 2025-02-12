@@ -1,6 +1,6 @@
 import random
 
-class BasicReplayBuffer:
+class BasicBuffer:
     def __init__(self, capacity):
         self.buffer = []
         self.capacity = capacity

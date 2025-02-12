@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
-from Agents.Utils.ReplayBuffer import BasicReplayBuffer
+from Agents.Utils.Buffer import BasicBuffer
 
 
 #########################################
@@ -60,10 +60,21 @@ class DoubleDQNPolicy(BasePolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state = torch.FloatTensor(observation_features).unsqueeze(0)  # add batch dim
+            state = torch.FloatTensor(observation_features)
             with torch.no_grad():
                 q_values = self.online_network(state)
             return int(torch.argmax(q_values, dim=1).item())
+        
+    def select_parallel_actions(self, observations_features):
+        states = torch.FloatTensor(observations_features)
+        with torch.no_grad():
+            q_values = self.online_network(states)
+        actions = torch.argmax(q_values, dim=1)
+
+        rand_indices = np.random.rand(len(actions)) < self.hp.epsilon
+        for i in rand_indices:
+            actions[i] = self.action_space.sample()
+        return np.asarray(actions)
 
     def reset(self, seed):
         super().reset(seed)
@@ -121,7 +132,7 @@ class DoubleDQNAgent(BaseAgent):
         self.action_dim = action_space.n
         
         # Replay buffer
-        self.replay_buffer = BasicReplayBuffer(hyper_params.replay_buffer_cap)
+        self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)
         
         # The policy
         self.policy = DoubleDQNPolicy(
@@ -130,8 +141,6 @@ class DoubleDQNAgent(BaseAgent):
             hyper_params
         )
 
-        self.last_state = None
-        self.last_action = None
     
     def act(self, observation):
         state = self.feature_extractor(observation)
@@ -140,12 +149,22 @@ class DoubleDQNAgent(BaseAgent):
         self.last_action = action
         return action
     
+    def parallel_act(self, observations):
+        # Convert observation to a flat vector.
+        states = self.feature_extractor(observations)
+        actions = self.policy.select_parallel_actions(states)
+        
+        # Store current state and action (for use in update).
+        self.last_state = states
+        self.last_action = actions
+        return actions
+    
     def update(self, observation, reward, terminated, truncated):
-        new_state = self.feature_extractor(observation)
+        state = self.feature_extractor(observation)
         
         # Add to replay buffer
         self.replay_buffer.add_single_item(
-            (self.last_state, self.last_action, reward, new_state, terminated)
+            (self.last_state[0], self.last_action, reward, state[0], terminated)
         )
         
         # Sample random batch if enough data
@@ -153,21 +172,36 @@ class DoubleDQNAgent(BaseAgent):
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
             states, actions, rewards, next_states, dones = zip(*batch)
 
-            states = torch.FloatTensor(np.array(states))
-            actions = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            rewards = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states = torch.FloatTensor(np.array(next_states))
-            dones = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+            states_t = torch.FloatTensor(np.array(states))
+            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
+            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+            next_states_t = torch.FloatTensor(np.array(next_states))
+            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
             
-            self.policy.update(states, actions, rewards, next_states, dones)
+            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
 
-        if terminated or truncated:
-            self.last_state = None
-            self.last_action = None
+    def parallel_update(self, observations, rewards, terminateds, truncateds):
+        num_envs = len(rewards)
+        states = self.feature_extractor(observations)
+        for i in range(num_envs):
+            # Store transition in replay buffer.
+            transition = (self.last_state[i], self.last_action[i], rewards[i], states[i], terminateds[i])
+            self.replay_buffer.add_single_item(transition)
+        
+        # Sample random batch if enough data
+        if self.replay_buffer.size >= self.hp.batch_size:
+            batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
+            states, actions, rewards, next_states, dones = zip(*batch)
+
+            states_t = torch.FloatTensor(np.array(states))
+            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
+            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+            next_states_t = torch.FloatTensor(np.array(next_states))
+            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+            
+            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
 
     def reset(self, seed):
         super().reset(seed)
         self.feature_extractor.reset(seed)
         self.replay_buffer.reset()
-        self.last_state = None
-        self.last_action = None

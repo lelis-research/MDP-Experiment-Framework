@@ -21,6 +21,19 @@ class BasePolicy:
         """
         raise NotImplementedError("This method should be implemented by subclasses.")
     
+    def select_parallel_actions(self, observations):
+        """
+        Given numpy array of parallel observations, return a numpy array of actions
+        This must be implemented by subclasses.
+        
+        Args:
+            observations: The states from the environment.
+        
+        Returns:
+            Actions to take.
+        """
+        raise NotImplementedError("This method should be implemented by subclasses.")
+    
     def reset(self, seed):
         self.action_space.seed(seed)
         
@@ -53,7 +66,23 @@ class BaseAgent:
         """
         return self.policy.select_action(observation)
     
+    def parallel_act(self, observations):
+        """
+        Select actions in parallel environments
+        
+        Returns:
+            An action chosen by the policy.
+        """
+        return self.policy.select_parallel_actions(observations)
+    
     def update(self, observation, reward, terminated, truncated):
+        """
+        Update the agent (e.g., learning step).
+        This should be implemented by learning agents.
+        """
+        pass  # Default: No learning
+
+    def parallel_update(self, observations, rewards, terminateds, truncateds):
         """
         Update the agent (e.g., learning step).
         This should be implemented by learning agents.

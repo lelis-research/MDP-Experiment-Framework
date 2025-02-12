@@ -9,8 +9,9 @@ from torch.distributions import Categorical
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
+from Agents.Utils.Buffer import BasicBuffer
 
-class PolicyNetwork(nn.Module):
+class ActorNetwork(nn.Module):
     def __init__(self, input_dim, action_dim, hidden_size=128):
         super().__init__()
         self.fc1 = nn.Linear(input_dim, hidden_size)
@@ -24,9 +25,6 @@ class PolicyNetwork(nn.Module):
         logits = self.fc3(x)  # We'll pass them to Categorical(logits=...)
         return logits
 
-###############################################################################
-# The Policy class: Stores episode log_probs, rewards, does a Monte Carlo update.
-###############################################################################
 class ReinforcePolicy(BasePolicy):
     """
     A pure REINFORCE policy (no baseline). We store all log_probs and rewards
@@ -54,67 +52,54 @@ class ReinforcePolicy(BasePolicy):
         super().reset(seed)
         
         # Build the policy network
-        self.network = PolicyNetwork(self.features_dim, self.action_dim)
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
-
-        # Per-episode storage
-        self.episode_log_probs = []
-        self.episode_rewards = []
+        self.actor_network = ActorNetwork(self.features_dim, self.action_dim)
+        self.actor_optimizer = optim.Adam(self.actor_network.parameters(), lr=self.hp.step_size)
 
     def select_action(self, observation_features):
         """
         Sample an action from the policy distribution (Categorical).
         Store the log_prob for the update.
         """
-        state_t = torch.FloatTensor(observation_features).unsqueeze(0)
-        logits = self.network(state_t)  # shape [1, action_dim]
+        state_t = torch.FloatTensor(observation_features)
+        logits = self.actor_network(state_t) 
         
         dist = Categorical(logits=logits)
         action = dist.sample()
         
         # Store the log_prob
         log_prob = dist.log_prob(action)
-        self.episode_log_probs.append(log_prob)
         
-        return action.item()
+        return action.item(), log_prob
 
-    def store_reward(self, reward):
-        """
-        Track the immediate reward for each time step.
-        """
-        self.episode_rewards.append(reward)
-
-    def finish_episode(self):
+    def update(self, log_probs, rewards):
         """
         Once an episode ends, compute discounted returns and do the policy update.
         """
         #Compute discounted returns from the end of the episode to the beginning
-        returns = []
-        G = 0.0
-        for r in reversed(self.episode_rewards):
-            G = r + self.hp.gamma * G
-            returns.insert(0, G)
+        returns = self.calculate_returns(rewards, 0.0)
         returns = torch.FloatTensor(returns)
 
         # (Optional) Normalize returns to help training stability
         returns = (returns - returns.mean()) / (returns.std() + 1e-8)
 
         # Compute the policy loss:  -(sum of log_probs * returns)
-        log_probs_t = torch.stack(self.episode_log_probs)  # shape [T]
-        policy_loss = - (log_probs_t * returns).sum()
+        policy_loss = - (log_probs * returns).sum()
 
         # Backprop
         self.optimizer.zero_grad()
         policy_loss.backward()
         self.optimizer.step()
 
-        # Clear episode storage
-        self.episode_log_probs = []
-        self.episode_rewards = []
+    def calculate_returns(self, rollout_rewards, bootstrap_value):
+        returns = []
+        G = bootstrap_value
+        for r in reversed(rollout_rewards):
+            G = r + self.hp.gamma * G
+            returns.append(G)
+        return returns
 
-###############################################################################
-# The Agent class: integrates the policy with the environment loop.
-###############################################################################
+
+
 class ReinforceAgent(BaseAgent):
     """
     Minimal REINFORCE agent for discrete actions, no baseline.
@@ -122,20 +107,22 @@ class ReinforceAgent(BaseAgent):
     def __init__(self, action_space, observation_space, hyper_params):
         super().__init__(action_space, hyper_params)
 
-        # Flatten the observation
         self.feature_extractor = FLattenFeature(observation_space)
-
-        # Create the policy
         self.policy = ReinforcePolicy(
             action_space,
             self.feature_extractor.features_dim,
             hyper_params
         )
+        self.rollout_buffer = BasicBuffer(np.inf)
         
     def act(self, observation):
         # Convert observation to features, select an action stochastically
-        features = self.feature_extractor(observation)
-        action = self.policy.select_action(features)
+        state = self.feature_extractor(observation)
+        action, log_prob = self.policy.select_action(state)
+
+        self.last_state = state
+        self.last_action = action
+        self.last_log_prob = log_prob
         return action
 
     def update(self, observation, reward, terminated, truncated):
@@ -143,10 +130,19 @@ class ReinforceAgent(BaseAgent):
         Called each time-step by the experiment loop. We store the reward,
         and if the episode ends, we do a policy update.
         """
-        self.policy.store_reward(reward)
+        state = self.feature_extractor(observation)
+        transition = (self.last_action, self.last_log_prob, reward, terminated)
+        self.rollout_buffer.add_single_item(transition)
 
         if terminated or truncated:
-            self.policy.finish_episode()
+            rollout = self.rollout_buffer.get_all()
+            actions, log_probs, rewards, dones = zip(*rollout)
+            
+            log_probs_t = torch.stack(log_probs)
+            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+
+            self.policy.update(log_probs_t, rewards_t)    
+            self.rollout_buffer.reset()
 
     def reset(self, seed):
         """
@@ -154,3 +150,4 @@ class ReinforceAgent(BaseAgent):
         """
         super().reset(seed)
         self.feature_extractor.reset(seed)
+        self.rollout_buffer.reset()

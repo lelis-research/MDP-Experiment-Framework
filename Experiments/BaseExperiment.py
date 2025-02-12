@@ -34,7 +34,7 @@ class BaseExperiment:
         Returns:
             A dictionary containing metrics such as total_reward and steps.
         """
-        observation, info = self.env.reset(seed=seed)
+        observation, info = self.env.reset(seed=seed) 
         total_reward = 0.0
         steps = 0
         terminated = False

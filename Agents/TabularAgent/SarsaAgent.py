@@ -40,6 +40,21 @@ class SarsaPolicy(BasePolicy):
             # ...otherwise, choose the action with the highest Q-value.
             return int(np.argmax(self.q_table[state]))
 
+    def select_parallel_actions(self, observations):
+        actions = []
+        for observation in observations:
+            state = get_state(observation)
+            if state not in self.q_table:
+                self.q_table[state] = np.zeros(self.action_space.n)
+
+            # With probability epsilon choose a random action...
+            if random.random() < self.hp.epsilon:
+                actions.append(self.action_space.sample())
+            else:
+                # ...otherwise, choose the action with the highest Q-value.
+                actions.append(int(np.argmax(self.q_table[state])))
+        return np.asarray(actions)
+    
     def update(self, last_observation, last_action, observation, reward, terminated, truncated):
         # Convert the new observation to a discrete state.
         state = get_state(observation)
@@ -81,10 +96,6 @@ class SarsaAgent(BaseAgent):
         """
         super().__init__(action_space, hyper_params)
 
-        # Store the last state and action so we can do the SARSA update
-        self.last_observation = None
-        self.last_action = None
-
         # Create the SARSA policy
         self.policy = SarsaPolicy(action_space, hyper_params)
 
@@ -97,6 +108,12 @@ class SarsaAgent(BaseAgent):
         self.last_observation = observation
         self.last_action = action
         return action
+    
+    def parallel_act(self, observations):
+        actions = self.policy.select_parallel_actions(observations)
+        self.last_actions = actions
+        self.last_observations = observations
+        return actions
 
     def update(self, observation, reward, terminated, truncated):
         """
@@ -110,14 +127,15 @@ class SarsaAgent(BaseAgent):
         """
         self.policy.update(self.last_observation, self.last_action, observation, reward, terminated, truncated)
 
-        if terminated or truncated:
-            self.last_observation = None
-            self.last_action = None
-
-    def reset(self, seed):
-        """
-        Reset the agent and policy for a new experimental run.
-        """
-        super().reset(seed)
-        self.last_observation = None
-        self.last_action = None
+    def parallel_update(self, observations, rewards, terminateds, truncateds):
+        num_envs = len(rewards)  # or observations.shape[0]
+        for i in range(num_envs):
+            # Do the same tabular Q-Learning update as the single-env version
+            self.policy.update(
+                last_observation=self.last_observations[i],
+                last_action=self.last_actions[i],
+                observation=observations[i],
+                reward=rewards[i],
+                terminated=terminateds[i],
+                truncated=truncateds[i]  
+            )

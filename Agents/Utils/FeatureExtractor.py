@@ -10,7 +10,11 @@ class FLattenFeature:
         return int(np.prod(self.observation_space.shape))
     
     def __call__(self, observation):
-        return observation.flatten()
+        if len(observation.shape) == 1:
+            observation = np.expand_dims(observation, axis=0) # add batch dimension
+
+        flatten_observation = observation.reshape(observation.shape[0], -1) 
+        return flatten_observation
     
     def update(self):
         pass

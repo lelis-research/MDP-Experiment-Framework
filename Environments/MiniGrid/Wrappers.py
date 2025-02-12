@@ -7,6 +7,7 @@ from minigrid.core.constants import IDX_TO_OBJECT
 
 
 
+
 class StepRewardWrapper(RewardWrapper):
     def __init__(self, env, step_reward=0):
         super().__init__(env)
@@ -58,3 +59,4 @@ WRAPPING_TO_WRAPPER = {
     "CompactAction": CompactActionWrapper,
     "FlattenOnehotObj": FlatOnehotObjectObsWrapper,
 }
+

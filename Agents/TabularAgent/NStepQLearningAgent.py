@@ -118,16 +118,3 @@ class NStepQLearningAgent(QLearningAgent):
         
         # Create the n-step Q-Learning policy.
         self.policy = NStepQLearningPolicy(action_space, hyper_params)
-   
-    def update(self, observation, reward, terminated, truncated):
-        """
-        Update the Q-table using the n‑step Q‑Learning update rule.
-        """
-
-        self.policy.update(self.last_observation, self.last_action, observation, reward, terminated, truncated)
-       
-        if terminated or truncated:
-            self.last_state = None
-            self.last_action = None
-    
-        

@@ -48,6 +48,24 @@ class DoubleQLearningPolicy(BasePolicy):
             # Otherwise choose action that maximizes Q1 + Q2
             q_sum = self.q1_table[state] + self.q2_table[state]
             return int(np.argmax(q_sum))
+    
+    def select_parallel_actions(self, observations):
+        actions = []
+        for observation in observations:
+            state = get_state(observation)
+            if state not in self.q1_table:
+                self.q1_table[state] = np.zeros(self.action_space.n)
+            if state not in self.q2_table:
+                self.q2_table[state] = np.zeros(self.action_space.n)
+
+            # With probability epsilon choose a random action...
+            if random.random() < self.hp.epsilon:
+                actions.append(self.action_space.sample())
+            else:
+                # Otherwise choose action that maximizes Q1 + Q2
+                q_sum = self.q1_table[state] + self.q2_table[state]
+                actions.append(int(np.argmax(q_sum)))
+        return np.asarray(actions)
 
     def update(self, last_observation, last_action, observation, reward, terminated, truncated):
         """
@@ -105,9 +123,6 @@ class DoubleQLearningAgent(BaseAgent):
         """
         super().__init__(action_space, hyper_params)
 
-        self.last_observation = None
-        self.last_action = None
-
         # Create the policy that implements Double Q-learning logic
         self.policy = DoubleQLearningPolicy(action_space, hyper_params)
 
@@ -119,6 +134,12 @@ class DoubleQLearningAgent(BaseAgent):
         self.last_observation = observation
         self.last_action = action
         return action
+    
+    def parallel_act(self, observations):
+        actions = self.policy.select_parallel_actions(observations)
+        self.last_actions = actions
+        self.last_observations = observations
+        return actions
 
     def update(self, observation, reward, terminated, truncated):
         """
@@ -126,11 +147,15 @@ class DoubleQLearningAgent(BaseAgent):
         """
         self.policy.update(self.last_observation, self.last_action, observation, reward, terminated, truncated)
 
-        if terminated or truncated:
-            self.last_observation = None
-            self.last_action = None
-
-    def reset(self, seed):
-        super().reset(seed)
-        self.last_observation = None
-        self.last_action = None
+    def parallel_update(self, observations, rewards, terminateds, truncateds):
+        num_envs = len(rewards)  # or observations.shape[0]
+        for i in range(num_envs):
+            # Do the same tabular Q-Learning update as the single-env version
+            self.policy.update(
+                last_observation=self.last_observations[i],
+                last_action=self.last_actions[i],
+                observation=observations[i],
+                reward=rewards[i],
+                terminated=terminateds[i],
+                truncated=truncateds[i]  
+            )

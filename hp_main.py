@@ -112,7 +112,7 @@ def tune_hyperparameters(
 
 # --- EXAMPLE USAGE ---
 if __name__ == "__main__":
-    from Environments.MiniGrid.EmptyGrid import get_empty_grid
+    from Environments.MiniGrid.GetEnvironment import get_empty_grid
     from Agents.TabularAgent.QLearningAgent import QLearningAgent
 
     # Default hyperparameters

@@ -9,7 +9,7 @@ from torch.distributions import Categorical
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
-from Agents.Utils.ReplayBuffer import BasicReplayBuffer
+from Agents.Utils.Buffer import BasicBuffer
 
 
 class ActorNetwork(nn.Module):
@@ -57,7 +57,6 @@ class ReinforcePolicyWithBaseline(BasePolicy):
       2) update ValueNetwork (the baseline),
       3) use advantage = (G_t - V(s_t)) in the policy gradient.
     """
-
     def __init__(self, action_space, features_dim, hyper_params):
         """
         Args:
@@ -85,80 +84,59 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         self.value_optimizer = optim.Adam(self.value_network.parameters(), lr=self.hp.critic_step_size)
 
 
-        # We'll store the entire episode trajectory
-        self.episode_states = []
-        self.episode_log_probs = []
-        self.episode_rewards = []
-
     def select_action(self, observation_features):
         """
         Sample an action from the policy distribution (Categorical).
         We'll return the action and store the log_prob for the update.
         """
-        state_t = torch.FloatTensor(observation_features).unsqueeze(0)  # shape [1, features_dim]
-        logits = self.actor_network(state_t)  # shape [1, action_dim]
+        state_t = torch.FloatTensor(observation_features)
+        logits = self.actor_network(state_t) 
         
-        # Convert logits -> categorical distribution
-        dist = Categorical(logits=logits)  # applies softmax internally
-        action = dist.sample()  # shape [1]
+        dist = Categorical(logits=logits)
+        action = dist.sample()
         
-        # Store the log_prob for this action
+        # Store the log_prob
         log_prob = dist.log_prob(action)
-
-        self.episode_states.append(observation_features)
-        self.episode_log_probs.append(log_prob)
         
-        return action.item()
+        return action.item(), log_prob
 
-    def store_reward(self, reward):
-        """
-        We'll call this at each step to track rewards.
-        """
-        self.episode_rewards.append(reward)
-
-    def finish_episode(self):
+    def update(self, states, log_probs, rewards):
         """
         End of episode => compute returns, train the baseline, do the policy gradient update with advantage.
         """
         # Compute discounted returns from the end of the episode to the beginning
-        returns = []
-        G = 0.0
-        for r in reversed(self.episode_rewards):
-            G = r + self.hp.gamma * G
-            returns.insert(0, G)
-        returns_t = torch.FloatTensor(returns)  # shape [T]
-
+        returns = self.calculate_returns(rewards, 0.0)
+        returns = torch.FloatTensor(returns)
         
-
         # Critic update: we train the value network V(s) to approximate the returns
         #    value_loss = MSE(returns_t, V(s))
-        states_t = torch.FloatTensor(np.asarray(self.episode_states))      # shape [T, features_dim]
-        predicted_values = self.value_network(states_t)         # shape [T]
-        value_loss = F.mse_loss(predicted_values, returns_t)
-
+        predicted_values = self.value_network(states)   
+       
         # Backprop Critic
+        value_loss = F.mse_loss(predicted_values, returns)
         self.value_optimizer.zero_grad()
         value_loss.backward()
         self.value_optimizer.step()
 
         # Compute advantage: A_t = G_t - V(s_t)
         with torch.no_grad():
-            updated_values = self.value_network(states_t)       # shape [T]
-        advantages = returns_t - updated_values                 # shape [T]
+            updated_values = self.value_network(states)      
+        advantages = returns - updated_values                
 
         # Policy update:  - sum( log_prob_t * advantage_t )
-        log_probs_t = torch.stack(self.episode_log_probs)      # shape [T]
-        policy_loss = - (log_probs_t * advantages).sum()
-
         # Backprop Actor
+        policy_loss = - (log_probs * advantages).sum()
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
 
-        # Clear episode storage
-        self.episode_states = []
-        self.episode_log_probs = []
-        self.episode_rewards = []
+    def calculate_returns(self, rollout_rewards, bootstrap_value):
+        returns = []
+        G = bootstrap_value
+        for r in reversed(rollout_rewards):
+            G = r + self.hp.gamma * G
+            returns.append(G)
+        return returns
 
 
 class ReinforceAgentWithBaseline(BaseAgent):
@@ -168,37 +146,51 @@ class ReinforceAgentWithBaseline(BaseAgent):
     """
 
     def __init__(self, action_space, observation_space, hyper_params):
-        super().__init__(action_space, hyper_params)
-        
+        BaseAgent.__init__(action_space, hyper_params)
+
         self.feature_extractor = FLattenFeature(observation_space)
         self.policy = ReinforcePolicyWithBaseline(
             action_space,
             self.feature_extractor.features_dim,
             hyper_params
         )
+        self.rollout_buffer = BasicBuffer(np.inf)
 
     def act(self, observation):
-        """
-        Convert observation to features, then let the policy pick an action stochastically.
-        """
-        features = self.feature_extractor(observation)
-        action = self.policy.select_action(features)
+        # Convert observation to features, select an action stochastically
+        state = self.feature_extractor(observation)
+        action, log_prob = self.policy.select_action(state)
+
+        self.last_state = state
+        self.last_action = action
+        self.last_log_prob = log_prob
         return action
     
     def update(self, observation, reward, terminated, truncated):
         """
         Called every step by the experiment loop:
-        - We store the reward in the policy
         - If the episode ends, do a policy gradient update
         """
-        self.policy.store_reward(reward)
+        state = self.feature_extractor(observation)
+        transition = (self.last_state[0], self.last_action, self.last_log_prob, reward, terminated)
+        self.rollout_buffer.add_single_item(transition)
 
         if terminated or truncated:
-            self.policy.finish_episode()
-    
+            rollout = self.rollout_buffer.get_all()
+            states, actions, log_probs, rewards, dones = zip(*rollout)
+
+            states_t = torch.FloatTensor(np.array(states))
+            log_probs_t = torch.stack(log_probs)
+            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+            states_t = torch.FloatTensor(np.array(states))
+
+            self.policy.update(states_t, log_probs_t, rewards_t)    
+            self.rollout_buffer.reset()
+
     def reset(self, seed):
         """
-        Reset for a new run or new experiment.
+        Reset the agent at the start of a new run (multiple seeds).
         """
         super().reset(seed)
         self.feature_extractor.reset(seed)
+        self.rollout_buffer.reset()
