@@ -96,7 +96,7 @@ def tune_hyperparameters(
             for run in metrics
         ])
         avg_reward_over_runs = np.mean(rewards, axis=0)
-        ind = int(len(avg_reward_over_runs) * ratio)
+        ind = int(len(avg_reward_over_runs) * ratio) - 1
         avg_reward = np.mean(np.mean(rewards, axis=0)[ind:])
 
         # Since we want to maximize reward, but Optuna (in 'minimize' mode) looks
@@ -132,13 +132,13 @@ def main(default_hp, hp_range):
     parser.add_argument(
         "--num_configs",
         type=int,
-        default=3,
+        default=300,
         help="number of Hyper-Params to try"
     )
     parser.add_argument(
         "--num_runs",
         type=int,
-        default=1,
+        default=2,
         help="number of runs per each Hyper-Params"
     )
     parser.add_argument(
@@ -224,8 +224,8 @@ if __name__ == "__main__":
 
     # Define parameter search ranges
     hp_range = {
-        "step_size": [0.01, 0.5],
-        "epsilon": [0.01, 0.1],
+        "step_size": [0.001, 0.5],
+        "epsilon": [0.01, 0.5],
         "n_steps": [1, 7]
     }
 

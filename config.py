@@ -50,7 +50,7 @@ AGENT_DICT = {
     "NStepQLearning": lambda env: NStepQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1, n_steps=4),
+        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.01, n_steps=1),
         get_num_envs(env)
     ),
     "DQN": lambda env: DQNAgent(
