@@ -88,7 +88,6 @@ class PPOPolicy(BasePolicy):
 
         return action.item(), log_prob.detach(), value.detach()
         
-
     def update(self, states, actions, log_probs, values, rewards, next_states, dones):
         # Compute the bootstrapped n-step returns
         if dones[-1].item():  # i.e. last step was terminal
@@ -144,15 +143,6 @@ class PPOPolicy(BasePolicy):
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
 
-    
-    def calculate_returns(self, rollout_rewards, bootstrap_value):
-        returns = []
-        G = bootstrap_value
-        for r in reversed(rollout_rewards):
-            G = r + self.hp.gamma * G
-            # returns.append(G)
-            returns.insert(0, G)
-        return returns
 
 class PPOAgent(BaseAgent):
     """
@@ -212,7 +202,6 @@ class PPOAgent(BaseAgent):
                                dones_t)
             self.rollout_buffer.reset()
             
-
     def reset(self, seed):
         super().reset(seed)
         self.feature_extractor.reset(seed)

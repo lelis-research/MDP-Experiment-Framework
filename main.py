@@ -14,7 +14,7 @@ def main():
     parser.add_argument(
         "--agent",
         type=str,
-        default="RandomAgent",
+        default="Random",
         choices=list(AGENT_DICT.keys()),
         help="Which agent to run"
     )
@@ -49,6 +49,7 @@ def main():
         default=1,
         help="number of parallel environments"
     )
+    
     args = parser.parse_args()
     runs_dir = "Runs/"
     if not os.path.exists(runs_dir):

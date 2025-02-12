@@ -2,10 +2,14 @@ import os
 import datetime
 import numpy as np
 import optuna
+import argparse
 
 from Agents.Utils.HyperParams import HyperParameters
 from Experiments.BaseExperiment import BaseExperiment
+from Experiments.ParallelExperiment import ParallelExperiment
 from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
+from Environments.MiniGrid.GetEnvironment import *
+from config import AGENT_DICT
 
 
 def tune_hyperparameters(
@@ -13,6 +17,9 @@ def tune_hyperparameters(
     agent,
     default_hp,
     hp_range,
+    exp_dir,
+    exp_class,
+    ratio=0.5,
     n_trials=20,
     num_runs=3,
     num_episodes=50,
@@ -39,12 +46,7 @@ def tune_hyperparameters(
     """
     # Convert the default hyperparameters into a dict so we can tweak them.
     base_params = default_hp.to_dict()
-
-    # Create a timestamped directory for logging results.
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    runs_dir = f"Runs/Tuning/{agent.__class__.__name__}_{timestamp}"
-    os.makedirs(runs_dir, exist_ok=True)
-
+    
     def objective(trial):
         """
         Objective function for Optuna. Samples hyperparameters within the given ranges,
@@ -72,11 +74,11 @@ def tune_hyperparameters(
         agent.set_hp(tuned_hp)
 
         # Create a unique logging directory for this trial
-        trial_dir = os.path.join(runs_dir, f"trial_{trial.number}_{agent.__class__.__name__}")
+        trial_dir = os.path.join(exp_dir, f"trial_{trial.number}_{agent.__class__.__name__}")
         os.makedirs(trial_dir, exist_ok=True)
 
         # Run the experiment
-        experiment = BaseExperiment(env, agent, exp_dir=trial_dir)
+        experiment = exp_class(env, agent, exp_dir=trial_dir)
         metrics = experiment.multi_run(
             num_episodes=num_episodes,
             num_runs=num_runs,
@@ -88,12 +90,14 @@ def tune_hyperparameters(
         analyzer = SingleExpAnalyzer(metrics)
         analyzer.save_seeds(save_dir=trial_dir)
 
-        # Compute the average of the last 20 episodes' total reward across runs
+        # Compute the average of the last $ratio episodes' total reward across runs
         rewards = np.array([
             [episode.get("total_reward") for episode in run] 
             for run in metrics
         ])
-        avg_reward = np.mean(np.mean(rewards, axis=0)[-20:])
+        avg_reward_over_runs = np.mean(rewards, axis=0)
+        ind = int(len(avg_reward_over_runs) * ratio)
+        avg_reward = np.mean(np.mean(rewards, axis=0)[ind:])
 
         # Since we want to maximize reward, but Optuna (in 'minimize' mode) looks
         # for the lowest value, we return the negative of the average reward
@@ -107,14 +111,109 @@ def tune_hyperparameters(
     best_params = study.best_trial.params
     best_hp = HyperParameters(**best_params)
 
-    return best_hp, study, runs_dir
+    return best_hp, study
 
+def main(default_hp, hp_range):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--agent",
+        type=str,
+        default="Random",
+        choices=list(AGENT_DICT.keys()),
+        help="Which agent to run"
+    )
+    parser.add_argument(
+        "--env_name",
+        type=str,
+        default="MiniGrid-Empty-5x5-v0",
+        choices=ENV_LST,
+        help="which environment"
+    )
+    parser.add_argument(
+        "--num_configs",
+        type=int,
+        default=3,
+        help="number of Hyper-Params to try"
+    )
+    parser.add_argument(
+        "--num_runs",
+        type=int,
+        default=1,
+        help="number of runs per each Hyper-Params"
+    )
+    parser.add_argument(
+        "--num_episodes",
+        type=int,
+        default=200,
+        help="number of episode in each run"
+    )
+    parser.add_argument(
+        "--num_envs",
+        type=int,
+        default=1,
+        help="number of parallel environments"
+    )
+    parser.add_argument(
+        "--metric_ratio",
+        type=float,
+        default=0.5,
+        help="Ratio of the last episode to consider"
+    )
+    args = parser.parse_args()
+    runs_dir = f"Runs/Tuning"
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Environment creation
+    if args.num_envs == 1:
+        env = get_single_env(
+            env_name=args.env_name,
+            render_mode=None,
+            max_steps=200,
+            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
+            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
+        )
+        experiment_class = BaseExperiment
+
+    elif args.num_envs > 1:
+        env = get_parallel_env(
+            env_name=args.env_name,
+            num_envs=args.num_envs,
+            render_mode=None,
+            max_steps=200,
+            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
+            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
+        )
+        experiment_class = ParallelExperiment
+
+    # Instantiate agent with default hyperparameters
+    agent = AGENT_DICT[args.agent](env)
+
+    exp_name = f"{agent.__class__.__name__}_{timestamp}"
+    exp_dir = os.path.join(runs_dir, exp_name)
+
+    # Run tuning
+    best_hp, study = tune_hyperparameters(
+        env,
+        agent,
+        default_hp,
+        hp_range,
+        exp_dir=exp_dir,
+        exp_class=experiment_class,
+        ratio=args.metric_ratio,
+        n_trials=args.num_configs,
+        num_runs=args.num_runs,
+        num_episodes=args.num_episodes,
+        seed_offset=1
+    )
+
+    print("Best hyperparameters found:")
+    print(best_hp)
+    print(f"Study logs saved at: {runs_dir}")
 
 # --- EXAMPLE USAGE ---
 if __name__ == "__main__":
-    from Environments.MiniGrid.GetEnvironment import get_empty_grid
-    from Agents.TabularAgent.QLearningAgent import QLearningAgent
-
     # Default hyperparameters
     default_hp = HyperParameters(
         step_size=0.1,
@@ -130,29 +229,5 @@ if __name__ == "__main__":
         "n_steps": [1, 7]
     }
 
-    # Environment creation
-    env = get_empty_grid(
-        render_mode=None,
-        max_steps=200,
-        wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
-        wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {}]
-    )
-
-    # Instantiate agent with default hyperparameters
-    agent = QLearningAgent(env.action_space, default_hp)
-
-    # Run tuning
-    best_hp, study, runs_dir = tune_hyperparameters(
-        env,
-        agent,
-        default_hp,
-        hp_range,
-        n_trials=10,
-        num_runs=3,
-        num_episodes=20,
-        seed_offset=1
-    )
-
-    print("Best hyperparameters found:")
-    print(best_hp)
-    print(f"Study logs saved at: {runs_dir}")
+    main(default_hp, hp_range)
+    
