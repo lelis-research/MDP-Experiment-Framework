@@ -86,16 +86,17 @@ class ReinforcePolicy(BasePolicy):
         policy_loss = - (log_probs * returns).sum()
 
         # Backprop
-        self.optimizer.zero_grad()
+        self.actor_optimizer.zero_grad()
         policy_loss.backward()
-        self.optimizer.step()
+        self.actor_optimizer.step()
 
     def calculate_returns(self, rollout_rewards, bootstrap_value):
         returns = []
         G = bootstrap_value
         for r in reversed(rollout_rewards):
             G = r + self.hp.gamma * G
-            returns.append(G)
+            # returns.append(G)
+            returns.insert(0, G)
         return returns
 
 
