@@ -1,15 +1,7 @@
 import numpy as np
 import random
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-
-def get_state(observation):
-    """
-    Helper function to convert an observation (assumed to be a NumPy array)
-    into a hashable (discrete) state representation.
-    """
-    # Flatten the observation and convert to tuple.
-    # You can customize this if you need a different discretization.
-    return tuple(observation.flatten().tolist())
+from Agents.Utils.FeatureExtractor import TabularFeature
 
 class SarsaPolicy(BasePolicy):
     """
@@ -24,12 +16,10 @@ class SarsaPolicy(BasePolicy):
             - step_size
     """
 
-    def select_action(self, observation):
+    def select_action(self, state):
         """
         Epsilon-greedy action selection based on Q-values.
         """
-        state = get_state(observation)
-        
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_space.n)
 
@@ -39,37 +29,17 @@ class SarsaPolicy(BasePolicy):
         else:
             # ...otherwise, choose the action with the highest Q-value.
             return int(np.argmax(self.q_table[state]))
-
-    def select_parallel_actions(self, observations):
-        actions = []
-        for observation in observations:
-            state = get_state(observation)
-            if state not in self.q_table:
-                self.q_table[state] = np.zeros(self.action_space.n)
-
-            # With probability epsilon choose a random action...
-            if random.random() < self.hp.epsilon:
-                actions.append(self.action_space.sample())
-            else:
-                # ...otherwise, choose the action with the highest Q-value.
-                actions.append(int(np.argmax(self.q_table[state])))
-        return np.asarray(actions)
     
-    def update(self, last_observation, last_action, observation, reward, terminated, truncated):
-        # Convert the new observation to a discrete state.
-        state = get_state(observation)
+    def update(self, last_state, last_action, state, reward, terminated, truncated):
         if state not in self.q_table:
                 self.q_table[state] = np.zeros(self.action_space.n)
         
-        # If episode ended, the target is just the reward
         if terminated:
             target = reward
         else:
-            # Next action is the one the policy *would* pick in the new state
-            next_action = self.select_action(observation)            
+            next_action = self.select_action(state)            
             target = reward + self.hp.gamma * self.q_table[state][next_action]
 
-        last_state = get_state(last_observation)
         # Update Q-value
         self.q_table[last_state][last_action] += self.hp.step_size * \
             (target - self.q_table[last_state][last_action])
@@ -82,10 +52,7 @@ class SarsaPolicy(BasePolicy):
         self.q_table = {}
 
 class SarsaAgent(BaseAgent):
-    """
-    A Tabular SARSA agent. Uses the SarsaPolicy for selecting and updating Q-values.
-    """
-    def __init__(self, action_space, hyper_params):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
         """
         Args:
             action_space: The environment's action space (assumed gym.spaces.Discrete)
@@ -94,48 +61,19 @@ class SarsaAgent(BaseAgent):
                 - gamma
                 - step_size        
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
 
-        # Create the SARSA policy
+        self.feature_extractor = TabularFeature(observation_space)
         self.policy = SarsaPolicy(action_space, hyper_params)
 
     def act(self, observation):
-        """
-        Select an action via the SARSA policy's epsilon-greedy strategy.
-        """
-        action = self.policy.select_action(observation)
+        state = self.feature_extractor(observation)
+        action = self.policy.select_action(state)
 
-        self.last_observation = observation
+        self.last_state = state
         self.last_action = action
         return action
     
-    def parallel_act(self, observations):
-        actions = self.policy.select_parallel_actions(observations)
-        self.last_actions = actions
-        self.last_observations = observations
-        return actions
-
     def update(self, observation, reward, terminated, truncated):
-        """
-        Update the policy.
-        
-        Args:
-            observation: The new observation after the action.
-            reward: The reward received after taking the action.
-            terminated: Whether the episode terminated.
-            truncated: Whether the episode was truncated.
-        """
-        self.policy.update(self.last_observation, self.last_action, observation, reward, terminated, truncated)
-
-    def parallel_update(self, observations, rewards, terminateds, truncateds):
-        num_envs = len(rewards)  # or observations.shape[0]
-        for i in range(num_envs):
-            # Do the same tabular Q-Learning update as the single-env version
-            self.policy.update(
-                last_observation=self.last_observations[i],
-                last_action=self.last_actions[i],
-                observation=observations[i],
-                reward=rewards[i],
-                terminated=terminateds[i],
-                truncated=truncateds[i]  
-            )
+        state = self.feature_extractor(observation)
+        self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated)

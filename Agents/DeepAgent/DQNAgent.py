@@ -48,7 +48,7 @@ class DQNPolicy(BasePolicy):
         self.features_dim = features_dim
         self.action_dim = action_space.n
          
-    def select_action(self, observation_features):
+    def select_action(self, state):
         """
         Select an action based on epsilon-greedy policy.
         """
@@ -58,23 +58,10 @@ class DQNPolicy(BasePolicy):
         else:
             # Convert features to a PyTorch tensor.
             # Assume features are a flat NumPy array.
-            state = torch.FloatTensor(observation_features)
+            state_t = torch.FloatTensor(state)
             with torch.no_grad():
-                q_values = self.network(state)
+                q_values = self.network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
-    
-    def select_parallel_actions(self, observations_features):
-        states = torch.FloatTensor(observations_features)
-        with torch.no_grad():
-            q_values = self.network(states)
-        actions = torch.argmax(q_values, dim=1).cpu().numpy()
-        
-        # This is how we handle epsilon greedy
-        rand_indices = np.random.rand(len(actions)) < self.hp.epsilon
-        for i in rand_indices:
-            actions[i] = self.action_space.sample()
-        return np.asarray(actions)
-
     
     def reset(self, seed):
         super().reset(seed)
@@ -89,15 +76,21 @@ class DQNPolicy(BasePolicy):
         self.loss_fn = nn.MSELoss()
         
     def update(self, states, actions, rewards, next_states, dones):
+        states_t = torch.FloatTensor(np.array(states))
+        actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
+        rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+        next_states_t = torch.FloatTensor(np.array(next_states))
+        dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+        
         # Compute Q-values for current states using the online network.
-        q_values = self.network(states).gather(1, actions)
+        qvalues_t = self.network(states_t).gather(1, actions_t)
 
         # Compute target Q-values using the target network.
         with torch.no_grad():
-            next_q_values = self.target_network(next_states).max(1)[0].unsqueeze(1)
-            target = rewards + self.hp.gamma * (1 - dones) * next_q_values
+            bootstrap_value_t = self.target_network(next_states_t).max(1)[0].unsqueeze(1)
+            target_t = rewards_t + self.hp.gamma * (1 - dones_t) * bootstrap_value_t
         
-        loss = self.loss_fn(q_values, target)
+        loss = self.loss_fn(qvalues_t, target_t)
         
         self.optimizer.zero_grad()
         loss.backward()
@@ -114,7 +107,7 @@ class DQNAgent(BaseAgent):
     """
     Deep Q-Network (DQN) agent.
     """
-    def __init__(self, action_space, observation_space, hyper_params):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
         """
         Args:
             action_space: The environment's action space (assumed to be Discrete).
@@ -127,11 +120,11 @@ class DQNAgent(BaseAgent):
                 - batch_size
                 - target_update_freq
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
         
         self.feature_extractor = FLattenFeature(observation_space)
         self.action_dim = action_space.n
-        
+
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
         
@@ -153,16 +146,6 @@ class DQNAgent(BaseAgent):
         self.last_action = action
         return action
     
-    def parallel_act(self, observations):
-        # Convert observation to a flat vector.
-        states = self.feature_extractor(observations)
-        actions = self.policy.select_parallel_actions(states)
-        
-        # Store current state and action (for use in update).
-        self.last_state = states
-        self.last_action = actions
-        return actions
-    
     def update(self, observation, reward, terminated, truncated):
         """
         Called at every time step.
@@ -173,7 +156,7 @@ class DQNAgent(BaseAgent):
         
         # Process the new observation.
         state = self.feature_extractor(observation)
-       
+
         # Store transition in replay buffer.
         transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
         self.replay_buffer.add_single_item(transition)
@@ -182,34 +165,7 @@ class DQNAgent(BaseAgent):
         if self.replay_buffer.size >= self.hp.batch_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
             states, actions, rewards, next_states, dones = zip(*batch)
-            
-            states_t = torch.FloatTensor(np.array(states))
-            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states_t = torch.FloatTensor(np.array(next_states))
-            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
-    
-    def parallel_update(self, observations, rewards, terminateds, truncateds):
-        # Process the new observation.
-        num_envs = len(rewards)
-        states = self.feature_extractor(observations)
-        for i in range(num_envs):
-            # Store transition in replay buffer.
-            transition = (self.last_state[i], self.last_action[i], rewards[i], states[0], terminateds[i])
-            self.replay_buffer.add_single_item(transition)
-
-        # Perform a learning step if there are enough samples.
-        if self.replay_buffer.size >= self.hp.batch_size:
-            batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, rewards, next_states, dones = zip(*batch)
-            
-            states_t = torch.FloatTensor(np.array(states))
-            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states_t = torch.FloatTensor(np.array(next_states))
-            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
+            self.policy.update(states, actions, rewards, next_states, dones)
           
     def reset(self, seed):        
         """

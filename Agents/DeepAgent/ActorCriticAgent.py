@@ -10,7 +10,7 @@ from torch.distributions import Categorical
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
-
+from Agents.Utils.HelperFunction import *
 class ActorNetwork(nn.Module):
     """
     Outputs logits for a discrete action distribution.
@@ -77,77 +77,73 @@ class ActorCriticPolicy(BasePolicy):
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 
 
-    def select_action(self, observation_features):
+    def select_action(self, state):
         """
         Sample an action from actor's logits, store log_prob for advantage update.
         """
-        state_t = torch.FloatTensor(observation_features)
+        state_t = torch.FloatTensor(state)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
-        action = dist.sample()
+        action_t = dist.sample()
 
-        log_prob = dist.log_prob(action)
+        log_prob_t = dist.log_prob(action_t)
 
-        return action.item(), log_prob
+        return action_t.item(), log_prob_t
 
-    def update(self, states, actions, log_probs, rewards, next_states, dones):
+    def update(self, states, log_probs, rewards, next_states, dones):
         """
         All inputs are tensors
         Perform an n-step A2C update using the rollout buffer.
         1) We compute the n-step returns (or if the rollout ends, the full return).
         2) Critic update: fit V(s) to these returns (or bootstrapped from V(s_{t+n})).
         3) Actor update: advantage = returns - V(s). Maximize log_prob * advantage.
-        """        
-        # Compute the bootstrapped n-step returns
-        if dones[-1]:  # i.e. last step was terminal
-            returns = self.calculate_returns(rewards, 0.0) #bootstrap with 0
-        else:
-            with torch.no_grad():
-                next_values = self.critic(next_states)
-            returns = self.calculate_returns(rewards, next_values[-1].item()) #bootstrap from last state
+        """     
+        states_t = torch.FloatTensor(np.array(states))
+        log_probs_t = torch.stack(log_probs)
+        next_states_t = torch.FloatTensor(np.array(next_states))
+           
+        with torch.no_grad():
+            #bootstrap from the last state if not terminated
+            bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
         
-        returns = torch.FloatTensor(returns) 
-        values_t = self.critic(states)  
+        returns = calculate_n_step_returns(rewards, bootstrap_value, self.hp.gamma)
+        returns_t = torch.FloatTensor(returns) 
+
+        predicted_values_t = self.critic(states_t)  
 
         # Critic Loss: MSE( V(s), returns )
-        critic_loss = F.mse_loss(values_t, returns)
-
+        critic_loss = F.mse_loss(predicted_values_t, returns_t)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        # 3) Actor Loss: -log_probs_t * advantage
-        #    advantage = returns_t - V(s)
+        
+        #  advantage = returns_t - V(s)
         with torch.no_grad():
-            updated_values_t = self.critic(states)
-        advantages_t = returns - updated_values_t
+            predicted_values_t = self.critic(states_t)
+        advantages_t = returns_t - predicted_values_t
 
-        actor_loss = - (log_probs * advantages_t).sum()
-
+        #  Actor Loss: -log_probs_t * advantage
+        actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
-    def calculate_returns(self, rollout_rewards, bootstrap_value):
-        returns = []
-        G = bootstrap_value
-        for r in reversed(rollout_rewards):
-            G = r + self.hp.gamma * G
-            returns.append(G)
-        return returns
     
 class ActorCriticAgent(BaseAgent):
     """
     An Advantage Actor-Critic agent using a single environment + n-step rollouts.
     """
-    def __init__(self, action_space, observation_space, hyper_params):
-        super().__init__(action_space, hyper_params)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = FLattenFeature(observation_space)
+        
         self.policy = ActorCriticPolicy(
             action_space, 
             self.feature_extractor.features_dim, 
             hyper_params
         )
+        
         self.rollout_buffer = BasicBuffer(np.inf)
 
     def act(self, observation):
@@ -162,31 +158,23 @@ class ActorCriticAgent(BaseAgent):
         self.last_log_prob = log_prob
         return action
 
+
     def update(self, observation, reward, terminated, truncated):
         """
         Called every step. We store the transition. If we hit n_steps or the episode ends,
         we do an update. 
         """
-
         state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_action, self.last_log_prob, 
+        transition = (self.last_state[0], self.last_log_prob, 
                       reward, state[0], terminated)
         self.rollout_buffer.add_single_item(transition)
 
         # If we've collected n_steps or the episode ended, do an A2C update
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:
             rollout = self.rollout_buffer.get_all()
-            states, actions, log_probs, rewards, next_states, dones = zip(*rollout)
+            states, log_probs, rewards, next_states, dones = zip(*rollout)
             
-            states_t = torch.FloatTensor(np.array(states))
-            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            log_probs_t = torch.stack(log_probs)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states_t = torch.FloatTensor(np.array(next_states))
-            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-            
-            self.policy.update(states_t, actions_t, log_probs_t, rewards_t, next_states_t, dones_t)
-            
+            self.policy.update(states, log_probs, rewards, next_states, dones)
             self.rollout_buffer.reset()
 
 

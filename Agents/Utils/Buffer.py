@@ -23,4 +23,10 @@ class BasicBuffer:
 
     def get_all(self):
         return self.buffer
+
+    def remove_oldest(self):
+        return self.buffer.pop(0)
+    
+    def get_oldest(self):
+        return self.buffer[0]
     

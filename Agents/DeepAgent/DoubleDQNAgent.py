@@ -9,9 +9,6 @@ from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 
 
-#########################################
-# Define the Q-Network used by DoubleDQN #
-#########################################
 class DoubleDQNNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DoubleDQNNetwork, self).__init__()
@@ -24,9 +21,7 @@ class DoubleDQNNetwork(nn.Module):
         x = torch.relu(self.fc2(x))
         return self.fc3(x)
     
-##################################################
-# Define the DoubleDQNPolicy using epsilon-greedy #
-##################################################
+
 class DoubleDQNPolicy(BasePolicy):
     """
     Epsilon-greedy policy for Double DQN.
@@ -53,29 +48,18 @@ class DoubleDQNPolicy(BasePolicy):
         self.features_dim = features_dim
         self.action_dim = action_space.n
 
-    def select_action(self, observation_features):
+    def select_action(self, state):
         """
         Epsilon-greedy action selection.
         """
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state = torch.FloatTensor(observation_features)
+            state_t = torch.FloatTensor(state)
             with torch.no_grad():
-                q_values = self.online_network(state)
+                q_values = self.online_network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
         
-    def select_parallel_actions(self, observations_features):
-        states = torch.FloatTensor(observations_features)
-        with torch.no_grad():
-            q_values = self.online_network(states)
-        actions = torch.argmax(q_values, dim=1)
-
-        rand_indices = np.random.rand(len(actions)) < self.hp.epsilon
-        for i in rand_indices:
-            actions[i] = self.action_space.sample()
-        return np.asarray(actions)
-
     def reset(self, seed):
         super().reset(seed)
 
@@ -95,21 +79,27 @@ class DoubleDQNPolicy(BasePolicy):
           1) a_star = argmax_a Q_online(next_states, a)
           2) target = r + gamma * Q_target(next_states, a_star)
         """
+        states_t = torch.FloatTensor(np.array(states))
+        actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
+        rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
+        next_states_t = torch.FloatTensor(np.array(next_states))
+        dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+        
         # Q(s, a) with the online network
-        q_values = self.online_network(states).gather(1, actions)
+        qvalues_t = self.online_network(states_t).gather(1, actions_t)
 
         with torch.no_grad():
             # 1) pick best actions wrt the *online* network
-            online_next_q = self.online_network(next_states)
-            best_actions = torch.argmax(online_next_q, dim=1, keepdim=True)  # shape [batch, 1]
+            next_qvalues_t = self.online_network(next_states_t)
+            best_actions = torch.argmax(next_qvalues_t, dim=1, keepdim=True)  # shape [batch, 1]
 
             # 2) evaluate these best actions on the *target* network
-            target_q = self.target_network(next_states).gather(1, best_actions)
+            bootstrap_value_t = self.target_network(next_states_t).gather(1, best_actions)
 
             # compute target
-            target = rewards + self.hp.gamma * (1 - dones) * target_q
+            target_t = rewards_t + self.hp.gamma * (1 - dones_t) * bootstrap_value_t
         
-        loss = self.loss_fn(q_values, target)
+        loss = self.loss_fn(qvalues_t, target_t)
         
         self.optimizer.zero_grad()
         loss.backward()
@@ -119,15 +109,13 @@ class DoubleDQNPolicy(BasePolicy):
         if self.update_counter % self.hp.target_update_freq == 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
 
-######################################
-# The DoubleDQNAgent
-######################################
+
 class DoubleDQNAgent(BaseAgent):
     """
     Double DQN agent with experience replay & target network.
     """
-    def __init__(self, action_space, observation_space, hyper_params):
-        super().__init__(action_space, hyper_params)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = FLattenFeature(observation_space)
         self.action_dim = action_space.n
         
@@ -149,16 +137,6 @@ class DoubleDQNAgent(BaseAgent):
         self.last_action = action
         return action
     
-    def parallel_act(self, observations):
-        # Convert observation to a flat vector.
-        states = self.feature_extractor(observations)
-        actions = self.policy.select_parallel_actions(states)
-        
-        # Store current state and action (for use in update).
-        self.last_state = states
-        self.last_action = actions
-        return actions
-    
     def update(self, observation, reward, terminated, truncated):
         state = self.feature_extractor(observation)
         
@@ -171,35 +149,7 @@ class DoubleDQNAgent(BaseAgent):
         if self.replay_buffer.size >= self.hp.batch_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
             states, actions, rewards, next_states, dones = zip(*batch)
-
-            states_t = torch.FloatTensor(np.array(states))
-            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states_t = torch.FloatTensor(np.array(next_states))
-            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-            
-            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
-
-    def parallel_update(self, observations, rewards, terminateds, truncateds):
-        num_envs = len(rewards)
-        states = self.feature_extractor(observations)
-        for i in range(num_envs):
-            # Store transition in replay buffer.
-            transition = (self.last_state[i], self.last_action[i], rewards[i], states[i], terminateds[i])
-            self.replay_buffer.add_single_item(transition)
-        
-        # Sample random batch if enough data
-        if self.replay_buffer.size >= self.hp.batch_size:
-            batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, rewards, next_states, dones = zip(*batch)
-
-            states_t = torch.FloatTensor(np.array(states))
-            actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            next_states_t = torch.FloatTensor(np.array(next_states))
-            dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-            
-            self.policy.update(states_t, actions_t, rewards_t, next_states_t, dones_t)
+            self.policy.update(states, actions, rewards, next_states, dones)
 
     def reset(self, seed):
         super().reset(seed)

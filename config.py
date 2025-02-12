@@ -19,63 +19,81 @@ def get_env_action_space(env):
 def get_env_observation_space(env):
     return env.single_observation_space if hasattr(env, 'single_observation_space') else env.observation_space
 
+def get_num_envs(env):
+    return env.num_envs if hasattr(env, 'num_envs') else 1
 
 AGENT_DICT = {
-    "RandomAgent": lambda env: RandomAgent(
-        get_env_action_space(env)
-    ),
-    "QLearningAgent": lambda env: QLearningAgent(
+    "Random": lambda env: RandomAgent(
         get_env_action_space(env), 
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1)
+        get_env_observation_space(env),
+        None,
+        get_num_envs(env)
     ),
-    "SarsaAgent": lambda env: SarsaAgent(
+    "QLearning": lambda env: QLearningAgent(
         get_env_action_space(env), 
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1)
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
+        get_num_envs(env)
     ),
-    "DoubleQLearningAgent": lambda env: DoubleQLearningAgent(
+    "Sarsa": lambda env: SarsaAgent(
         get_env_action_space(env), 
-        HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1)
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
+        get_num_envs(env)
     ),
-    "NStepQLearningAgent": lambda env: NStepQLearningAgent(
+    "DoubleQLearning": lambda env: DoubleQLearningAgent(
         get_env_action_space(env), 
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1, n_steps=3)
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1),
+        get_num_envs(env)
     ),
-    "DQNAgent": lambda env: DQNAgent(
+    "NStepQLearning": lambda env: NStepQLearningAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1, n_steps=4),
+        get_num_envs(env)
+    ),
+    "DQN": lambda env: DQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
-                        target_update_freq=20)
+                        target_update_freq=20),
+        get_num_envs(env)
     ),
-    "DoubleDQNAgent": lambda env: DoubleDQNAgent(
+    "DoubleDQN": lambda env: DoubleDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
-                        target_update_freq=20)
+                        target_update_freq=20),
+        get_num_envs(env)
     ),
-    "ReinforceAgent": lambda env: ReinforceAgent(
+    "Reinforce": lambda env: ReinforceAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1),
+        get_num_envs(env)
     ),
-    "ReinforceAgentWithBaseline": lambda env: ReinforceAgentWithBaseline(
+    "ReinforceWithBaseline": lambda env: ReinforceAgentWithBaseline(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1,
-                        actor_step_size=0.001, critic_step_size=0.001)
+                        actor_step_size=0.001, critic_step_size=0.001),
+        get_num_envs(env)
     ),
-    "ActorCriticAgent": lambda env: ActorCriticAgent(
+    "ActorCritic": lambda env: ActorCriticAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
-                        actor_step_size=0.001, critic_step_size=0.001)
+                        actor_step_size=0.001, critic_step_size=0.001),
+        get_num_envs(env)
     ),
     "PPOAgent": lambda env: PPOAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, clip_range=0.2,
-                        batch_size=4, rollout_steps=4, num_epochs=1,
+                        batch_size=256, rollout_steps=1024, num_epochs=1,
                         actor_step_size=3e-4, critic_step_size=3e-4, 
                         value_loss_coef=0.5, entropy_coef=0.0)
     )

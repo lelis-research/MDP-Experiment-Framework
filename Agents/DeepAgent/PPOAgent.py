@@ -75,7 +75,6 @@ class PPOPolicy(BasePolicy):
         We'll store them in the rollout buffer.
         """
         state_t = torch.FloatTensor(observation_features)
-
         # Actor forward
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
@@ -92,7 +91,7 @@ class PPOPolicy(BasePolicy):
 
     def update(self, states, actions, log_probs, values, rewards, next_states, dones):
         # Compute the bootstrapped n-step returns
-        if dones[-1]:  # i.e. last step was terminal
+        if dones[-1].item():  # i.e. last step was terminal
             returns = self.calculate_returns(rewards, 0.0) #bootstrap with 0
         else:
             with torch.no_grad():
@@ -107,7 +106,7 @@ class PPOPolicy(BasePolicy):
         indices = np.arange(n)
         for _ in range(self.hp.num_epochs):
             np.random.shuffle(indices)
-            for start in range(0, n, self.hp.batch_size):
+            for start in range(0, n, self.hp.batch_size):                
                 idx = indices[start:start + self.hp.batch_size]
 
                 b_states = states[idx]           # shape [batch, input_dim]
@@ -151,7 +150,8 @@ class PPOPolicy(BasePolicy):
         G = bootstrap_value
         for r in reversed(rollout_rewards):
             G = r + self.hp.gamma * G
-            returns.append(G)
+            # returns.append(G)
+            returns.insert(0, G)
         return returns
 
 class PPOAgent(BaseAgent):
@@ -210,6 +210,8 @@ class PPOAgent(BaseAgent):
             self.policy.update(states_t, actions_t, log_probs_t, 
                                values_t, rewards_t, next_states_t,
                                dones_t)
+            self.rollout_buffer.reset()
+            
 
     def reset(self, seed):
         super().reset(seed)

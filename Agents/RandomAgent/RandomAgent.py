@@ -14,8 +14,8 @@ class RandomPolicy(BasePolicy):
 class RandomAgent(BaseAgent):
     """An agent that follows a RandomPolicy."""
     
-    def __init__(self, action_space, hyper_params=None):
-        super().__init__(action_space, hyper_params)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.policy = RandomPolicy(action_space)
         
         

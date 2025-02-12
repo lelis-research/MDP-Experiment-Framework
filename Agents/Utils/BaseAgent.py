@@ -49,11 +49,15 @@ class BasePolicy:
 class BaseAgent:
     """Base class for an RL agent."""
     
-    def __init__(self, action_space, hyper_params=None):
+    def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None):
         """
         Initialize an agent with a policy.
         """
         self.hp = hyper_params
+        self.action_space = action_space
+        self.observation_space = observation_space
+        self.num_envs = num_envs
+
         self.policy = BasePolicy(action_space)
         
     

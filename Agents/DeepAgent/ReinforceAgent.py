@@ -10,6 +10,7 @@ from torch.distributions import Categorical
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
+from Agents.Utils.HelperFunction import *
 
 class ActorNetwork(nn.Module):
     def __init__(self, input_dim, action_dim, hidden_size=128):
@@ -55,60 +56,53 @@ class ReinforcePolicy(BasePolicy):
         self.actor_network = ActorNetwork(self.features_dim, self.action_dim)
         self.actor_optimizer = optim.Adam(self.actor_network.parameters(), lr=self.hp.step_size)
 
-    def select_action(self, observation_features):
+    def select_action(self, state):
         """
         Sample an action from the policy distribution (Categorical).
         Store the log_prob for the update.
         """
-        state_t = torch.FloatTensor(observation_features)
+        state_t = torch.FloatTensor(state)
         logits = self.actor_network(state_t) 
         
         dist = Categorical(logits=logits)
-        action = dist.sample()
+        action_t = dist.sample()
         
         # Store the log_prob
-        log_prob = dist.log_prob(action)
+        log_prob_t = dist.log_prob(action_t)
         
-        return action.item(), log_prob
+        return action_t.item(), log_prob_t
 
     def update(self, log_probs, rewards):
         """
         Once an episode ends, compute discounted returns and do the policy update.
         """
+        log_probs_t = torch.stack(log_probs)
+
         #Compute discounted returns from the end of the episode to the beginning
-        returns = self.calculate_returns(rewards, 0.0)
-        returns = torch.FloatTensor(returns)
+        returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
+        returns_t = torch.FloatTensor(returns)
 
         # (Optional) Normalize returns to help training stability
-        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+        # Made the performance much worse !
+        # returns_t = (returns_t - returns_t.mean()) / (returns_t.std() + 1e-8)
 
         # Compute the policy loss:  -(sum of log_probs * returns)
-        policy_loss = - (log_probs * returns).sum()
+        policy_loss = - (log_probs_t * returns_t).sum()
 
         # Backprop
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
 
-    def calculate_returns(self, rollout_rewards, bootstrap_value):
-        returns = []
-        G = bootstrap_value
-        for r in reversed(rollout_rewards):
-            G = r + self.hp.gamma * G
-            # returns.append(G)
-            returns.insert(0, G)
-        return returns
-
-
-
 class ReinforceAgent(BaseAgent):
     """
     Minimal REINFORCE agent for discrete actions, no baseline.
     """
-    def __init__(self, action_space, observation_space, hyper_params):
-        super().__init__(action_space, hyper_params)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
 
         self.feature_extractor = FLattenFeature(observation_space)
+
         self.policy = ReinforcePolicy(
             action_space,
             self.feature_extractor.features_dim,
@@ -131,18 +125,14 @@ class ReinforceAgent(BaseAgent):
         Called each time-step by the experiment loop. We store the reward,
         and if the episode ends, we do a policy update.
         """
-        state = self.feature_extractor(observation)
-        transition = (self.last_action, self.last_log_prob, reward, terminated)
+        transition = (self.last_log_prob, reward)
         self.rollout_buffer.add_single_item(transition)
 
         if terminated or truncated:
             rollout = self.rollout_buffer.get_all()
-            actions, log_probs, rewards, dones = zip(*rollout)
-            
-            log_probs_t = torch.stack(log_probs)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-
-            self.policy.update(log_probs_t, rewards_t)    
+            log_probs, rewards = zip(*rollout)
+        
+            self.policy.update(log_probs, rewards)    
             self.rollout_buffer.reset()
 
     def reset(self, seed):

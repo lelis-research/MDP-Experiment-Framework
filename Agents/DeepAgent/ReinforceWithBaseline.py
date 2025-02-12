@@ -10,7 +10,7 @@ from torch.distributions import Categorical
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
-
+from Agents.Utils.HelperFunction import *
 
 class ActorNetwork(nn.Module):
     """
@@ -80,63 +80,59 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         self.actor_optimizer = optim.Adam(self.actor_network.parameters(), lr=self.hp.actor_step_size)
 
         # Critic (value) network & optimizer
-        self.value_network = ValueNetwork(self.features_dim)
-        self.value_optimizer = optim.Adam(self.value_network.parameters(), lr=self.hp.critic_step_size)
+        self.critic_network = ValueNetwork(self.features_dim)
+        self.critic_optimizer = optim.Adam(self.critic_network.parameters(), lr=self.hp.critic_step_size)
 
-
-    def select_action(self, observation_features):
+    def select_action(self, state):
         """
         Sample an action from the policy distribution (Categorical).
         We'll return the action and store the log_prob for the update.
         """
-        state_t = torch.FloatTensor(observation_features)
+        state_t = torch.FloatTensor(state)
         logits = self.actor_network(state_t) 
         
         dist = Categorical(logits=logits)
-        action = dist.sample()
+        action_t = dist.sample()
         
         # Store the log_prob
-        log_prob = dist.log_prob(action)
+        log_prob_t = dist.log_prob(action_t)
         
-        return action.item(), log_prob
+        return action_t.item(), log_prob_t
 
     def update(self, states, log_probs, rewards):
         """
         End of episode => compute returns, train the baseline, do the policy gradient update with advantage.
         """
-        # Compute discounted returns from the end of the episode to the beginning
-        returns = self.calculate_returns(rewards, 0.0)
-        returns = torch.FloatTensor(returns)
+        states_t = torch.FloatTensor(np.array(states))
+        log_probs_t = torch.stack(log_probs)
         
+        # Compute discounted returns from the end of the episode to the beginning
+        returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
+        returns_t = torch.FloatTensor(returns)
+        
+        # (Optional) Normalize returns to help training stability
+        # Made the performance much worse !
+        # returns_t = (returns_t - returns_t.mean()) / (returns_t.std() + 1e-8)
+
         # Critic update: we train the value network V(s) to approximate the returns
-        #    value_loss = MSE(returns_t, V(s))
-        predicted_values = self.value_network(states)   
+        predicted_values_t = self.critic_network(states_t)   
        
         # Backprop Critic
-        value_loss = F.mse_loss(predicted_values, returns)
-        self.value_optimizer.zero_grad()
-        value_loss.backward()
-        self.value_optimizer.step()
+        critic_loss = F.mse_loss(predicted_values_t, returns_t)
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
 
         # Compute advantage: A_t = G_t - V(s_t)
         with torch.no_grad():
-            updated_values = self.value_network(states)      
-        advantages = returns - updated_values                
+            predicted_values_t = self.critic_network(states_t)      
+        advantages_t = returns_t - predicted_values_t                
 
         # Policy update:  - sum( log_prob_t * advantage_t )
-        # Backprop Actor
-        policy_loss = - (log_probs * advantages).sum()
+        actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()
-        policy_loss.backward()
+        actor_loss.backward()
         self.actor_optimizer.step()
-
-    def calculate_returns(self, rollout_rewards, bootstrap_value):
-        returns = []
-        G = bootstrap_value
-        for r in reversed(rollout_rewards):
-            G = r + self.hp.gamma * G
-            returns.append(G)
-        return returns
 
 
 class ReinforceAgentWithBaseline(BaseAgent):
@@ -145,10 +141,11 @@ class ReinforceAgentWithBaseline(BaseAgent):
     to reduce variance => 'Actor + Baseline'.
     """
 
-    def __init__(self, action_space, observation_space, hyper_params):
-        BaseAgent.__init__(action_space, hyper_params)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+        BaseAgent.__init__(action_space, observation_space, hyper_params, num_envs)
 
         self.feature_extractor = FLattenFeature(observation_space)
+
         self.policy = ReinforcePolicyWithBaseline(
             action_space,
             self.feature_extractor.features_dim,
@@ -162,7 +159,6 @@ class ReinforceAgentWithBaseline(BaseAgent):
         action, log_prob = self.policy.select_action(state)
 
         self.last_state = state
-        self.last_action = action
         self.last_log_prob = log_prob
         return action
     
@@ -171,20 +167,13 @@ class ReinforceAgentWithBaseline(BaseAgent):
         Called every step by the experiment loop:
         - If the episode ends, do a policy gradient update
         """
-        state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_action, self.last_log_prob, reward, terminated)
+        transition = (self.last_state[0], self.last_log_prob, reward)
         self.rollout_buffer.add_single_item(transition)
 
         if terminated or truncated:
             rollout = self.rollout_buffer.get_all()
-            states, actions, log_probs, rewards, dones = zip(*rollout)
-
-            states_t = torch.FloatTensor(np.array(states))
-            log_probs_t = torch.stack(log_probs)
-            rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-            states_t = torch.FloatTensor(np.array(states))
-
-            self.policy.update(states_t, log_probs_t, rewards_t)    
+            states, log_probs, rewards, = zip(*rollout)
+            self.policy.update(states, log_probs, rewards)    
             self.rollout_buffer.reset()
 
     def reset(self, seed):
