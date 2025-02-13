@@ -44,7 +44,7 @@ class CriticNetwork(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         value = self.fc3(x)
-        return value.squeeze(-1)  # shape [batch]
+        return value
 
 
 class PPOPolicy(BasePolicy):
@@ -80,11 +80,15 @@ class PPOPolicy(BasePolicy):
         state_t = torch.FloatTensor(state)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
+        
         action_t = dist.sample()
         log_prob_t = dist.log_prob(action_t)
-        return action_t.item(), log_prob_t
+        with torch.no_grad():
+            value_t = self.critic(state_t)
 
-    def update(self, states, actions, old_log_probs, rewards, next_states, dones):
+        return action_t.item(), log_prob_t.detach(), value_t
+
+    def update(self, states, actions, old_log_probs, states_values, rewards, next_states, dones):
         """
         Perform a PPO update using the collected rollout buffer.
         
@@ -98,53 +102,52 @@ class PPOPolicy(BasePolicy):
         """
         states_t = torch.FloatTensor(np.array(states))
         actions_t = torch.LongTensor(np.array(actions))
-        old_log_probs_t = torch.stack(old_log_probs)
+        log_probs_t = torch.stack(old_log_probs)
+        states_values_t = torch.stack(states_values)
         next_states_t = torch.FloatTensor(np.array(next_states))
         
         # Compute n-step returns (with bootstrapping from the critic)
         with torch.no_grad():
             bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
         returns = calculate_n_step_returns(rewards, bootstrap_value, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns)
+        returns_t = torch.FloatTensor(returns).unsqueeze(1) #Correct the dims
         
-        # Compute advantages (using a simple baseline subtraction)
-        with torch.no_grad():
-            predicted_values_t = self.critic(states_t)
-        advantages_t = returns_t - predicted_values_t
-        advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
+        advantages_t = (returns_t - states_values_t)
+        # advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
         
-        dataset_size = states_t.shape[0]
-        indices = np.arange(dataset_size)
-        
+        datasize = len(states)
+        indices = np.arange(datasize)
         # Perform multiple PPO epochs over the rollout
         for epoch in range(self.hp.num_epochs):
             np.random.shuffle(indices)
-            for start in range(0, dataset_size, self.hp.mini_batch_size):
+            for start in range(0, datasize, self.hp.mini_batch_size):
                 batch_indices = indices[start:start + self.hp.mini_batch_size]
+
                 batch_states = states_t[batch_indices]
-                batch_actions = actions_t[batch_indices]
-                batch_old_log_probs = old_log_probs_t[batch_indices]
+                batch_actions = actions_t[batch_indices]                
                 batch_advantages = advantages_t[batch_indices]
                 batch_returns = returns_t[batch_indices]
-                
+                batch_log_prob = log_probs_t[batch_indices]
+
                 # Recompute action probabilities under current policy
                 logits = self.actor(batch_states)
                 dist = Categorical(logits=logits)
-                new_log_probs = dist.log_prob(batch_actions)
+                new_log_probs_t = dist.log_prob(batch_actions).unsqueeze(1) # Correct the dims
+                entropy = dist.entropy().unsqueeze(1) # Correct the dims            
                 
                 # Calculate the probability ratio (new / old)
-                ratio = torch.exp(new_log_probs - batch_old_log_probs)
-                surr1 = ratio * batch_advantages
-                surr2 = torch.clamp(ratio, 1 - self.hp.clip_range, 1 + self.hp.clip_range) * batch_advantages
-                actor_loss = -torch.min(surr1, surr2).mean() - self.hp.entropy_coef * dist.entropy().mean()
+                ratios = torch.exp(new_log_probs_t - batch_log_prob)
+                surr1 = ratios * batch_advantages
+                surr2 = torch.clamp(ratios, 1 - self.hp.clip_range, 1 + self.hp.clip_range) * batch_advantages
+                actor_loss = -torch.min(surr1, surr2) - self.hp.entropy_coef * entropy
                 
                 self.actor_optimizer.zero_grad()
-                actor_loss.backward()
+                actor_loss.mean().backward()
                 self.actor_optimizer.step()
                 
                 # Critic update: MSE loss between predicted state value and the n-step return
-                values_pred = self.critic(batch_states)
-                critic_loss = F.mse_loss(values_pred, batch_returns)
+                new_state_values_t = self.critic(batch_states)
+                critic_loss = F.mse_loss(new_state_values_t, batch_returns)
                 self.critic_optimizer.zero_grad()
                 critic_loss.backward()
                 self.critic_optimizer.step()
@@ -174,11 +177,12 @@ class PPOAgent(BaseAgent):
         Sample an action from the current policy.
         """
         state = self.feature_extractor(observation)
-        action, log_prob = self.policy.select_action(state)
+        action, log_prob, state_value = self.policy.select_action(state)
         
         self.last_state = state
         self.last_action = action
         self.last_log_prob = log_prob
+        self.last_state_value = state_value
         return action
 
     def update(self, observation, reward, terminated, truncated):
@@ -189,16 +193,14 @@ class PPOAgent(BaseAgent):
         state = self.feature_extractor(observation)
         # Store the transition tuple: (state, action, log_prob, reward, next_state, done)
         transition = (self.last_state[0], self.last_action, self.last_log_prob, 
-                      reward, state[0], terminated)
+                      self.last_state_value[0], reward, state[0], terminated)
         self.rollout_buffer.add_single_item(transition)
         
         # Update if rollout is complete or the episode has ended.
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:
-            print(self.rollout_buffer.size)
-            exit(0)
             rollout = self.rollout_buffer.get_all()
-            states, actions, log_probs, rewards, next_states, dones = zip(*rollout)
-            self.policy.update(states, actions, log_probs, rewards, next_states, dones)
+            states, actions, log_probs, states_values, rewards, next_states, dones = zip(*rollout)
+            self.policy.update(states, actions, log_probs, states_values, rewards, next_states, dones)
             self.rollout_buffer.reset()
 
     def reset(self, seed):
