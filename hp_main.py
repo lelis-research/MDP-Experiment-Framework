@@ -190,7 +190,7 @@ def main(default_hp, hp_range):
     # Instantiate agent with default hyperparameters
     agent = AGENT_DICT[args.agent](env)
 
-    exp_name = f"{agent.__class__.__name__}_{timestamp}"
+    exp_name = f"{agent.__class__.__name__}_{args.env_name}_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     # Run tuning

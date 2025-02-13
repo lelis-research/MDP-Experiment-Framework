@@ -45,7 +45,7 @@ class CriticNetwork(nn.Module):
         return value.squeeze(-1)  # shape [batch]
 
 
-class ActorCriticPolicy(BasePolicy):
+class A2CPolicyV2(BasePolicy):
     """
     Advantage Actor-Critic policy for discrete actions with single-env n-step rollout.
     """
@@ -85,12 +85,10 @@ class ActorCriticPolicy(BasePolicy):
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
+        
+        return action_t.item()
 
-        log_prob_t = dist.log_prob(action_t)
-
-        return action_t.item(), log_prob_t
-
-    def update(self, states, log_probs, rewards, next_states, dones):
+    def update(self, states, actions, rewards, next_states, dones):
         """
         All inputs are tensors
         Perform an n-step A2C update using the rollout buffer.
@@ -98,10 +96,17 @@ class ActorCriticPolicy(BasePolicy):
         2) Critic update: fit V(s) to these returns (or bootstrapped from V(s_{t+n})).
         3) Actor update: advantage = returns - V(s). Maximize log_prob * advantage.
         """     
+        
         states_t = torch.FloatTensor(np.array(states))
-        log_probs_t = torch.stack(log_probs)
+        actions_t = torch.FloatTensor(np.array(actions))
         next_states_t = torch.FloatTensor(np.array(next_states))
-           
+        
+        logits = self.actor(states_t)
+        dist = Categorical(logits=logits)
+        # MAKE SURE TO CHECK THE DIMENSIONS of Log_Probs because dist.log_prob doesn't understand batch dimension
+        log_probs_t = dist.log_prob(actions_t).unsqueeze(1) 
+        
+        
         with torch.no_grad():
             #bootstrap from the last state if not terminated
             bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
@@ -130,7 +135,7 @@ class ActorCriticPolicy(BasePolicy):
         self.actor_optimizer.step()
 
     
-class ActorCriticAgent(BaseAgent):
+class A2CAgentV2(BaseAgent):
     """
     An Advantage Actor-Critic agent using a single environment + n-step rollouts.
     """
@@ -138,7 +143,7 @@ class ActorCriticAgent(BaseAgent):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = FLattenFeature(observation_space)
         
-        self.policy = ActorCriticPolicy(
+        self.policy = A2CPolicyV2(
             action_space, 
             self.feature_extractor.features_dim, 
             hyper_params
@@ -151,11 +156,10 @@ class ActorCriticAgent(BaseAgent):
         Sample an action from the actor, storing the log_prob.
         """
         state = self.feature_extractor(observation)
-        action, log_prob = self.policy.select_action(state)
+        action = self.policy.select_action(state)
 
         self.last_state = state
         self.last_action = action
-        self.last_log_prob = log_prob
         return action
 
 
@@ -165,16 +169,16 @@ class ActorCriticAgent(BaseAgent):
         we do an update. 
         """
         state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_log_prob, 
+        transition = (self.last_state[0], self.last_action, 
                       reward, state[0], terminated)
         self.rollout_buffer.add_single_item(transition)
 
         # If we've collected n_steps or the episode ended, do an A2C update
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:
             rollout = self.rollout_buffer.get_all()
-            states, log_probs, rewards, next_states, dones = zip(*rollout)
+            states, actions, rewards, next_states, dones = zip(*rollout)
             
-            self.policy.update(states, log_probs, rewards, next_states, dones)
+            self.policy.update(states, actions, rewards, next_states, dones)
             self.rollout_buffer.reset()
 
 

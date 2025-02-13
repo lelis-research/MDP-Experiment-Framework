@@ -80,7 +80,7 @@ def main():
     agent = AGENT_DICT[args.agent](env)
 
     # Create and run the experiment
-    exp_name = f"{args.agent}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.agent}_{args.env_name}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = experiment_class(env, agent, exp_dir)

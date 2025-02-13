@@ -8,7 +8,9 @@ from Agents.DeepAgent.DQNAgent import DQNAgent
 from Agents.DeepAgent.DoubleDQNAgent import DoubleDQNAgent
 from Agents.DeepAgent.ReinforceAgent import ReinforceAgent
 from Agents.DeepAgent.ReinforceWithBaseline import ReinforceAgentWithBaseline
-from Agents.DeepAgent.ActorCriticAgent import ActorCriticAgent
+from Agents.DeepAgent.A2C_v1 import A2CAgentV1
+from Agents.DeepAgent.A2C_v2 import A2CAgentV2
+
 from Agents.DeepAgent.PPOAgent import PPOAgent
 
 from Agents.Utils.HyperParams import HyperParameters
@@ -82,19 +84,27 @@ AGENT_DICT = {
                         actor_step_size=0.001, critic_step_size=0.001),
         get_num_envs(env)
     ),
-    "ActorCritic": lambda env: ActorCriticAgent(
+    "A2C_v1": lambda env: A2CAgentV1(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
                         actor_step_size=0.001, critic_step_size=0.001),
         get_num_envs(env)
     ),
-    "PPOAgent": lambda env: PPOAgent(
+    "A2C_v2": lambda env: A2CAgentV2(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
+                        actor_step_size=0.001, critic_step_size=0.001),
+        get_num_envs(env)
+    ),
+    "PPO": lambda env: PPOAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, clip_range=0.2,
-                        batch_size=256, rollout_steps=1024, num_epochs=1,
-                        actor_step_size=3e-4, critic_step_size=3e-4, 
-                        value_loss_coef=0.5, entropy_coef=0.0)
+                        mini_batch_size=64, rollout_steps=2048, num_epochs=10,
+                        actor_step_size=3e-4, critic_step_size=1e-4, 
+                        entropy_coef=0.01),
+        get_num_envs(env)
     )
 }
