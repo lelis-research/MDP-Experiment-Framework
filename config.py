@@ -4,14 +4,13 @@ from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
 from Agents.TabularAgent.SarsaAgent import SarsaAgent
 from Agents.TabularAgent.DoubleQLearningAgent import DoubleQLearningAgent
 
-from Agents.DeepAgent.DQNAgent import DQNAgent
-from Agents.DeepAgent.DoubleDQNAgent import DoubleDQNAgent
-from Agents.DeepAgent.ReinforceAgent import ReinforceAgent
-from Agents.DeepAgent.ReinforceWithBaseline import ReinforceAgentWithBaseline
-from Agents.DeepAgent.A2C_v1 import A2CAgentV1
-from Agents.DeepAgent.A2C_v2 import A2CAgentV2
-
-from Agents.DeepAgent.PPOAgent import PPOAgent
+from Agents.DeepAgent.ValueBased.DQNAgent import DQNAgent
+from Agents.DeepAgent.ValueBased.DoubleDQNAgent import DoubleDQNAgent
+from Agents.DeepAgent.PolicyGradient.ReinforceAgent import ReinforceAgent
+from Agents.DeepAgent.PolicyGradient.ReinforceWithBaseline import ReinforceAgentWithBaseline
+from Agents.DeepAgent.PolicyGradient.A2C_v1 import A2CAgentV1
+from Agents.DeepAgent.PolicyGradient.A2C_v2 import A2CAgentV2
+from Agents.DeepAgent.PolicyGradient.PPOAgent import PPOAgent
 
 from Agents.Utils.HyperParams import HyperParameters
 
