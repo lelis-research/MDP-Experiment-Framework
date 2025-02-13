@@ -47,8 +47,8 @@ class BaseExperiment:
             
             total_reward += reward
             steps += 1
-        
-        return {"total_reward": total_reward, "steps": steps, "seed": seed}
+        frames = self.env.render()
+        return {"total_reward": total_reward, "steps": steps, "frames":frames, "seed": seed}
 
     def _single_run(self, num_episodes, seed):
         """
@@ -68,7 +68,7 @@ class BaseExperiment:
             # Update the progress bar.
             pbar.set_postfix({
                 "Reward": metrics['total_reward'], 
-                "Steps": metrics['steps']
+                "Steps": metrics['steps'],
             })
         
         return all_metrics

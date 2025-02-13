@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import cv2
+import imageio
+import pickle
 
 class SingleExpAnalyzer:
     """
@@ -11,7 +14,7 @@ class SingleExpAnalyzer:
     transparent color, and the mean and standard deviation as a solid line
     with a shaded region.
     """
-    def __init__(self, metrics):
+    def __init__(self, metrics=None, exp_path=None):
         """
         Initialize the analyzer with metrics from multiple runs.
 
@@ -20,6 +23,13 @@ class SingleExpAnalyzer:
                             Each dictionary should contain episode metrics (e.g.,
                             "total_reward" and "steps").
         """
+        if metrics is None and exp_path is None:
+            raise ValueError("Both Metrics and Exp Path are None")
+        if metrics is None:
+            metrics_path = os.path.join(exp_path, "metrics.pkl")
+            with open(metrics_path, "rb") as f:
+                metrics = pickle.load(f)
+        self.exp_path = exp_path
         self.metrics = metrics
         self.num_runs = len(metrics)
         self.num_episodes = len(metrics[0]) if self.num_runs > 0 else 0
@@ -106,3 +116,36 @@ class SingleExpAnalyzer:
         
         with open(os.path.join(save_dir, "seed.txt"), "w") as file:
             file.writelines(seed_lst)
+
+    def generate_video(self, run_number, episode_number, video_type="gif"):
+        '''
+        video_type: gif or mp4
+        '''
+        frames = self.metrics[run_number - 1][episode_number - 1]['frames']
+        if video_type == "gif":
+            # Save as a GIF
+            filname = os.path.join(self.exp_path, f"run_{run_number}, ep_{episode_number}.gif")
+            imageio.mimsave(filname, frames, fps=15)  # Adjust fps if needed
+
+            print(f"GIF saved as {filname}")
+        
+        elif video_type == "mp4":
+            height, width, _ = frames[0].shape  # Extract height & width from first frame
+            fps = 30  # Frames per second
+            filname = os.path.join(self.exp_path, f"run_{run_number}, ep_{episode_number}.gif")
+
+            # Define the video codec (use 'mp4v' for .mp4 files)
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Use 'XVID' for .avi
+
+            # Create video writer
+            video_writer = cv2.VideoWriter(filname, fourcc, fps, (width, height))
+
+            # Write frames to the video
+            for frame in frames:
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert RGB to BGR (OpenCV format)
+                video_writer.write(frame_bgr)
+
+            # Release resources
+            video_writer.release()
+
+            print(f"Video successfully saved as {filname}")

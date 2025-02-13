@@ -59,10 +59,10 @@ def main():
     if args.num_envs == 1:
         env = get_single_env(
             env_name=args.env_name,
-            render_mode=None,
+            render_mode="rgb_array_list", # human, rgb_array_list
             max_steps=200,
-            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
-            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
+            wrapping_lst=["ViewSize", "FlattenOnehotObj"],
+            wrapping_params=[{"agent_view_size": 3}, {}],
         )
         experiment_class = BaseExperiment
     elif args.num_envs > 1:
@@ -87,7 +87,7 @@ def main():
     metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed)
 
     # Analyze and plot results
-    analyzer = SingleExpAnalyzer(metrics)
+    analyzer = SingleExpAnalyzer(metrics=metrics)
     analyzer.plot_combined(save_dir=exp_dir)
     analyzer.save_seeds(save_dir=exp_dir)
 

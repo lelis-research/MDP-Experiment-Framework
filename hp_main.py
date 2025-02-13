@@ -87,7 +87,7 @@ def tune_hyperparameters(
         )
 
         # Analyze results
-        analyzer = SingleExpAnalyzer(metrics)
+        analyzer = SingleExpAnalyzer(metrics=metrics)
         analyzer.save_seeds(save_dir=trial_dir)
 
         # Compute the average of the last $ratio episodes' total reward across runs

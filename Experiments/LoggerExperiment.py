@@ -45,7 +45,7 @@ class LoggerExperiment(BaseExperiment):
             # Update the progress bar.
             pbar.set_postfix({
                 "Reward": metrics['total_reward'], 
-                "Steps": metrics['steps']
+                "Steps": metrics['steps'],
             })
         return all_metrics
 
