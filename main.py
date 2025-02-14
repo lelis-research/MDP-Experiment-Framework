@@ -75,7 +75,8 @@ def main():
             wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
         )
         experiment_class = ParallelExperiment
-
+    print(env.observation_space)
+    exit(0)
     # Instantiate the agent using our factory
     agent = AGENT_DICT[args.agent](env)
 

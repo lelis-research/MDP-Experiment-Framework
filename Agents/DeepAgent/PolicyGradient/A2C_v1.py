@@ -68,7 +68,7 @@ class A2CPolicyV1(BasePolicy):
 
     def reset(self, seed):
         super().reset(seed)
-
+        
         # Actor and Critic networks
         self.actor = ActorNetwork(self.features_dim, self.action_dim)
         self.critic = CriticNetwork(self.features_dim)
@@ -76,7 +76,6 @@ class A2CPolicyV1(BasePolicy):
         # Separate optimizers for actor and critic
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
-
 
     def select_action(self, state):
         """

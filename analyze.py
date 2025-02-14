@@ -19,5 +19,6 @@ if __name__ == "__main__":
         "Not Best": "Runs/QLearningAgent(HyperParameters({'alpha': 0.5, 'gamma': 0.99, 'epsilon': 0.1}))_seed [2500]_20250204_163410",
         # Add more experiments as needed.
     }
-    experiment_path = "Runs/Random_MiniGrid-Empty-5x5-v0_seed[123123]_20250213_144316"
-    visualize(experiment_path, run_number=1, episode_number=1)
+
+    experiment_path = "Runs/PPO_MiniGrid-DistShift1-v0_seed[123123]_20250213_161321"
+    visualize(experiment_path, run_number=1, episode_number=500)
