@@ -82,6 +82,25 @@ class ReinforcePolicy(BasePolicy):
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
+    
+    def save(self, file_path):
+        checkpoint = {
+            'actor_state_dict': self.actor.state_dict(),
+            'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
+            'hyper_params': self.hp,  # Ensure that self.hp is pickle-serializable
+            'features_dim': self.features_dim,
+            'action_dim': self.action_dim,
+        }
+        torch.save(checkpoint, file_path)
+
+
+    def load(self, file_path):
+        checkpoint = torch.load(file_path, weights_only=False)
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
+        self.hp = checkpoint.get('hyper_params', self.hp)
+        self.features_dim = checkpoint.get('features_dim', self.features_dim)
+        self.action_dim = checkpoint.get('action_dim', self.action_dim)
 
 class ReinforceAgent(BaseAgent):
     """

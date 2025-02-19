@@ -39,18 +39,19 @@ class BaseExperiment:
         steps = 0
         terminated = False
         truncated = False
-        
+        transitions = []
         while not (terminated or truncated):
             action = self.agent.act(observation)
             observation, reward, terminated, truncated, info = self.env.step(action)
+            transitions.append((observation, reward, terminated, truncated))
             self.agent.update(observation, reward, terminated, truncated)
             
             total_reward += reward
             steps += 1
         frames = self.env.render()
-        return {"total_reward": total_reward, "steps": steps, "frames":frames, "seed": seed}
+        return {"total_reward": total_reward, "steps": steps, "frames":frames, "seed": seed, "transitions": transitions}
 
-    def _single_run(self, num_episodes, seed):
+    def _single_run(self, num_episodes, seed, checkpoint_freq, n_run):
         """
         Run the experiment for a specified number of episodes.
         
@@ -70,10 +71,13 @@ class BaseExperiment:
                 "Reward": metrics['total_reward'], 
                 "Steps": metrics['steps'],
             })
+            if checkpoint_freq is not None and episode % checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Policy_R{n_run}_E{episode}.t")
+                self.agent.save(path)
         
         return all_metrics
     
-    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True):
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True, checkpoint_freq=None):
         """
         Run multiple independent runs of the experiment.
         
@@ -88,7 +92,7 @@ class BaseExperiment:
             
             # Set a seed offset for this run.
             seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset
-            run_metrics = self._single_run(num_episodes, seed)
+            run_metrics = self._single_run(num_episodes, seed, checkpoint_freq, run)
             all_runs_metrics.append(run_metrics)
             
             # Save the metrics for this run.
@@ -96,6 +100,8 @@ class BaseExperiment:
                 file = os.path.join(self.exp_dir, "metrics.pkl")
                 with open(file, "wb") as f:
                     pickle.dump(all_runs_metrics, f)
+                path = os.path.join(self.exp_dir, f"Policy_R{run}_Last.t")
+                self.agent.save(path)
                     
         return all_runs_metrics
     

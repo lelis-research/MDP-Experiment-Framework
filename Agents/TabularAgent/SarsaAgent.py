@@ -1,5 +1,7 @@
 import numpy as np
 import random
+import pickle
+
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import TabularFeature
 
@@ -50,6 +52,20 @@ class SarsaPolicy(BasePolicy):
         """
         super().reset(seed)
         self.q_table = {}
+    
+    def save(self, file_path):
+        checkpoint = {
+            'q_table': self.q_table,
+            'hyper_params': self.hp,  # Ensure hp is pickle-serializable
+        }
+        with open(file_path, 'wb') as f:
+            pickle.dump(checkpoint, f)
+
+    def load(self, file_path):
+        with open(file_path, 'rb') as f:
+            checkpoint = pickle.load(f)
+        self.q_table = checkpoint.get('q_table', {})
+        self.hp = checkpoint.get('hyper_params', self.hp)
 
 class SarsaAgent(BaseAgent):
     def __init__(self, action_space, observation_space, hyper_params, num_envs):

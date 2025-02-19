@@ -45,6 +45,12 @@ class BasePolicy:
     
     def set_hp(self, hp):
         self.hp = hp
+
+    def save(self, file_path):
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+    def load(self, file_path):
+        raise NotImplementedError("This method should be implemented by subclasses.")
         
 class BaseAgent:
     """Base class for an RL agent."""
@@ -105,6 +111,12 @@ class BaseAgent:
         """
         self.hp = hp
         self.policy.set_hp(hp)
+    
+    def save(self, file_path):
+        self.policy.save(file_path)
+    
+    def load(self, file_path):
+        self.policy.load(file_path)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.hp})"

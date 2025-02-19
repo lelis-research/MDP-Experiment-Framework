@@ -88,7 +88,7 @@ def main():
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = experiment_class(env, agent, exp_dir)
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed)
+    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed, checkpoint_freq=None)
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)

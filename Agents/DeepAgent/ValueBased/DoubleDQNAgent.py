@@ -99,6 +99,27 @@ class DoubleDQNPolicy(BasePolicy):
         self.update_counter += 1
         if self.update_counter % self.hp.target_update_freq == 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
+    
+    def save(self, file_path):
+        checkpoint = {
+            'online_network_state_dict': self.online_network.state_dict(),
+            'target_network_state_dict': self.target_network.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'hyper_params': self.hp,  # Ensure that self.hp is pickle-serializable
+            'features_dim': self.features_dim,
+            'action_dim': self.action_dim,
+        }
+        torch.save(checkpoint, file_path)
+
+
+    def load(self, file_path):
+        checkpoint = torch.load(file_path, weights_only=False)
+        self.online_network.load_state_dict(checkpoint['online_network_state_dict'])
+        self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.hp = checkpoint.get('hyper_params', self.hp)
+        self.features_dim = checkpoint.get('features_dim', self.features_dim)
+        self.action_dim = checkpoint.get('action_dim', self.action_dim)
 
 
 class DoubleDQNAgent(BaseAgent):

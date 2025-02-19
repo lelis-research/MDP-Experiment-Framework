@@ -29,3 +29,11 @@ class HyperParameters:
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.params})"
+    
+    def __getstate__(self):
+        # Return the object's state as a dictionary.
+        return self.__dict__
+
+    def __setstate__(self, state):
+        # Restore the object's state.
+        self.__dict__.update(state)

@@ -11,6 +11,9 @@ class RandomPolicy(BasePolicy):
         """Select a list random action."""
         return self.action_space.sample()
     
+    def save(self):
+        pass
+    
 class RandomAgent(BaseAgent):
     """An agent that follows a RandomPolicy."""
     

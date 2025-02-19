@@ -1,5 +1,7 @@
 import numpy as np
 import random
+import pickle
+
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import TabularFeature
 
@@ -77,6 +79,22 @@ class DoubleQLearningPolicy(BasePolicy):
         # Clear Q-tables
         self.q1_table = {}
         self.q2_table = {}
+
+    def save(self, file_path):
+        checkpoint = {
+            'q1_table': self.q1_table,
+            'q2_table': self.q2_table,
+            'hyper_params': self.hp,
+        }
+        with open(file_path, 'wb') as f:
+            pickle.dump(checkpoint, f)
+            
+    def load(self, file_path):
+        with open(file_path, 'rb') as f:
+            checkpoint = pickle.load(f)
+        self.q1_table = checkpoint.get('q1_table', {})
+        self.q2_table = checkpoint.get('q2_table', {})
+        self.hp = checkpoint.get('hyper_params', self.hp)
 
 
 class DoubleQLearningAgent(BaseAgent):
