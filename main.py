@@ -49,6 +49,10 @@ def main():
         default=1,
         help="number of parallel environments"
     )
+    wrapping_lst = ["ViewSize", "StepReward", "FlattenOnehotObj"] #"ViewSize", "StepReward", "FlattenOnehotObj"
+    wrapping_params = [{"agent_view_size": 3}, {"step_reward": -1}, {}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
+    env_max_step = 200
+
     
     args = parser.parse_args()
     runs_dir = "Runs/"
@@ -60,9 +64,9 @@ def main():
         env = get_single_env(
             env_name=args.env_name,
             render_mode="rgb_array_list", # human, rgb_array_list
-            max_steps=200,
-            wrapping_lst=["ViewSize", "FlattenOnehotObj"],
-            wrapping_params=[{"agent_view_size": 3}, {}],
+            max_steps=env_max_step,
+            wrapping_lst=wrapping_lst,
+            wrapping_params=wrapping_params,
         )
         experiment_class = BaseExperiment
     elif args.num_envs > 1:
@@ -70,9 +74,9 @@ def main():
             env_name=args.env_name,
             num_envs=args.num_envs,
             render_mode=None,
-            max_steps=200,
-            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
-            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
+            max_steps=env_max_step,
+            wrapping_lst=wrapping_lst,
+            wrapping_params=wrapping_params,
         )
         experiment_class = ParallelExperiment
     
@@ -80,7 +84,7 @@ def main():
     agent = AGENT_DICT[args.agent](env)
 
     # Create and run the experiment
-    exp_name = f"{args.env_name}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.env_name}_{wrapping_lst}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     experiment = experiment_class(env, agent, exp_dir)
