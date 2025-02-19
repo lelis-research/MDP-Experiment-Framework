@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import cv2
 import imageio
 import pickle
 
@@ -128,24 +127,5 @@ class SingleExpAnalyzer:
             imageio.mimsave(filname, frames, fps=15)  # Adjust fps if needed
 
             print(f"GIF saved as {filname}")
-        
-        elif video_type == "mp4":
-            height, width, _ = frames[0].shape  # Extract height & width from first frame
-            fps = 30  # Frames per second
-            filname = os.path.join(self.exp_path, f"run_{run_number}, ep_{episode_number}.gif")
-
-            # Define the video codec (use 'mp4v' for .mp4 files)
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # Use 'XVID' for .avi
-
-            # Create video writer
-            video_writer = cv2.VideoWriter(filname, fourcc, fps, (width, height))
-
-            # Write frames to the video
-            for frame in frames:
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)  # Convert RGB to BGR (OpenCV format)
-                video_writer.write(frame_bgr)
-
-            # Release resources
-            video_writer.release()
-
-            print(f"Video successfully saved as {filname}")
+        else:
+            raise NotImplementedError("Video Type is not Defined")

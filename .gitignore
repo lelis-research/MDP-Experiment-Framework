@@ -1,5 +1,6 @@
 # Experiment results
 Runs/
+venvs/
 
 # Byte-compiled / cached files
 __pycache__/
