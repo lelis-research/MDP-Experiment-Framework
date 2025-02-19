@@ -11,40 +11,7 @@ from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
-
-class ActorNetwork(nn.Module):
-    """
-    The 'actor': outputs logits for a discrete action distribution.
-    We'll still do a Categorical over these logits.
-    """
-    def __init__(self, input_dim, action_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, action_dim)
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        logits = self.fc3(x)
-        return logits
-
-
-class ValueNetwork(nn.Module):
-    """
-    The 'critic': outputs a scalar baseline V(s).
-    """
-    def __init__(self, input_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, 1)  # single value output
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        value = self.fc3(x)
-        return value.squeeze(-1)  # shape [...], removing last dim if 1
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 
 class ReinforcePolicyWithBaseline(BasePolicy):
@@ -74,14 +41,18 @@ class ReinforcePolicyWithBaseline(BasePolicy):
 
     def reset(self, seed):
         super().reset(seed)
-        
-        # Actor (policy) network & optimizer
-        self.actor_network = ActorNetwork(self.features_dim, self.action_dim)
-        self.actor_optimizer = optim.Adam(self.actor_network.parameters(), lr=self.hp.actor_step_size)
+        actor_description = prepare_network_config(self.hp.actor_network, 
+                                                   input_dim= self.features_dim, 
+                                                   output_dim=self.action_dim)
+        critic_description = prepare_network_config(self.hp.critic_network,
+                                                    input_dim=self.features_dim,
+                                                    output_dim=1)
 
-        # Critic (value) network & optimizer
-        self.critic_network = ValueNetwork(self.features_dim)
-        self.critic_optimizer = optim.Adam(self.critic_network.parameters(), lr=self.hp.critic_step_size)
+        self.actor = NetworkGen(layer_descriptions=actor_description)
+        self.critic = NetworkGen(layer_descriptions=critic_description)
+
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 
     def select_action(self, state):
         """
@@ -89,7 +60,7 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         We'll return the action and store the log_prob for the update.
         """
         state_t = torch.FloatTensor(state)
-        logits = self.actor_network(state_t) 
+        logits = self.actor(state_t) 
         
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -108,15 +79,15 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         
         # Compute discounted returns from the end of the episode to the beginning
         returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns)
+        returns_t = torch.FloatTensor(returns).unsqueeze(1) #Correct the dims
         
         # (Optional) Normalize returns to help training stability
         # Made the performance much worse !
         # returns_t = (returns_t - returns_t.mean()) / (returns_t.std() + 1e-8)
 
         # Critic update: we train the value network V(s) to approximate the returns
-        predicted_values_t = self.critic_network(states_t)   
-       
+        predicted_values_t = self.critic(states_t)   
+
         # Backprop Critic
         critic_loss = F.mse_loss(predicted_values_t, returns_t)
         self.critic_optimizer.zero_grad()
@@ -125,9 +96,9 @@ class ReinforcePolicyWithBaseline(BasePolicy):
 
         # Compute advantage: A_t = G_t - V(s_t)
         with torch.no_grad():
-            predicted_values_t = self.critic_network(states_t)      
+            predicted_values_t = self.critic(states_t)      
         advantages_t = returns_t - predicted_values_t                
-
+        
         # Policy update:  - sum( log_prob_t * advantage_t )
         actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()

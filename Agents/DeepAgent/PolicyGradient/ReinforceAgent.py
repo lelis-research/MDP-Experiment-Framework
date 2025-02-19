@@ -11,20 +11,7 @@ from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
-
-class ActorNetwork(nn.Module):
-    def __init__(self, input_dim, action_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, action_dim)
-        
-    def forward(self, x):
-        # x shape: [batch_size, input_dim]
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        logits = self.fc3(x)  # We'll pass them to Categorical(logits=...)
-        return logits
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 class ReinforcePolicy(BasePolicy):
     """
@@ -51,10 +38,12 @@ class ReinforcePolicy(BasePolicy):
         and its optimizer, and clear any episode storage.
         """
         super().reset(seed)
-        
         # Build the policy network
-        self.actor_network = ActorNetwork(self.features_dim, self.action_dim)
-        self.actor_optimizer = optim.Adam(self.actor_network.parameters(), lr=self.hp.step_size)
+        actor_description = prepare_network_config(self.hp.actor_network, 
+                                                   input_dim= self.features_dim, 
+                                                   output_dim=self.action_dim)
+        self.actor = NetworkGen(layer_descriptions=actor_description)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.step_size)
 
     def select_action(self, state):
         """
@@ -62,7 +51,7 @@ class ReinforcePolicy(BasePolicy):
         Store the log_prob for the update.
         """
         state_t = torch.FloatTensor(state)
-        logits = self.actor_network(state_t) 
+        logits = self.actor(state_t) 
         
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -80,7 +69,7 @@ class ReinforcePolicy(BasePolicy):
 
         #Compute discounted returns from the end of the episode to the beginning
         returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns)
+        returns_t = torch.FloatTensor(returns).unsqueeze(1) #Correct the dims
 
         # (Optional) Normalize returns to help training stability
         # Made the performance much worse !

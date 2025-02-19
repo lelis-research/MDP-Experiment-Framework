@@ -11,41 +11,7 @@ from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import calculate_n_step_returns
-
-
-class ActorNetwork(nn.Module):
-    """
-    Outputs logits for a discrete action distribution.
-    """
-    def __init__(self, input_dim, action_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, action_dim)
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        logits = self.fc3(x)
-        return logits
-
-
-class CriticNetwork(nn.Module):
-    """
-    Outputs V(s), a scalar value.
-    """
-    def __init__(self, input_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, 1)
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        value = self.fc3(x)
-        return value
-
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 class PPOPolicy(BasePolicy):
     """
@@ -68,8 +34,17 @@ class PPOPolicy(BasePolicy):
 
     def reset(self, seed):
         super().reset(seed)
-        self.actor = ActorNetwork(self.features_dim, self.action_dim)
-        self.critic = CriticNetwork(self.features_dim)
+        # Actor and Critic networks
+        actor_description = prepare_network_config(self.hp.actor_network, 
+                                                   input_dim= self.features_dim, 
+                                                   output_dim=self.action_dim)
+        critic_description = prepare_network_config(self.hp.critic_network,
+                                                    input_dim=self.features_dim,
+                                                    output_dim=1)
+
+        self.actor = NetworkGen(layer_descriptions=actor_description)
+        self.critic = NetworkGen(layer_descriptions=critic_description)
+        
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 

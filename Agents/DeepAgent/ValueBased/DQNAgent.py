@@ -7,22 +7,7 @@ import torch.optim as optim
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
-
-class DQNNetwork(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        """
-        A simple fully-connected network.
-        """
-        super(DQNNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, output_dim)
-        
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
-
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 class DQNPolicy(BasePolicy):
     """
@@ -67,9 +52,12 @@ class DQNPolicy(BasePolicy):
         super().reset(seed)
 
         self.update_counter = 0
-
-        self.network = DQNNetwork(self.features_dim, self.action_dim)
-        self.target_network = DQNNetwork(self.features_dim, self.action_dim)
+        network_description = prepare_network_config(self.hp.value_network,
+                                                    input_dim=self.features_dim,
+                                                    output_dim=self.action_dim)
+        
+        self.network = NetworkGen(layer_descriptions=network_description)
+        self.target_network = NetworkGen(layer_descriptions=network_description)
         self.target_network.load_state_dict(self.network.state_dict())
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
@@ -97,7 +85,6 @@ class DQNPolicy(BasePolicy):
         self.optimizer.step()
 
         self.update_counter += 1
-
         # Periodically update the target network.
         if self.update_counter % self.hp.target_update_freq == 0:
             self.target_network.load_state_dict(self.network.state_dict())

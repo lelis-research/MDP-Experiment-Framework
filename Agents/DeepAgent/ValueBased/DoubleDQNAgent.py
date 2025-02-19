@@ -6,21 +6,8 @@ import torch.optim as optim
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
-from Agents.Utils.Buffer import BasicBuffer
-
-
-class DoubleDQNNetwork(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(DoubleDQNNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, output_dim)
-        
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
-    
+from Agents.Utils.Buffer import BasicBuffer    
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 class DoubleDQNPolicy(BasePolicy):
     """
@@ -66,8 +53,12 @@ class DoubleDQNPolicy(BasePolicy):
         self.update_counter = 0
 
         # Create two networks: online and target
-        self.online_network = DoubleDQNNetwork(self.features_dim, self.action_dim)
-        self.target_network = DoubleDQNNetwork(self.features_dim, self.action_dim)
+        network_description = prepare_network_config(self.hp.value_network,
+                                                    input_dim=self.features_dim,
+                                                    output_dim=self.action_dim)
+        self.online_network = NetworkGen(layer_descriptions=network_description)
+        self.target_network = NetworkGen(layer_descriptions=network_description)
+
         self.target_network.load_state_dict(self.online_network.state_dict())
 
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)

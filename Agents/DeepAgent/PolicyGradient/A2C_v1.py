@@ -11,40 +11,7 @@ from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
-
-class ActorNetwork(nn.Module):
-    """
-    Outputs logits for a discrete action distribution.
-    """
-    def __init__(self, input_dim, action_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, action_dim)
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        logits = self.fc3(x)
-        return logits
-
-
-class CriticNetwork(nn.Module):
-    """
-    Outputs V(s), a scalar value.
-    """
-    def __init__(self, input_dim, hidden_size=128):
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, 1)
-        
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        value = self.fc3(x)
-        return value.squeeze(-1)  # shape [batch]
-
+from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
 class A2CPolicyV1(BasePolicy):
     """
@@ -70,8 +37,15 @@ class A2CPolicyV1(BasePolicy):
         super().reset(seed)
         
         # Actor and Critic networks
-        self.actor = ActorNetwork(self.features_dim, self.action_dim)
-        self.critic = CriticNetwork(self.features_dim)
+        actor_description = prepare_network_config(self.hp.actor_network, 
+                                                   input_dim= self.features_dim, 
+                                                   output_dim=self.action_dim)
+        critic_description = prepare_network_config(self.hp.critic_network,
+                                                    input_dim=self.features_dim,
+                                                    output_dim=1)
+
+        self.actor = NetworkGen(layer_descriptions=actor_description)
+        self.critic = NetworkGen(layer_descriptions=critic_description)
 
         # Separate optimizers for actor and critic
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
@@ -99,28 +73,26 @@ class A2CPolicyV1(BasePolicy):
         states_t = torch.FloatTensor(np.array(states))
         log_probs_t = torch.stack(log_probs)
         next_states_t = torch.FloatTensor(np.array(next_states))
-        
+
         with torch.no_grad():
             #bootstrap from the last state if not terminated
             bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
         
         returns = calculate_n_step_returns(rewards, bootstrap_value, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns) 
-
+        returns_t = torch.FloatTensor(returns).unsqueeze(1) #Correct the dims
         predicted_values_t = self.critic(states_t)  
-
+        
         # Critic Loss: MSE( V(s), returns )
         critic_loss = F.mse_loss(predicted_values_t, returns_t)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-
         
         #  advantage = returns_t - V(s)
         with torch.no_grad():
             predicted_values_t = self.critic(states_t)
         advantages_t = returns_t - predicted_values_t
-
+        
         #  Actor Loss: -log_probs_t * advantage
         actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()

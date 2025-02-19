@@ -30,3 +30,6 @@ class BasicBuffer:
     def get_oldest(self):
         return self.buffer[0]
     
+    def is_full(self):
+        return self.size == self.capacity
+    
