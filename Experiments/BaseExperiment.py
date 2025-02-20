@@ -11,7 +11,7 @@ class BaseExperiment:
     Subclasses can override methods like run_episode() or run() 
     to customize behavior.
     """
-    def __init__(self, env, agent, exp_dir=None):
+    def __init__(self, env, agent, exp_dir=None, train=True):
         """
         Args:
             env: An initialized environment.
@@ -22,10 +22,10 @@ class BaseExperiment:
         if exp_dir is not None:
             os.makedirs(exp_dir, exist_ok=True)
             self.exp_dir = exp_dir
-        self._dump_metrics = False
-        self._dump_frames = False
+
         self._dump_transitions = False
         self._checkpoint_freq = None
+        self._train = train
 
     def run_episode(self, seed):
         """
@@ -48,18 +48,15 @@ class BaseExperiment:
             observation, reward, terminated, truncated, info = self.env.step(action)
             if self._dump_transitions:
                 transitions.append((observation, reward, terminated, truncated))
-            self.agent.update(observation, reward, terminated, truncated)
+            if self._train:
+                self.agent.update(observation, reward, terminated, truncated)
             
             total_reward += reward
             steps += 1
         
-        if self._dump_frames:
-            frames = self.env.render()
-        else:
-            frames = None
-
+        frames = self.env.render()
         return {"total_reward": total_reward, "steps": steps, 
-                "frames":frames, "seed": seed, "transitions": transitions}
+                "frames":frames, "env_seed": seed, "transitions": transitions}
 
     def _single_run(self, num_episodes, seed, n_run):
         """
@@ -68,12 +65,14 @@ class BaseExperiment:
         Returns:
             A list of episode metrics for analysis.
         """
-        self.agent.reset(seed)
+        if self._train:
+            self.agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode in pbar:
             # Use a seed to ensure reproducibility.
             metrics = self.run_episode(episode + seed)
+            metrics["agent_seed"] = seed
             all_metrics.append(metrics)
                         
             # Update the progress bar.
@@ -87,8 +86,9 @@ class BaseExperiment:
         
         return all_metrics
     
-    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True, 
-                  checkpoint_freq=None, dump_frames=False, dump_transitions=False):
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, 
+                  dump_metrics=True, checkpoint_freq=None, 
+                  dump_transitions=False):
         """
         Run multiple independent runs of the experiment.
         
@@ -97,9 +97,7 @@ class BaseExperiment:
             episode metrics.
         """            
         self._checkpoint_freq = checkpoint_freq
-        self._dump_frames = dump_frames
         self._dump_transitions = dump_transitions
-        self._dump_metrics = dump_metrics
 
         all_runs_metrics = []
 
@@ -112,7 +110,7 @@ class BaseExperiment:
             print(f"Starting Run {run}")
             
             # Set a seed offset for this run.
-            seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset
+            seed = random.randint(0, 2**32 - 1) if seed_offset is None else (run - 1) * num_episodes + seed_offset
             run_metrics = self._single_run(num_episodes, seed, run)
             all_runs_metrics.append(run_metrics)
             

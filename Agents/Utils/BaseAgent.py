@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import torch
+import pickle
 
 class BasePolicy:
     """Abstract base class for policies."""
@@ -117,6 +118,7 @@ class BaseAgent:
     
     def load(self, file_path):
         self.policy.load(file_path)
+        self.set_hp(self.policy.hp)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.hp})"

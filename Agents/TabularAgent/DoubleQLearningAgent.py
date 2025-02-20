@@ -75,6 +75,7 @@ class DoubleQLearningPolicy(BasePolicy):
 
 
     def reset(self, seed):
+        print(seed)
         super().reset(seed)
         # Clear Q-tables
         self.q1_table = {}

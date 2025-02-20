@@ -11,8 +11,8 @@ class LoggerExperiment(BaseExperiment):
     This class handles running episodes and collecting metrics.
     It will save the results on TensorBoard
     """
-    def __init__(self, env, agent, exp_dir):
-        super().__init__(env, agent, exp_dir)
+    def __init__(self, env, agent, exp_dir, train=True):
+        super().__init__(env, agent, exp_dir, train=train)
         self.writer = SummaryWriter(log_dir=exp_dir)
     
     def _single_run(self, num_episodes, seed, n_run, run_prefix="run"):
@@ -28,13 +28,14 @@ class LoggerExperiment(BaseExperiment):
         Returns:
             A list of episode metrics for analysis.
         """
-
-        self.agent.reset(seed)
+        if self._train:
+            self.agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode in pbar:
             # Use a seed to ensure reproducibility.
             metrics = self.run_episode(episode + seed)
+            metrics['agent_seed'] = seed
             all_metrics.append(metrics)
             
             self.writer.add_scalar(f"total_reward/{run_prefix}", 
@@ -52,47 +53,13 @@ class LoggerExperiment(BaseExperiment):
                 self.agent.save(path)
         return all_metrics
 
-    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True, 
-                  checkpoint_freq=None, dump_frames=False, dump_transitions=False):
-        """
-        Run multiple independent runs of the experiment.
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, 
+                  dump_metrics=True, checkpoint_freq=None, 
+                  dump_transitions=False):
         
-        Returns:
-            A list of run metrics, where each run's metrics is a list of
-            episode metrics.
-        """
-        self._checkpoint_freq = checkpoint_freq
-        self._dump_frames = dump_frames
-        self._dump_transitions = dump_transitions
-        self._dump_metrics = dump_metrics
-        
-        all_runs_metrics = []
-
-        #Store Env Configs for Repeatability 
-        file = os.path.join(self.exp_dir, "env.pkl")
-        with open(file, "wb") as f:
-            pickle.dump(self.env.custom_config, f)
-        
-        for run in range(1, num_runs + 1):
-            print(f"Starting Run {run}")
-            
-            # Set a seed offset for this run.
-            seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset 
-            run_metrics = self._single_run(num_episodes, seed, run)
-
-            all_runs_metrics.append(run_metrics)
-            
-            # Reset the agent's state to ensure independent runs.
-            self.agent.reset(seed=seed)
-            
-            # Save the metrics for this run.
-            if dump_metrics:
-                metrics_file = os.path.join(self.exp_dir, f"metrics.pkl")
-                with open(metrics_file, "wb") as f:
-                    pickle.dump(all_runs_metrics, f)
-                path = os.path.join(self.exp_dir, f"Policy_Run{run}_Last.t")
-                self.agent.save(path)
-       
+        all_runs_metrics = super().multi_run(num_runs, num_episodes, seed_offset, 
+                                             dump_metrics, checkpoint_freq, 
+                                             dump_transitions)
         self.writer.close()
             
         return all_runs_metrics

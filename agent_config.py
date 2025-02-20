@@ -39,7 +39,7 @@ AGENT_DICT = {
     "Random": lambda env: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        None,
+        HyperParameters(),
         get_num_envs(env)
     ),
 
@@ -47,7 +47,7 @@ AGENT_DICT = {
     "QLearning": lambda env: QLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
+        HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
         get_num_envs(env)
     ),
     "Sarsa": lambda env: SarsaAgent(

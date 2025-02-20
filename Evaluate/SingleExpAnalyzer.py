@@ -111,8 +111,9 @@ class SingleExpAnalyzer:
 
         for r, run in enumerate(self.metrics):
             for e, episode in enumerate(run):
-                seed = episode.get("seed")
-                seed_lst.append(f"run {r}, episode {e} -> seed = {seed}\n")
+                agent_seed = episode.get("agent_seed")
+                env_seed = episode.get("env_seed")
+                seed_lst.append(f"run {r + 1}, episode {e + 1} -> env_seed = {env_seed}, agent_seed = {agent_seed}\n")
         
         with open(os.path.join(save_dir, "seed.txt"), "w") as file:
             file.writelines(seed_lst)
@@ -122,6 +123,7 @@ class SingleExpAnalyzer:
         video_type: gif or mp4
         '''
         frames = self.metrics[run_number - 1][episode_number - 1]['frames']
+        print(len(frames))
         if video_type == "gif":
             # Save as a GIF
             filname = os.path.join(self.exp_path, f"run_{run_number}, ep_{episode_number}.gif")

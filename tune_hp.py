@@ -11,20 +11,70 @@ from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
 from Environments.GetEnvironment import *
 from agent_config import AGENT_DICT
 
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--agent",
+        type=str,
+        default="Random",
+        choices=list(AGENT_DICT.keys()),
+        help="Which agent to run"
+    )
+    parser.add_argument(
+        "--env",
+        type=str,
+        default="MiniGrid-Empty-5x5-v0",
+        choices=ENV_LST,
+        help="which environment"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=1,
+        help="Random seed for reproducibility"
+    )
+    parser.add_argument(
+        "--num_configs",
+        type=int,
+        default=300,
+        help="number of Hyper-Params to try"
+    )
+    parser.add_argument(
+        "--num_runs",
+        type=int,
+        default=2,
+        help="number of runs per each Hyper-Params"
+    )
+    parser.add_argument(
+        "--num_episodes",
+        type=int,
+        default=200,
+        help="number of episode in each run"
+    )
+    parser.add_argument(
+        "--episode_max_steps",
+        type=int,
+        default=200,
+        help="maximum number of steps in each episode"
+    )
+    parser.add_argument(
+        "--num_envs",
+        type=int,
+        default=1,
+        help="number of parallel environments"
+    )
+    parser.add_argument(
+        "--metric_ratio",
+        type=float,
+        default=0.5,
+        help="Ratio of the last episode to consider"
+    )
+    args = parser.parse_args()
+    return args
 
-def tune_hyperparameters(
-    env,
-    agent,
-    default_hp,
-    hp_range,
-    exp_dir,
-    exp_class,
-    ratio=0.5,
-    n_trials=20,
-    num_runs=3,
-    num_episodes=50,
-    seed_offset=1
-):
+def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, 
+                         ratio=0.5, n_trials=20, num_runs=3, 
+                         num_episodes=50, seed_offset=1):
     """
     Automatically tune hyperparameters using Optuna.
 
@@ -113,80 +163,27 @@ def tune_hyperparameters(
 
     return best_hp, study
 
-def main(default_hp, hp_range):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--agent",
-        type=str,
-        default="Random",
-        choices=list(AGENT_DICT.keys()),
-        help="Which agent to run"
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        default="MiniGrid-Empty-5x5-v0",
-        choices=ENV_LST,
-        help="which environment"
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=1,
-        help="Random seed for reproducibility"
-    )
-    parser.add_argument(
-        "--num_configs",
-        type=int,
-        default=300,
-        help="number of Hyper-Params to try"
-    )
-    parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=2,
-        help="number of runs per each Hyper-Params"
-    )
-    parser.add_argument(
-        "--num_episodes",
-        type=int,
-        default=200,
-        help="number of episode in each run"
-    )
-    parser.add_argument(
-        "--num_envs",
-        type=int,
-        default=1,
-        help="number of parallel environments"
-    )
-    parser.add_argument(
-        "--metric_ratio",
-        type=float,
-        default=0.5,
-        help="Ratio of the last episode to consider"
-    )
-    args = parser.parse_args()
+def main(hp_range):
+    args = parse()
     runs_dir = f"Runs/Tune/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
 
-    
-    
     # Environment creation
     wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
     wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
-    env_max_step = 200
     env = get_env(
         env_name=args.env,
         num_envs=args.num_envs,
         render_mode=None,
-        max_steps=env_max_step,
+        max_steps=args.episode_max_steps,
         wrapping_lst=wrapping_lst,
         wrapping_params=wrapping_params,
     )
 
     # Instantiate agent with default hyperparameters
     agent = AGENT_DICT[args.agent](env)
+    default_hp = agent.hp
 
     if args.num_envs == 1:
         experiment_class = BaseExperiment
@@ -215,15 +212,7 @@ def main(default_hp, hp_range):
     print(best_hp)
     print(f"Study logs saved at: {runs_dir}")
 
-# --- EXAMPLE USAGE ---
 if __name__ == "__main__":
-    # Default hyperparameters
-    default_hp = HyperParameters(
-        step_size=0.1,
-        gamma=0.99,
-        epsilon=0.01,
-        n_steps=2
-    )
 
     # Define parameter search ranges
     hp_range = {
@@ -232,5 +221,5 @@ if __name__ == "__main__":
         "n_steps": [1, 7]
     }
 
-    main(default_hp, hp_range)
+    main(hp_range)
     

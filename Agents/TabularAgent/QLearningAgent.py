@@ -60,10 +60,10 @@ class QLearningPolicy(BasePolicy):
 
     def load(self, file_path):
         with open(file_path, 'rb') as f:
-            checkpoint = pickle.load(f)
+            checkpoint = pickle.load(f)        
         self.q_table = checkpoint.get('q_table', {})
         self.hp = checkpoint.get('hyper_params', self.hp)
-
+        
 class QLearningAgent(BaseAgent):
     """
     Tabular Q-Learning agent.

@@ -9,8 +9,7 @@ from Experiments.ParallelExperiment import ParallelExperiment
 from Environments.GetEnvironment import *
 
 from agent_config import AGENT_DICT
-
-def main():
+def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--agent",
@@ -45,6 +44,12 @@ def main():
         help="number of episode in each run"
     )
     parser.add_argument(
+        "--episode_max_steps",
+        type=int,
+        default=500,
+        help="maximum number of steps in each episode"
+    )
+    parser.add_argument(
         "--num_envs",
         type=int,
         default=1,
@@ -63,20 +68,22 @@ def main():
         help="store the transitions during the experiment"
     )
     args = parser.parse_args()
+    return args
+
+def main():
+    args = parse()    
     runs_dir = "Runs/Train/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
     
-    
     # Env Creation
     wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
-    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
-    env_max_step = 200
+    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": -1}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
     env = get_env(
             env_name=args.env,
             num_envs=args.num_envs,
             render_mode=args.render_mode,
-            max_steps=env_max_step,
+            max_steps=args.episode_max_steps,
             wrapping_lst=wrapping_lst,
             wrapping_params=wrapping_params,
         )    
@@ -94,8 +101,8 @@ def main():
     else:
         experiment = ParallelExperiment(env, agent, exp_dir)
 
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed, 
-                                   dump_frames=args.render_mode=="rgb_array_list", dump_transitions=args.store_transitions)
+    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, 
+                                   seed_offset=args.seed, dump_transitions=args.store_transitions)
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)
