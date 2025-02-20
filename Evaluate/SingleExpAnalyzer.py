@@ -44,7 +44,7 @@ class SingleExpAnalyzer:
             for run in metrics
         ])
         
-        self.transitions = [[episode.get("transitions") for episode in run] for run in metrics]
+        # self.transitions = [[episode.get("transitions") for episode in run] for run in metrics]
 
     def print_summary(self):
         """

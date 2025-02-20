@@ -3,8 +3,8 @@ from Environments.MiniGrid.Wrappers import *
 from gymnasium.vector import AsyncVectorEnv  # or SyncVectorEnv
 
 
-ENV_LST = [
-    "MiniGrid-BlockedUnlockPickup-v0"
+MINIGRID_ENV_LST = [
+    "MiniGrid-BlockedUnlockPickup-v0",
 
     "MiniGrid-LavaCrossingS9N1-v0",
     "MiniGrid-LavaCrossingS9N2-v0",
@@ -89,7 +89,7 @@ def get_single_env(env_name,
                    wrapping_lst=None, 
                    wrapping_params=[]):
     
-    assert env_name in ENV_LST
+    assert env_name in MINIGRID_ENV_LST
     env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode)
     for i, wrapper_name in enumerate(wrapping_lst):
         env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
@@ -102,7 +102,7 @@ def get_parallel_env(env_name,
                      wrapping_lst=None, 
                      wrapping_params=[]):
     
-    assert env_name in ENV_LST
+    assert env_name in MINIGRID_ENV_LST
     
     env_fns = []
     for _ in range(num_envs):

@@ -8,8 +8,8 @@ from Agents.Utils.HyperParams import HyperParameters
 from Experiments.BaseExperiment import BaseExperiment
 from Experiments.ParallelExperiment import ParallelExperiment
 from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
-from Environments.MiniGrid.GetEnvironment import *
-from config import AGENT_DICT
+from Environments.GetEnvironment import *
+from agent_config import AGENT_DICT
 
 
 def tune_hyperparameters(
@@ -74,7 +74,7 @@ def tune_hyperparameters(
         agent.set_hp(tuned_hp)
 
         # Create a unique logging directory for this trial
-        trial_dir = os.path.join(exp_dir, f"trial_{trial.number}_{agent.__class__.__name__}")
+        trial_dir = os.path.join(exp_dir, f"trial_{trial.number}_{agent}")
         os.makedirs(trial_dir, exist_ok=True)
 
         # Run the experiment
@@ -123,11 +123,17 @@ def main(default_hp, hp_range):
         help="Which agent to run"
     )
     parser.add_argument(
-        "--env_name",
+        "--env",
         type=str,
         default="MiniGrid-Empty-5x5-v0",
         choices=ENV_LST,
         help="which environment"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=1,
+        help="Random seed for reproducibility"
     )
     parser.add_argument(
         "--num_configs",
@@ -160,37 +166,34 @@ def main(default_hp, hp_range):
         help="Ratio of the last episode to consider"
     )
     args = parser.parse_args()
-    runs_dir = f"Runs/Tuning"
+    runs_dir = f"Runs/Tune/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
+    
+    
     # Environment creation
-    if args.num_envs == 1:
-        env = get_single_env(
-            env_name=args.env_name,
-            render_mode=None,
-            max_steps=200,
-            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
-            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
-        )
-        experiment_class = BaseExperiment
-
-    elif args.num_envs > 1:
-        env = get_parallel_env(
-            env_name=args.env_name,
-            num_envs=args.num_envs,
-            render_mode=None,
-            max_steps=200,
-            wrapping_lst=["ViewSize", "StepReward", "FlattenOnehotObj"],
-            wrapping_params=[{"agent_view_size": 3}, {"step_reward": -1}, {},],
-        )
-        experiment_class = ParallelExperiment
+    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
+    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
+    env_max_step = 200
+    env = get_env(
+        env_name=args.env,
+        num_envs=args.num_envs,
+        render_mode=None,
+        max_steps=env_max_step,
+        wrapping_lst=wrapping_lst,
+        wrapping_params=wrapping_params,
+    )
 
     # Instantiate agent with default hyperparameters
     agent = AGENT_DICT[args.agent](env)
 
-    exp_name = f"{agent.__class__.__name__}_{args.env_name}_{timestamp}"
+    if args.num_envs == 1:
+        experiment_class = BaseExperiment
+    else:
+        experiment_class = ParallelExperiment
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    exp_name = f"{args.env}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     # Run tuning
@@ -205,7 +208,7 @@ def main(default_hp, hp_range):
         n_trials=args.num_configs,
         num_runs=args.num_runs,
         num_episodes=args.num_episodes,
-        seed_offset=1
+        seed_offset=args.seed,
     )
 
     print("Best hyperparameters found:")

@@ -6,8 +6,9 @@ from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
 from Experiments.LoggerExperiment import LoggerExperiment
 from Experiments.BaseExperiment import BaseExperiment
 from Experiments.ParallelExperiment import ParallelExperiment
-from Environments.MiniGrid.GetEnvironment import *
-from config import AGENT_DICT
+from Environments.GetEnvironment import *
+
+from agent_config import AGENT_DICT
 
 def main():
     parser = argparse.ArgumentParser()
@@ -19,7 +20,7 @@ def main():
         help="Which agent to run"
     )
     parser.add_argument(
-        "--env_name",
+        "--env",
         type=str,
         default="MiniGrid-Empty-5x5-v0",
         choices=ENV_LST,
@@ -49,46 +50,52 @@ def main():
         default=1,
         help="number of parallel environments"
     )
-    wrapping_lst = ["ViewSize", "StepReward", "FlattenOnehotObj"] #"ViewSize", "StepReward", "FlattenOnehotObj"
-    wrapping_params = [{"agent_view_size": 3}, {"step_reward": -1}, {}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
-    env_max_step = 200
-
-    
+    parser.add_argument(
+        "--render_mode",
+        type=str,
+        default=None,
+        choices=[None, "human", "rgb_array_list"],
+        help="number of parallel environments"
+    )
+    parser.add_argument(
+        "--store_transitions",
+        action='store_true',
+        help="store the transitions during the experiment"
+    )
     args = parser.parse_args()
-    runs_dir = "Runs/"
+    runs_dir = "Runs/Train/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    if args.num_envs == 1:
-        env = get_single_env(
-            env_name=args.env_name,
-            render_mode="rgb_array_list", # human, rgb_array_list
-            max_steps=env_max_step,
-            wrapping_lst=wrapping_lst,
-            wrapping_params=wrapping_params,
-        )
-        experiment_class = BaseExperiment
-    elif args.num_envs > 1:
-        env = get_parallel_env(
-            env_name=args.env_name,
+    
+    
+    # Env Creation
+    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
+    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
+    env_max_step = 200
+    env = get_env(
+            env_name=args.env,
             num_envs=args.num_envs,
-            render_mode=None,
+            render_mode=args.render_mode,
             max_steps=env_max_step,
             wrapping_lst=wrapping_lst,
             wrapping_params=wrapping_params,
-        )
-        experiment_class = ParallelExperiment
+        )    
     
     # Instantiate the agent using our factory
     agent = AGENT_DICT[args.agent](env)
 
     # Create and run the experiment
-    exp_name = f"{args.env_name}_{wrapping_lst}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    exp_name = f"{args.env}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
-    experiment = experiment_class(env, agent, exp_dir)
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed, checkpoint_freq=None)
+    if args.num_envs == 1:
+        experiment = LoggerExperiment(env, agent, exp_dir)
+    else:
+        experiment = ParallelExperiment(env, agent, exp_dir)
+
+    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed, 
+                                   dump_frames=args.render_mode=="rgb_array_list", dump_transitions=args.store_transitions)
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)

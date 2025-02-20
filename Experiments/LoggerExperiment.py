@@ -15,7 +15,7 @@ class LoggerExperiment(BaseExperiment):
         super().__init__(env, agent, exp_dir)
         self.writer = SummaryWriter(log_dir=exp_dir)
     
-    def _single_run(self, num_episodes, seed, checkpoint_freq, n_run, run_prefix="run"):
+    def _single_run(self, num_episodes, seed, n_run, run_prefix="run"):
         """
         Run the experiment for a specified number of episodes.
         
@@ -47,12 +47,13 @@ class LoggerExperiment(BaseExperiment):
                 "Reward": metrics['total_reward'], 
                 "Steps": metrics['steps'],
             })
-            if checkpoint_freq is not None and episode % checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Policy_R{n_run}_E{episode}")
+            if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Policy_Run{n_run}_E{episode}")
                 self.agent.save(path)
         return all_metrics
 
-    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True, checkpoint_freq=None):
+    def multi_run(self, num_runs, num_episodes, seed_offset=None, dump_metrics=True, 
+                  checkpoint_freq=None, dump_frames=False, dump_transitions=False):
         """
         Run multiple independent runs of the experiment.
         
@@ -60,14 +61,24 @@ class LoggerExperiment(BaseExperiment):
             A list of run metrics, where each run's metrics is a list of
             episode metrics.
         """
-
+        self._checkpoint_freq = checkpoint_freq
+        self._dump_frames = dump_frames
+        self._dump_transitions = dump_transitions
+        self._dump_metrics = dump_metrics
+        
         all_runs_metrics = []
+
+        #Store Env Configs for Repeatability 
+        file = os.path.join(self.exp_dir, "env.pkl")
+        with open(file, "wb") as f:
+            pickle.dump(self.env.custom_config, f)
+        
         for run in range(1, num_runs + 1):
             print(f"Starting Run {run}")
             
             # Set a seed offset for this run.
             seed = random.randint(0, 2**32 - 1) if seed_offset is None else run * num_episodes + seed_offset 
-            run_metrics = self._single_run(num_episodes, seed, checkpoint_freq, run)
+            run_metrics = self._single_run(num_episodes, seed, run)
 
             all_runs_metrics.append(run_metrics)
             
@@ -79,7 +90,7 @@ class LoggerExperiment(BaseExperiment):
                 metrics_file = os.path.join(self.exp_dir, f"metrics.pkl")
                 with open(metrics_file, "wb") as f:
                     pickle.dump(all_runs_metrics, f)
-                path = os.path.join(self.exp_dir, f"Policy_R{run}_Last.t")
+                path = os.path.join(self.exp_dir, f"Policy_Run{run}_Last.t")
                 self.agent.save(path)
        
         self.writer.close()
