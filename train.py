@@ -29,6 +29,8 @@ def parse():
     parser.add_argument("--render_mode", type=str, default=None, choices=[None, "human", "rgb_array_list"], help="render mode for the environment")
     # Flag to store transitions during the experiment
     parser.add_argument("--store_transitions", action='store_true', help="store the transitions during the experiment")
+    # Frequency of checking saving checkpoints
+    parser.add_argument("--checkpoint_freq", type=int, default=None, help="frequency of saving checkpoints")
     return parser.parse_args()
 
 def main():
@@ -65,7 +67,8 @@ def main():
     
     # Run the experiment and collect metrics
     metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, 
-                                   seed_offset=args.seed, dump_transitions=args.store_transitions)
+                                   seed_offset=args.seed, dump_transitions=args.store_transitions,
+                                   checkpoint_freq=args.checkpoint_freq)
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)
