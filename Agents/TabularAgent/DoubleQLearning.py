@@ -6,82 +6,84 @@ from Agents.Utils import BaseAgent, BasePolicy
 
 class DoubleQLearningPolicy(BasePolicy):
     """
-    Double Q-Learning with two Q-tables: Q1 and Q2.
-    Action selection is epsilon-greedy w.r.t. Q = (Q1 + Q2).
-    Updates randomly pick one of the two Qs to update.
-    
-    Update rule:
-      - With 50% chance, update Q1(s, a):
-            Q1(s,a) ← Q1(s,a) + α * [r + γ * Q2(s', argmax_a' Q1(s',a')) - Q1(s,a)]
-      - Otherwise, update Q2(s, a):
-            Q2(s,a) ← Q2(s,a) + α * [r + γ * Q1(s', argmax_a' Q2(s',a')) - Q2(s,a)]
-
-    Init Args:
-        action_space: The environment's action space (assumed gym.spaces.Discrete)
-        hyper-parameters:
-            - epsilon
-            - gamma
-            - step_size
+    Double Q-Learning policy with two Q-tables (q1_table and q2_table).
+    Action selection is epsilon-greedy based on Q1 + Q2.
+    Hyper-parameters (hp) should include:
+      - epsilon (float): Exploration probability.
+      - gamma (float): Discount factor.
+      - step_size (float): Learning rate.
     """
 
     def select_action(self, state):
         """
-        Epsilon-greedy action selection using Q = Q1 + Q2.
+        Select an action using epsilon-greedy strategy.
+        
+        Args:
+            state (hashable): Encoded state (e.g., tuple) used as key in Q-tables.
+        
+        Returns:
+            int: Selected action.
         """
         if state not in self.q1_table:
             self.q1_table[state] = np.zeros(self.action_dim)
         if state not in self.q2_table:
             self.q2_table[state] = np.zeros(self.action_dim)
 
-        # With probability epsilon choose a random action...
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            # Otherwise choose action that maximizes Q1 + Q2
             q_sum = self.q1_table[state] + self.q2_table[state]
             return int(np.argmax(q_sum))
 
-
     def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
         """
-        Double Q-learning update. We randomly pick which Q-table to update.
+        Perform a Double Q-Learning update on one of the Q-tables.
+        
+        Args:
+            last_state (hashable): Previous state (encoded) from which action was taken.
+            last_action (int): Action taken in the last state.
+            state (hashable): New state after action.
+            reward (float): Reward received.
+            terminated (bool): Whether the episode has terminated.
+            truncated (bool): Whether the episode was truncated.
+            call_back (function, optional): Callback to track training progress.
         """
         if state not in self.q1_table:
             self.q1_table[state] = np.zeros(self.action_dim)
         if state not in self.q2_table:
             self.q2_table[state] = np.zeros(self.action_dim)
 
-
-        # With probability 0.5, update Q1 using Q2
-        # or update Q2 using Q1
+        # Randomly update Q1 or Q2.
         if random.random() < 0.5:
-            # Q1 update
-            if terminated:
-                target = reward
-            else:
-                target = reward + self.hp.gamma * np.max(self.q2_table[state])
+            target = reward if terminated else reward + self.hp.gamma * np.max(self.q2_table[state])
             td_error = target - self.q1_table[last_state][last_action]
             self.q1_table[last_state][last_action] += self.hp.step_size * td_error
-                
         else:
-            # Q2 update
-            if terminated:
-                target = reward
-            else:
-                target = reward + self.hp.gamma * np.max(self.q1_table[state])
+            target = reward if terminated else reward + self.hp.gamma * np.max(self.q1_table[state])
             td_error = target - self.q2_table[last_state][last_action]
             self.q2_table[last_state][last_action] += self.hp.step_size * td_error
+
         if call_back is not None:
             call_back({"value_loss": td_error})
 
-
     def reset(self, seed):
+        """
+        Reset the policy and clear Q-tables.
+        
+        Args:
+            seed (int): Seed for reproducibility.
+        """
         super().reset(seed)
-        # Clear Q-tables
         self.q1_table = {}
         self.q2_table = {}
 
     def save(self, file_path):
+        """
+        Save the current Q-tables and hyper-parameters.
+        
+        Args:
+            file_path (str): Path to save the checkpoint.
+        """
         checkpoint = {
             'q1_table': self.q1_table,
             'q2_table': self.q2_table,
@@ -91,6 +93,12 @@ class DoubleQLearningPolicy(BasePolicy):
             pickle.dump(checkpoint, f)
             
     def load(self, file_path):
+        """
+        Load Q-tables and hyper-parameters from a checkpoint.
+        
+        Args:
+            file_path (str): Path to the checkpoint file.
+        """
         with open(file_path, 'rb') as f:
             checkpoint = pickle.load(f)
         self.q1_table = checkpoint.get('q1_table', {})
@@ -100,16 +108,18 @@ class DoubleQLearningPolicy(BasePolicy):
 
 class DoubleQLearningAgent(BaseAgent):
     """
-    A Tabular Double Q-Learning agent that uses two Q-tables to reduce overestimation bias.
+    Agent that uses Double Q-Learning with a feature extractor.
     """
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
+        Initialize the agent.
+        
         Args:
-            action_space: The environment's action space (assumed gym.spaces.Discrete)
-            hyper-parameters:
-                - epsilon
-                - gamma
-                - step_size        
+            action_space (gym.spaces.Discrete): Action space.
+            observation_space: Observation space from the environment.
+            hyper_params: Hyper-parameters (must include epsilon, gamma, step_size).
+            num_envs (int): Number of parallel environments.
+            feature_extractor_class (class): Class to extract features from observations.
         """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = feature_extractor_class(observation_space)
@@ -117,7 +127,13 @@ class DoubleQLearningAgent(BaseAgent):
 
     def act(self, observation):
         """
-        Select an action via epsilon-greedy w.r.t. Q1+Q2.
+        Select an action using the feature extractor and policy.
+        
+        Args:
+            observation (np.array or similar): Raw observation from the environment.
+            
+        Returns:
+            int: Action selected.
         """
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state)
@@ -127,7 +143,14 @@ class DoubleQLearningAgent(BaseAgent):
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
-        Perform the Double Q-Learning update.
+        Update the agent using Double Q-Learning.
+        
+        Args:
+            observation (np.array or similar): New observation after action.
+            reward (float): Reward received.
+            terminated (bool): Whether the episode terminated.
+            truncated (bool): Whether the episode was truncated.
+            call_back (function, optional): Callback for tracking training progress.
         """
         state = self.feature_extractor(observation)
         self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated, call_back=call_back)

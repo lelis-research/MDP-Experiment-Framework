@@ -5,7 +5,7 @@ import random
 import numpy as np
 
 from . import BaseExperiment
-
+#TODO: THIS CLASS IS NOT COMPLETED 
 class ParallelExperiment(BaseExperiment):
     """    
     This class handles running episodes and collecting metrics

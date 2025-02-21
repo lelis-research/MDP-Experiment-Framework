@@ -1,9 +1,9 @@
 import gymnasium as gym
-from gymnasium.vector import AsyncVectorEnv  # or SyncVectorEnv
+from gymnasium.vector import AsyncVectorEnv  # or use SyncVectorEnv if desired
 
 from .Wrappers import WRAPPING_TO_WRAPPER
 
-
+# List of supported MiniGrid environments
 MINIGRID_ENV_LST = [
     "MiniGrid-BlockedUnlockPickup-v0",
 
@@ -82,26 +82,43 @@ MINIGRID_ENV_LST = [
     "MiniGrid-Playground-v0",
 ]
 
-def get_single_env(env_name, 
-                   max_steps=500, 
-                   render_mode=None, 
-                   wrapping_lst=None, 
-                   wrapping_params=[]):
+def get_single_env(env_name, max_steps=500, render_mode=None, wrapping_lst=None, wrapping_params=[]):
+    """
+    Create a single MiniGrid environment.
     
-    assert env_name in MINIGRID_ENV_LST
+    Args:
+        env_name (str): Name of the MiniGrid environment. Must be in MINIGRID_ENV_LST.
+        max_steps (int): Maximum steps per episode.
+        render_mode (str or None): Rendering mode for the environment.
+        wrapping_lst (list or None): List of wrapper names to apply.
+        wrapping_params (list): List of parameter dictionaries for each wrapper.
+    
+    Returns:
+        gym.Env: A wrapped Gymnasium environment.
+    """
+    assert env_name in MINIGRID_ENV_LST, f"Environment {env_name} not supported."
     env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode)
+    # Apply each wrapper in the provided list with corresponding parameters.
     for i, wrapper_name in enumerate(wrapping_lst):
         env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
     return env
 
-def get_parallel_env(env_name,
-                     num_envs, 
-                     max_steps=500, 
-                     render_mode=None,
-                     wrapping_lst=None, 
-                     wrapping_params=[]):
+def get_parallel_env(env_name, num_envs, max_steps=500, render_mode=None, wrapping_lst=None, wrapping_params=[]):
+    """
+    Create a vectorized (parallel) MiniGrid environment.
     
-    assert env_name in MINIGRID_ENV_LST
+    Args:
+        env_name (str): Name of the MiniGrid environment. Must be in MINIGRID_ENV_LST.
+        num_envs (int): Number of parallel environments.
+        max_steps (int): Maximum steps per episode.
+        render_mode (str or None): Rendering mode for the environments.
+        wrapping_lst (list or None): List of wrapper names to apply.
+        wrapping_params (list): List of parameter dictionaries for each wrapper.
+    
+    Returns:
+        AsyncVectorEnv: A vectorized environment with num_envs instances.
+    """
+    assert env_name in MINIGRID_ENV_LST, f"Environment {env_name} not supported."
     
     env_fns = []
     for _ in range(num_envs):
@@ -111,4 +128,3 @@ def get_parallel_env(env_name,
         env_fns.append(lambda: env)
     envs = AsyncVectorEnv(env_fns)
     return envs
-    

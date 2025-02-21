@@ -4,7 +4,7 @@ import numpy as np
 import optuna
 import argparse
 
-from Agents.Utils import HyperParameters
+from Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from Experiments import BaseExperiment, ParallelExperiment
 from Evaluate import SingleExpAnalyzer
 from Environments import get_env, ENV_LST
@@ -12,98 +12,54 @@ from config import AGENT_DICT
 
 def parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--agent",
-        type=str,
-        default="Random",
-        choices=list(AGENT_DICT.keys()),
-        help="Which agent to run"
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        default="MiniGrid-Empty-5x5-v0",
-        choices=ENV_LST,
-        help="which environment"
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=1,
-        help="Random seed for reproducibility"
-    )
-    parser.add_argument(
-        "--num_configs",
-        type=int,
-        default=300,
-        help="number of Hyper-Params to try"
-    )
-    parser.add_argument(
-        "--num_runs",
-        type=int,
-        default=2,
-        help="number of runs per each Hyper-Params"
-    )
-    parser.add_argument(
-        "--num_episodes",
-        type=int,
-        default=200,
-        help="number of episode in each run"
-    )
-    parser.add_argument(
-        "--episode_max_steps",
-        type=int,
-        default=200,
-        help="maximum number of steps in each episode"
-    )
-    parser.add_argument(
-        "--num_envs",
-        type=int,
-        default=1,
-        help="number of parallel environments"
-    )
-    parser.add_argument(
-        "--metric_ratio",
-        type=float,
-        default=0.5,
-        help="Ratio of the last episode to consider"
-    )
-    args = parser.parse_args()
-    return args
+    # Agent type to run
+    parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
+    # Environment name
+    parser.add_argument("--env", type=str, default="MiniGrid-Empty-5x5-v0", choices=ENV_LST, help="which environment")
+    # Random seed for reproducibility
+    parser.add_argument("--seed", type=int, default=1, help="Random seed for reproducibility")
+    # Number of hyper-parameter configurations (trials)
+    parser.add_argument("--num_configs", type=int, default=300, help="number of Hyper-Params to try")
+    # Number of runs per configuration
+    parser.add_argument("--num_runs", type=int, default=2, help="number of runs per each Hyper-Params")
+    # Episodes per run
+    parser.add_argument("--num_episodes", type=int, default=200, help="number of episode in each run")
+    # Maximum steps per episode
+    parser.add_argument("--episode_max_steps", type=int, default=200, help="maximum number of steps in each episode")
+    # Number of parallel environments
+    parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
+    # Ratio of last episodes to consider for metric calculation
+    parser.add_argument("--metric_ratio", type=float, default=0.5, help="Ratio of the last episode to consider")
+    return parser.parse_args()
 
-def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, 
-                         ratio=0.5, n_trials=20, num_runs=3, 
-                         num_episodes=50, seed_offset=1):
+def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, ratio=0.5, n_trials=20, num_runs=3, num_episodes=50, seed_offset=1):
     """
-    Automatically tune hyperparameters using Optuna.
-
+    Tune hyperparameters using Optuna.
+    
     Args:
-        env: The environment instance.
-        agent: An instantiated agent (with `set_hp()` method).
-        default_hp (HyperParameters): Default hyperparameters.
-        hp_range (dict): Ranges for hyperparameters (e.g., {"step_size": [0.01, 0.5]}).
-        n_trials (int): Number of Optuna trials. Defaults to 20.
-        num_runs (int): Number of runs per trial. Defaults to 3.
-        num_episodes (int): Number of episodes per run. Defaults to 50.
-        seed_offset (int): A fixed seed offset for reproducibility. Defaults to 1.
-
+        env: Environment instance.
+        agent: Agent instance (must have set_hp() method).
+        default_hp: Default HyperParameters object.
+        hp_range: Dictionary of search ranges for hyperparameters.
+        exp_dir: Directory to save experiment logs.
+        exp_class: Experiment class (e.g., BaseExperiment or ParallelExperiment).
+        ratio: Fraction of last episodes used to compute average reward.
+        n_trials: Number of Optuna trials.
+        num_runs: Number of runs per trial.
+        num_episodes: Episodes per run.
+        seed_offset: Fixed seed offset for reproducibility.
+    
     Returns:
-        (best_hp, study, runs_dir):
-            best_hp (HyperParameters): HyperParameters object with the best found values.
-            study (optuna.study.Study): The Optuna study object containing all trials.
-            runs_dir (str): Directory where run logs/metrics were saved.
+        best_hp: HyperParameters object with best found values.
+        study: The Optuna study object.
     """
-    # Convert the default hyperparameters into a dict so we can tweak them.
+    # Convert default hyper-parameters to a dictionary for tweaking.
     base_params = default_hp.to_dict()
     
     def objective(trial):
-        """
-        Objective function for Optuna. Samples hyperparameters within the given ranges,
-        sets them on the agent, and then runs an experiment to measure the average reward.
-        """
+        # Sample new hyperparameters within specified ranges.
         new_params = {}
         for key, default_value in base_params.items():
-            # If the hyperparameter is listed in hp_range, sample it from Optuna
             if key in hp_range:
                 if isinstance(default_value, float):
                     low, high = hp_range[key]
@@ -112,54 +68,42 @@ def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class,
                     low, high = hp_range[key]
                     new_params[key] = trial.suggest_int(key, low, high)
                 else:
-                    # For non-float/int hyperparameters, keep the default
                     new_params[key] = default_value
             else:
-                # If it's not in hp_range, keep the default
                 new_params[key] = default_value
 
-        # Create a new HyperParameters instance for this trial and update the agent
+        # Update agent with the sampled hyperparameters.
         tuned_hp = HyperParameters(**new_params)
         agent.set_hp(tuned_hp)
 
-        # Create a unique logging directory for this trial
+        # Create a unique directory for the trial.
         trial_dir = os.path.join(exp_dir, f"trial_{trial.number}_{agent}")
         os.makedirs(trial_dir, exist_ok=True)
 
-        # Run the experiment
+        # Run the experiment for the current trial.
         experiment = exp_class(env, agent, exp_dir=trial_dir)
-        metrics = experiment.multi_run(
-            num_episodes=num_episodes,
-            num_runs=num_runs,
-            seed_offset=seed_offset,
-            dump_metrics=True
-        )
+        metrics = experiment.multi_run(num_episodes=num_episodes, num_runs=num_runs, seed_offset=seed_offset, dump_metrics=True)
 
-        # Analyze results
+        # Save seed info.
         analyzer = SingleExpAnalyzer(metrics=metrics)
         analyzer.save_seeds(save_dir=trial_dir)
 
-        # Compute the average of the last $ratio episodes' total reward across runs
-        rewards = np.array([
-            [episode.get("total_reward") for episode in run] 
-            for run in metrics
-        ])
+        # Compute average reward over the last fraction of episodes across runs.
+        rewards = np.array([[episode.get("total_reward") for episode in run] for run in metrics])
         avg_reward_over_runs = np.mean(rewards, axis=0)
         ind = int(len(avg_reward_over_runs) * ratio) - 1
         avg_reward = np.mean(np.mean(rewards, axis=0)[ind:])
-
-        # Since we want to maximize reward, but Optuna (in 'minimize' mode) looks
-        # for the lowest value, we return the negative of the average reward
+        
+        # Return negative reward for minimization.
         return -avg_reward
 
-    # Create the Optuna study (direction="minimize" because we return negative reward)
+    # Create and run the Optuna study.
     study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=n_trials)
 
-    # Build the best hyperparameters object
+    # Build the best hyper-parameters object from the best trial.
     best_params = study.best_trial.params
     best_hp = HyperParameters(**best_params)
-
     return best_hp, study
 
 def main(hp_range):
@@ -168,9 +112,9 @@ def main(hp_range):
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
 
-    # Environment creation
-    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
-    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
+    # Create the environment with specified wrappers.
+    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"]
+    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}]
     env = get_env(
         env_name=args.env,
         num_envs=args.num_envs,
@@ -180,10 +124,11 @@ def main(hp_range):
         wrapping_params=wrapping_params,
     )
 
-    # Instantiate agent with default hyperparameters
+    # Instantiate the agent with its default hyperparameters.
     agent = AGENT_DICT[args.agent](env)
     default_hp = agent.hp
 
+    # Select the experiment class based on the number of environments.
     if args.num_envs == 1:
         experiment_class = BaseExperiment
     else:
@@ -192,7 +137,7 @@ def main(hp_range):
     exp_name = f"{args.env}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
-    # Run tuning
+    # Run hyperparameter tuning.
     best_hp, study = tune_hyperparameters(
         env,
         agent,
@@ -212,13 +157,10 @@ def main(hp_range):
     print(f"Study logs saved at: {runs_dir}")
 
 if __name__ == "__main__":
-
-    # Define parameter search ranges
+    # Define the search ranges for hyperparameters.
     hp_range = {
         "step_size": [0.001, 0.5],
         "epsilon": [0.01, 0.5],
         "n_steps": [1, 7]
     }
-
     main(hp_range)
-    

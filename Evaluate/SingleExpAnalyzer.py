@@ -1,29 +1,24 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import os
-import imageio
 import pickle
+import numpy as np
+import matplotlib.pyplot as plt
+import imageio
 
 class SingleExpAnalyzer:
     """
-    Class for analyzing and plotting experiment metrics.
+    Analyzes and plots metrics from multiple runs of an experiment.
     
-    This class accepts metrics from multiple runs and provides methods to
-    print summary statistics and generate plots with individual runs in a 
-    transparent color, and the mean and standard deviation as a solid line
-    with a shaded region.
+    Expects metrics as a list of runs, where each run is a list of episode dictionaries.
+    Each episode dictionary should contain keys like "total_reward", "steps", etc.
     """
     def __init__(self, metrics=None, exp_path=None):
         """
-        Initialize the analyzer with metrics from multiple runs.
-
         Args:
-            metrics (list): A list of runs, where each run is a list of dictionaries.
-                            Each dictionary should contain episode metrics (e.g.,
-                            "total_reward" and "steps").
+            metrics (list): List of runs (each run is a list of episode dictionaries).
+            exp_path (str): Directory containing a "metrics.pkl" file.
         """
         if metrics is None and exp_path is None:
-            raise ValueError("Both Metrics and Exp Path are None")
+            raise ValueError("Both metrics and exp_path are None")
         if metrics is None:
             metrics_path = os.path.join(exp_path, "metrics.pkl")
             with open(metrics_path, "rb") as f:
@@ -33,8 +28,7 @@ class SingleExpAnalyzer:
         self.num_runs = len(metrics)
         self.num_episodes = len(metrics[0]) if self.num_runs > 0 else 0
 
-        # Convert metrics into 2D NumPy arrays:
-        # Each row corresponds to a run and each column to an episode.
+        # Convert metrics into 2D NumPy arrays (runs x episodes)
         self.total_rewards = np.array([
             [episode.get("total_reward") for episode in run]
             for run in metrics
@@ -43,14 +37,11 @@ class SingleExpAnalyzer:
             [episode.get("steps") for episode in run]
             for run in metrics
         ])
-        
-        # self.transitions = [[episode.get("transitions") for episode in run] for run in metrics]
 
     def print_summary(self):
         """
-        Print summary statistics of the experiment results (overall mean and std).
+        Print overall mean and standard deviation for rewards and steps.
         """
-        # Compute overall mean and std across all runs and episodes.
         avg_reward = np.mean(self.total_rewards)
         std_reward = np.std(self.total_rewards)
         avg_steps = np.mean(self.steps)
@@ -60,16 +51,20 @@ class SingleExpAnalyzer:
         print(f"  Average Reward: {avg_reward:.2f} ± {std_reward:.2f}")
         print(f"  Average Steps:  {avg_steps:.2f} ± {std_steps:.2f}")
 
-
     def plot_combined(self, save_dir=None, show=False):
         """
-        Create subplots for both total rewards and steps per episode, with each run
-        plotted transparently and the mean with its standard deviation shown.
+        Plot total rewards and steps per episode.
+        
+        Each run is plotted transparently; the mean is overlaid.
+        
+        Args:
+            save_dir (str, optional): Directory to save the plot.
+            show (bool): Whether to display the plot.
         """
         episodes = np.arange(1, self.num_episodes + 1)
         fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
-        # Plot rewards in the first subplot.
+        # Plot total rewards
         for run in self.total_rewards:
             axs[0].plot(episodes, run, color='blue', alpha=0.3)
         mean_rewards = np.mean(self.total_rewards, axis=0)
@@ -83,7 +78,7 @@ class SingleExpAnalyzer:
         axs[0].legend()
         axs[0].grid(True)
 
-        # Plot steps in the second subplot.
+        # Plot steps
         for run in self.steps:
             axs[1].plot(episodes, run, color='orange', alpha=0.3)
         mean_steps = np.mean(self.steps, axis=0)
@@ -96,19 +91,23 @@ class SingleExpAnalyzer:
         axs[1].set_ylabel("Steps")
         axs[1].legend()
         axs[1].grid(True)
+
         fig.tight_layout()
 
         if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
             fig.savefig(os.path.join(save_dir, "Combined.png"))
-        if show:  
+        if show:
             plt.show()
 
     def save_seeds(self, save_dir):
         """
-        Shows the seed for each episode for reproducing the results
+        Save the seed information for each episode to a text file.
+        
+        Args:
+            save_dir (str): Directory to save the seed file.
         """
         seed_lst = []
-
         for r, run in enumerate(self.metrics):
             for e, episode in enumerate(run):
                 agent_seed = episode.get("agent_seed")
@@ -119,16 +118,19 @@ class SingleExpAnalyzer:
             file.writelines(seed_lst)
 
     def generate_video(self, run_number, episode_number, video_type="gif"):
-        '''
-        video_type: gif or mp4
-        '''
+        """
+        Generate a video (currently only GIF supported) from stored frames.
+        
+        Args:
+            run_number (int): Run index (1-indexed).
+            episode_number (int): Episode index (1-indexed).
+            video_type (str): "gif" or "mp4" (only "gif" is implemented).
+        """
         frames = self.metrics[run_number - 1][episode_number - 1]['frames']
-        print(len(frames))
+        print(f"Number of frames: {len(frames)}")
         if video_type == "gif":
-            # Save as a GIF
-            filname = os.path.join(self.exp_path, f"run_{run_number}, ep_{episode_number}.gif")
-            imageio.mimsave(filname, frames, fps=15)  # Adjust fps if needed
-
-            print(f"GIF saved as {filname}")
+            filename = os.path.join(self.exp_path, f"run_{run_number}_ep_{episode_number}.gif")
+            imageio.mimsave(filename, frames, fps=15)  # Adjust fps as needed
+            print(f"GIF saved as {filename}")
         else:
-            raise NotImplementedError("Video Type is not Defined")
+            raise NotImplementedError("Only GIF video type is implemented.")

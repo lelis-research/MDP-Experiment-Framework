@@ -16,21 +16,33 @@ from Agents.Utils import (
 class NStepDQNPolicy(BasePolicy):
     """
     Epsilon-greedy policy for n-step DQN.
+    
+    Hyper-parameters (in hp) must include:
+        - epsilon (float)
+        - gamma (float)
+        - step_size (float)
+        - target_update_freq (int)
+        - value_network (list): configuration for network layers.
     """
     def __init__(self, action_space, features_dim, hyper_params):
         """
-        hyper_params must include:
-            - epsilon
-            - gamma
-            - step_size  
-            - target_update_freq
+        Args:
+            action_space (gym.spaces.Discrete): Action space.
+            features_dim (int): Dimension of the flattened features.
+            hyper_params: Container with hyper-parameters.
         """
         super().__init__(action_space, hyper_params)
         self.features_dim = features_dim
         
     def select_action(self, state):
         """
-        Epsilon-greedy action selection.
+        Select an action using epsilon-greedy policy.
+        
+        Args:
+            state (np.array): Flat feature vector.
+            
+        Returns:
+            int: Chosen action.
         """
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
@@ -41,12 +53,20 @@ class NStepDQNPolicy(BasePolicy):
             return int(torch.argmax(q_values, dim=1).item())
     
     def reset(self, seed):
+        """
+        Reset the policy: initialize networks, optimizer, and counter.
+        
+        Args:
+            seed (int): Random seed.
+        """
         super().reset(seed)
         self.update_counter = 0
         
-        network_description = prepare_network_config(self.hp.value_network,
-                                                     input_dim=self.features_dim,
-                                                     output_dim=self.action_dim)
+        network_description = prepare_network_config(
+            self.hp.value_network,
+            input_dim=self.features_dim,
+            output_dim=self.action_dim
+        )
         
         self.network = NetworkGen(layer_descriptions=network_description)
         self.target_network = NetworkGen(layer_descriptions=network_description)
@@ -57,9 +77,16 @@ class NStepDQNPolicy(BasePolicy):
         
     def update(self, states, actions, n_step_returns, next_states, dones, n_steps, call_back=None):
         """
-        Update Q-network using a batch of transitions.
-        Each transition is a tuple:
-          (state, action, cumulative_reward, next_state, done, n_step)
+        Update Q-network using a batch of n-step transitions.
+        
+        Args:
+            states (list/np.array): Batch of states; shape [batch, features_dim].
+            actions (list/np.array): Batch of actions; shape [batch].
+            n_step_returns (list/np.array): Batch of computed n-step returns; shape [batch].
+            next_states (list/np.array): Batch of next states; shape [batch, features_dim].
+            dones (list/np.array): Batch of done flags; shape [batch].
+            n_steps (list/np.array): Number of steps for each transition; shape [batch].
+            call_back (function, optional): Callback to track training progress.
         """
         states_t = torch.FloatTensor(np.array(states))
         actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
@@ -68,7 +95,7 @@ class NStepDQNPolicy(BasePolicy):
         dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
         n_steps_t = torch.FloatTensor(np.array(n_steps)).unsqueeze(1)
         
-        # Online network Q-value for the taken action.
+        # Q-values for current states (for chosen actions)
         qvalues_t = self.network(states_t).gather(1, actions_t)
         
         with torch.no_grad():
@@ -90,104 +117,127 @@ class NStepDQNPolicy(BasePolicy):
             call_back({"value_loss": loss.item()})
 
     def save(self, file_path):
+        """
+        Save network states, optimizer state, and hyper-parameters.
+        
+        Args:
+            file_path (str): File path for saving.
+        """
         checkpoint = {
             'network_state_dict': self.network.state_dict(),
             'target_network_state_dict': self.target_network.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
-            'hyper_params': self.hp,  # Ensure self.hp is pickle-serializable
+            'hyper_params': self.hp,
             'features_dim': self.features_dim,
             'action_dim': self.action_dim,
         }
         torch.save(checkpoint, file_path)
 
-
     def load(self, file_path):
-        checkpoint = torch.load(file_path, weights_only=False)
+        """
+        Load network states, optimizer state, and hyper-parameters.
+        
+        Args:
+            file_path (str): File path for the checkpoint.
+        """
+        checkpoint = torch.load(file_path, map_location='cpu')
         self.network.load_state_dict(checkpoint['network_state_dict'])
         self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.hp = checkpoint.get('hyper_params', self.hp)
         self.features_dim = checkpoint.get('features_dim', self.features_dim)
         self.action_dim = checkpoint.get('action_dim', self.action_dim)
+
 class NStepDQNAgent(BaseAgent):
     """
-    n-step Deep Q-Network (DQN) agent that uses a single replay buffer for all transitions.
+    n-step DQN agent that uses a unified replay buffer and an n-step buffer.
+    
+    Transitions are stored as:
+        (state, action, cumulative_reward, next_state, done, n_step)
+    
+    Args:
+        action_space (gym.spaces.Discrete): Environment's action space.
+        observation_space: Environment's observation space.
+        hyper_params: Hyper-parameters container (must include n_steps, epsilon, gamma, step_size, etc.).
+        num_envs (int): Number of parallel environments.
+        feature_extractor_class: Class for extracting features from observations.
     """
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        """
-        hyper_params must include:
-            - epsilon
-            - gamma
-            - step_size  
-            - replay_buffer_cap
-            - batch_size
-            - target_update_freq
-            - n_steps   (number of steps for multi-step return)
-        """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = feature_extractor_class(observation_space)
         
-        # Unified Replay Buffer: will store transitions as:
-        # (state, action, cumulative_reward, next_state, done, n_steps)
+        # Replay buffer to store n-step transitions.
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)
         
+        # The DQN policy.
         self.policy = NStepDQNPolicy(action_space, self.feature_extractor.features_dim, hyper_params)
         
-        # n-step buffer for accumulating transitions before computing the n-step return.
-        # Each element: (state, action, reward, next_state, done)
-        self.n_step_buffer = BasicBuffer(hyper_params.n_steps)  
+        # Buffer to accumulate n-step transitions.
+        self.n_step_buffer = BasicBuffer(hyper_params.n_steps)
     
     def act(self, observation):
         """
         Select an action based on the current observation.
+        
+        Args:
+            observation (np.array or similar): Raw observation.
+            
+        Returns:
+            int: Selected action.
         """
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state)
-
-        self.last_state = state  # Store current state
+        self.last_state = state  # Store for later update
         self.last_action = action
         return action
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
-        Called at every time step.
-        Accumulate transitions into the n-step buffer, compute n-step returns,
-        and add the resulting transitions to the replay buffer. Then sample a batch
-        and update the network.
+        At each time step, accumulate transitions, compute n-step returns, and update the network.
+        
+        Args:
+            observation (np.array or similar): New observation after action.
+            reward (float): Reward received.
+            terminated (bool): True if the episode terminated.
+            truncated (bool): True if the episode was truncated.
+            call_back (function, optional): Callback to track training progress.
         """
         state = self.feature_extractor(observation)
-        
-        # Append the latest transition.
+        # Append current transition to n-step buffer:
+        # (state, action, reward, next_state, done)
         transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
         self.n_step_buffer.add_single_item(transition)
 
-        # If we have at least n_step transitions, compute the n-step transition.
+        # If enough transitions are accumulated or if episode ends:
         if self.n_step_buffer.size >= self.hp.n_steps or terminated or truncated:
             rollout = self.n_step_buffer.get_all()
             states, actions, rewards, next_states, dones = zip(*rollout)
+            # Compute n-step returns using the accumulated rewards.
+            returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
             if terminated or truncated:
-                returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
+                # For episode end, flush all transitions.
                 for i in range(self.n_step_buffer.size):
-                    transition = states[i], actions[i], returns[i], next_states[-1], dones[-1], self.n_step_buffer.size - i
-                    self.replay_buffer.add_single_item(transition)
+                    trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], self.n_step_buffer.size - i)
+                    self.replay_buffer.add_single_item(trans)
                 self.n_step_buffer.reset()
             else:
-                returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-                transition = states[0], actions[0], returns[0], next_states[-1], dones[-1], self.n_step_buffer.size
-                self.replay_buffer.add_single_item(transition)
+                # Otherwise, add only the oldest transition.
+                trans = (states[0], actions[0], returns[0], next_states[-1], dones[-1], self.n_step_buffer.size)
+                self.replay_buffer.add_single_item(trans)
                 self.n_step_buffer.remove_oldest()
         
-
-        # Update network if the replay buffer has enough samples.
+        # Sample a minibatch and update the network if enough samples are available.
         if self.replay_buffer.size >= self.hp.batch_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, n_step_returns, next_states, dones, n_steps = zip(*batch)
-            self.policy.update(states, actions, n_step_returns, next_states, dones, n_steps, call_back=call_back)
-    
+            states_b, actions_b, n_step_returns_b, next_states_b, dones_b, n_steps_b = zip(*batch)
+            self.policy.update(states_b, actions_b, n_step_returns_b, next_states_b, dones_b, n_steps_b, call_back=call_back)
     
     def reset(self, seed):
         """
-        Reset the agent's learning state.
+        Reset the agent: clear buffers and reset the feature extractor.
+        
+        Args:
+            seed (int): Seed for reproducibility.
         """
         super().reset(seed)
         self.feature_extractor.reset(seed)

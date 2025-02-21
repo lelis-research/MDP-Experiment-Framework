@@ -28,8 +28,7 @@ class call_back:
 
 class LoggerExperiment(BaseExperiment):
     """
-    This class handles running episodes and collecting metrics.
-    It will save the results on TensorBoard
+    An experiment class that runs episodes, collects metrics, and logs them to TensorBoard.
     """
     def __init__(self, env, agent, exp_dir, train=True):
         super().__init__(env, agent, exp_dir, train=train)
@@ -40,10 +39,11 @@ class LoggerExperiment(BaseExperiment):
         Run a single episode.
         
         Args:
-            seed: (Optional) Random seed for the episode.
+            seed: Seed for reproducibility.
+            call_back (function, optional): Callback to log intermediate metrics.
         
         Returns:
-            A dictionary containing metrics such as total_reward and steps.
+            dict: Episode metrics including total_reward, steps, frames, env_seed, and transitions.
         """
         observation, info = self.env.reset(seed=seed) 
         total_reward = 0.0
@@ -64,20 +64,19 @@ class LoggerExperiment(BaseExperiment):
         
         frames = self.env.render()
         return {"total_reward": total_reward, "steps": steps, 
-                "frames":frames, "env_seed": seed, "transitions": transitions}
+                "frames": frames, "env_seed": seed, "transitions": transitions}
     
     def _single_run(self, num_episodes, seed, n_run):
         """
-        Run the experiment for a specified number of episodes.
+        Run a series of episodes for one experimental run and log metrics to TensorBoard.
         
         Args:
-            num_episodes (int): Number of episodes to run.
-            seed_offset (int): An offset for the seed.
-            writer (SummaryWriter, optional): A TensorBoard writer to log this run's metrics.
-                                               If not provided, uses self.writer.
+            num_episodes (int): Number of episodes in the run.
+            seed (int): Base seed for reproducibility.
+            n_run (int): Run identifier.
         
         Returns:
-            A list of episode metrics for analysis.
+            list: A list of episode metrics.
         """
         self.call_back.reset()
         if self._train:
@@ -91,7 +90,6 @@ class LoggerExperiment(BaseExperiment):
             metrics['agent_seed'] = seed
             all_metrics.append(metrics)
 
-
             self.call_back({"total_reward": metrics["total_reward"]},
                            f"total_reward/run_{n_run}", 
                            episode)
@@ -99,8 +97,6 @@ class LoggerExperiment(BaseExperiment):
                            f"num_steps/run_{n_run}", 
                            episode)
             
-            
-            # Update the progress bar.
             pbar.set_postfix({
                 "Reward": metrics['total_reward'], 
                 "Steps": metrics['steps'],
@@ -113,10 +109,22 @@ class LoggerExperiment(BaseExperiment):
     def multi_run(self, num_runs, num_episodes, seed_offset=None, 
                   dump_metrics=True, checkpoint_freq=None, 
                   dump_transitions=False):
+        """
+        Run multiple experimental runs, log metrics, and save checkpoints.
         
+        Args:
+            num_runs (int): Number of independent runs.
+            num_episodes (int): Number of episodes per run.
+            seed_offset (int, optional): Offset seed for reproducibility.
+            dump_metrics (bool): Whether to dump metrics to disk.
+            checkpoint_freq (int, optional): Frequency to save checkpoints.
+            dump_transitions (bool): Whether to dump raw transitions.
+        
+        Returns:
+            list: A list containing metrics for all runs.
+        """
         all_runs_metrics = super().multi_run(num_runs, num_episodes, seed_offset, 
                                              dump_metrics, checkpoint_freq, 
                                              dump_transitions)
         self.call_back.close()
-            
         return all_runs_metrics

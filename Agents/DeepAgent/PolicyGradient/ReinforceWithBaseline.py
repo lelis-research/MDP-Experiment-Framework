@@ -13,100 +13,105 @@ from Agents.Utils import (
     prepare_network_config,
 )
 
-
 class ReinforceWithBaselinePolicy(BasePolicy):
     """
-    A Policy for REINFORCE with a learned baseline (value network).
-    
-    We'll store states, actions, log_probs, and rewards for each episode.
-    Then, at episode end, we:
-      1) compute the returns G_t,
-      2) update ValueNetwork (the baseline),
-      3) use advantage = (G_t - V(s_t)) in the policy gradient.
+    REINFORCE with a learned baseline (value network).
+    Stores states, log probabilities, and rewards for an episode, then updates
+    both the actor (policy) and critic (baseline) at episode end.
     """
     def __init__(self, action_space, features_dim, hyper_params):
         """
         Args:
-            action_space: The environment's action space (assumed to be Discrete).
-            features_dim: Integer showing the number of features (From here we start with fully connected)
-            hyper-parameters:
-                - gamma
-                - actor_step_size  
-                - critic_step_size
+            action_space (gym.spaces.Discrete): Discrete action space.
+            features_dim (int): Number of features from the feature extractor.
+            hyper_params: Hyper-parameters; must include gamma, actor_step_size, and critic_step_size.
         """
         super().__init__(action_space, hyper_params)
-        
         self.features_dim = features_dim
 
     def reset(self, seed):
+        """
+        Initialize the actor and critic networks and their optimizers.
+        
+        Args:
+            seed (int): Random seed.
+        """
         super().reset(seed)
-        actor_description = prepare_network_config(self.hp.actor_network, 
-                                                   input_dim= self.features_dim, 
-                                                   output_dim=self.action_dim)
-        critic_description = prepare_network_config(self.hp.critic_network,
-                                                    input_dim=self.features_dim,
-                                                    output_dim=1)
-
+        # Build actor network configuration
+        actor_description = prepare_network_config(
+            self.hp.actor_network, 
+            input_dim=self.features_dim, 
+            output_dim=self.action_dim
+        )
+        # Build critic network configuration (outputs scalar value)
+        critic_description = prepare_network_config(
+            self.hp.critic_network,
+            input_dim=self.features_dim,
+            output_dim=1
+        )
         self.actor = NetworkGen(layer_descriptions=actor_description)
         self.critic = NetworkGen(layer_descriptions=critic_description)
-
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 
     def select_action(self, state):
         """
-        Sample an action from the policy distribution (Categorical).
-        We'll return the action and store the log_prob for the update.
+        Sample an action from the policy distribution.
+        
+        Args:
+            state (np.array): Flat feature vector.
+        
+        Returns:
+            tuple: (action (int), log_prob (torch.Tensor))
         """
         state_t = torch.FloatTensor(state)
-        logits = self.actor(state_t) 
-        
+        logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
-        
-        # Store the log_prob
         log_prob_t = dist.log_prob(action_t)
-        
         return action_t.item(), log_prob_t
 
     def update(self, states, log_probs, rewards, call_back=None):
         """
-        End of episode => compute returns, train the baseline, do the policy gradient update with advantage.
+        At episode end, compute returns, update the critic (baseline) with MSE loss,
+        and update the actor using the advantage (return - baseline).
+        
+        Args:
+            states (list or np.array): List of states from the episode.
+            log_probs (list): List of log probabilities for the actions taken.
+            rewards (list): List of rewards received.
+            call_back (function, optional): Callback to report losses.
         """
         states_t = torch.FloatTensor(np.array(states))
         log_probs_t = torch.stack(log_probs)
         
-        # Compute discounted returns from the end of the episode to the beginning
+        # Compute discounted returns (G_t) from the episode
         returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns).unsqueeze(1) #Correct the dims
+        returns_t = torch.FloatTensor(returns).unsqueeze(1)
         
-        # (Optional) Normalize returns to help training stability
-        # Made the performance much worse !
-        # returns_t = (returns_t - returns_t.mean()) / (returns_t.std() + 1e-8)
-
-        # Critic update: we train the value network V(s) to approximate the returns
-        predicted_values_t = self.critic(states_t)   
-
-        # Backprop Critic
+        # Update the critic (value network) with MSE loss
+        predicted_values_t = self.critic(states_t)
         critic_loss = F.mse_loss(predicted_values_t, returns_t)
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-
+        
         # Compute advantage: A_t = G_t - V(s_t)
         with torch.no_grad():
-            predicted_values_t = self.critic(states_t)      
-        advantages_t = returns_t - predicted_values_t                
-        
-        # Policy update:  - sum( log_prob_t * advantage_t )
+            predicted_values_t = self.critic(states_t)
+        advantages_t = returns_t - predicted_values_t
+                
+        # Actor loss: negative log-likelihood weighted by advantage
         actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
 
         if call_back is not None:
-            call_back({"critic_loss":critic_loss.item(),
-                       "actor_loss":actor_loss.item()})
+            call_back({
+                "critic_loss": critic_loss.item(),
+                "actor_loss": actor_loss.item()
+            })
     
     def save(self, file_path):
         checkpoint = {
@@ -114,15 +119,14 @@ class ReinforceWithBaselinePolicy(BasePolicy):
             'critic_state_dict': self.critic.state_dict(),
             'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
             'critic_optimizer_state_dict': self.critic_optimizer.state_dict(),
-            'hyper_params': self.hp,  # Ensure that self.hp is serializable
+            'hyper_params': self.hp,
             'features_dim': self.features_dim,
             'action_dim': self.action_dim,
         }
         torch.save(checkpoint, file_path)
 
-
     def load(self, file_path):
-        checkpoint = torch.load(file_path, weights_only=False)
+        checkpoint = torch.load(file_path, map_location='cpu')
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
@@ -134,13 +138,18 @@ class ReinforceWithBaselinePolicy(BasePolicy):
 
 class ReinforceWithBaselineAgent(BaseAgent):
     """
-    A REINFORCE-like agent that uses a learned baseline (value network)
-    to reduce variance => 'Actor + Baseline'.
+    REINFORCE agent with a learned baseline (value network) to reduce variance.
     """
-
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
+        """
+        Args:
+            action_space (gym.spaces.Discrete): Discrete action space.
+            observation_space: Environment's observation space.
+            hyper_params: Must include gamma, actor_step_size, and critic_step_size.
+            num_envs (int): Number of parallel environments.
+            feature_extractor_class: Class to extract features from observations.
+        """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-
         self.feature_extractor = feature_extractor_class(observation_space)
         self.policy = ReinforceWithBaselinePolicy(
             action_space,
@@ -150,31 +159,49 @@ class ReinforceWithBaselineAgent(BaseAgent):
         self.rollout_buffer = BasicBuffer(np.inf)
 
     def act(self, observation):
-        # Convert observation to features, select an action stochastically
+        """
+        Convert the observation to features and select an action stochastically.
+        
+        Args:
+            observation: Raw observation.
+        
+        Returns:
+            int: Selected action.
+        """
         state = self.feature_extractor(observation)
         action, log_prob = self.policy.select_action(state)
-
         self.last_state = state
         self.last_log_prob = log_prob
         return action
-    
+
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
-        Called every step by the experiment loop:
-        - If the episode ends, do a policy gradient update
+        Store the reward and, if the episode is finished, update the policy.
+        
+        Args:
+            observation: New observation.
+            reward (float): Reward received.
+            terminated (bool): True if episode terminated.
+            truncated (bool): True if episode was truncated.
+            call_back (function, optional): Callback to report losses.
         """
+        # Store log_prob and reward for the last time step.
         transition = (self.last_state[0], self.last_log_prob, reward)
         self.rollout_buffer.add_single_item(transition)
 
+        # If episode ends, perform policy update.
         if terminated or truncated:
             rollout = self.rollout_buffer.get_all()
-            states, log_probs, rewards, = zip(*rollout)
+            states, log_probs, rewards = zip(*rollout)
             self.policy.update(states, log_probs, rewards, call_back=call_back)    
             self.rollout_buffer.reset()
 
     def reset(self, seed):
         """
-        Reset the agent at the start of a new run (multiple seeds).
+        Reset the agent's state for a new run.
+        
+        Args:
+            seed (int): Seed for reproducibility.
         """
         super().reset(seed)
         self.feature_extractor.reset(seed)
