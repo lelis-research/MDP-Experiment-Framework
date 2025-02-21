@@ -6,7 +6,7 @@ from Evaluate import SingleExpAnalyzer
 from Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
 from Environments import get_env, ENV_LST
 
-from config import AGENT_DICT
+from config import AGENT_DICT, env_wrapping, wrapping_params
 
 def parse():
     import argparse
@@ -40,14 +40,12 @@ def main():
         os.makedirs(runs_dir)  # Create directory if it doesn't exist
     
     # Create environment with wrappers
-    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"]
-    wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
     env = get_env(
             env_name=args.env,
             num_envs=args.num_envs,
             render_mode=args.render_mode,
             max_steps=args.episode_max_steps,
-            wrapping_lst=wrapping_lst,
+            wrapping_lst=env_wrapping,
             wrapping_params=wrapping_params,
         )
     

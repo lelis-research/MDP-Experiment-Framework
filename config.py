@@ -54,6 +54,11 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
+
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"]
+wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
+
+    
 AGENT_DICT = {
     "Random": lambda env: RandomAgent(
         get_env_action_space(env), 
@@ -99,10 +104,10 @@ AGENT_DICT = {
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
                         target_update_freq=20,
-                        value_network=conv_network_1,
+                        value_network=fc_network_1,
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
     ),
     "DoubleDQN": lambda env: DoubleDQNAgent(
         get_env_action_space(env), 

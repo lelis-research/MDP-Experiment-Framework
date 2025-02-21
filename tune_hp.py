@@ -8,7 +8,7 @@ from Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from Experiments import BaseExperiment, ParallelExperiment
 from Evaluate import SingleExpAnalyzer
 from Environments import get_env, ENV_LST
-from config import AGENT_DICT
+from config import AGENT_DICT, env_wrapping, wrapping_params
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -113,14 +113,12 @@ def main(hp_range):
         os.makedirs(runs_dir)
 
     # Create the environment with specified wrappers.
-    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"]
-    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": 0}]
     env = get_env(
         env_name=args.env,
         num_envs=args.num_envs,
         render_mode=None,
         max_steps=args.episode_max_steps,
-        wrapping_lst=wrapping_lst,
+        wrapping_lst=env_wrapping,
         wrapping_params=wrapping_params,
     )
 
