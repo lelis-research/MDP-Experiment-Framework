@@ -2,7 +2,7 @@ import numpy as np
 import random
 import pickle
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
+from Agents.Utils import BaseAgent, BasePolicy
 
 class QLearningPolicy(BasePolicy):
     """
@@ -31,7 +31,7 @@ class QLearningPolicy(BasePolicy):
             return int(np.argmax(self.q_table[state]))
     
             
-    def update(self, last_state, last_action, state, reward, terminated, truncated):
+    def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
 
@@ -42,8 +42,11 @@ class QLearningPolicy(BasePolicy):
             target = reward + self.hp.gamma * np.max(self.q_table[state])
         
         # Perform the Q-Learning update.
-        self.q_table[last_state][last_action] += self.hp.step_size * \
-            (target - self.q_table[last_state][last_action])
+        td_error = target - self.q_table[last_state][last_action]
+        self.q_table[last_state][last_action] += self.hp.step_size * td_error
+        
+        if call_back is not None:
+            call_back({"value_loss": td_error})
 
     def reset(self, seed):
         super().reset(seed)
@@ -96,9 +99,9 @@ class QLearningAgent(BaseAgent):
         self.last_state = state
         return action
     
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         state = self.feature_extractor(observation)
-        self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated)
+        self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated, call_back=call_back)
     
     
     

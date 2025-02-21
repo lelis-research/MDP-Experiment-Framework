@@ -1,12 +1,10 @@
 import os
 import pickle
 
-from Experiments.BaseExperiment import BaseExperiment
-from Evaluate.MultiExpAnalyzer import MultiExpAnalyzer
-from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
-from Environments.GetEnvironment import *
-from agent_config import AGENT_DICT
-from Agents.Utils.HyperParams import HyperParameters
+from Experiments import BaseExperiment
+from Evaluate import MultiExpAnalyzer, SingleExpAnalyzer
+from Environments import get_env
+from config import AGENT_DICT
 
 def compare_agents(agents_dict):
     '''

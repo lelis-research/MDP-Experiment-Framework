@@ -1,6 +1,7 @@
 import gymnasium as gym
-from Environments.MiniGrid.Wrappers import *
 from gymnasium.vector import AsyncVectorEnv  # or SyncVectorEnv
+
+from .Wrappers import WRAPPING_TO_WRAPPER
 
 
 MINIGRID_ENV_LST = [
@@ -79,9 +80,7 @@ MINIGRID_ENV_LST = [
     "MiniGrid-UnlockPickup-v0",
 
     "MiniGrid-Playground-v0",
-    
-    ]
-
+]
 
 def get_single_env(env_name, 
                    max_steps=500, 

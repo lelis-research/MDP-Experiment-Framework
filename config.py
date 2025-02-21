@@ -1,21 +1,28 @@
-from Agents.Utils.FeatureExtractor import TabularFeature, FLattenFeature, ImageFeature
-
-from Agents.RandomAgent.RandomAgent import RandomAgent
-from Agents.TabularAgent.QLearningAgent import QLearningAgent
-from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
-from Agents.TabularAgent.SarsaAgent import SarsaAgent
-from Agents.TabularAgent.DoubleQLearningAgent import DoubleQLearningAgent
-
-from Agents.DeepAgent.ValueBased.DQNAgent import DQNAgent
-from Agents.DeepAgent.ValueBased.DoubleDQNAgent import DoubleDQNAgent
-from Agents.DeepAgent.ValueBased.NStepDQNAgent import NStepDQNAgent
-from Agents.DeepAgent.PolicyGradient.ReinforceAgent import ReinforceAgent
-from Agents.DeepAgent.PolicyGradient.ReinforceWithBaseline import ReinforceAgentWithBaseline
-from Agents.DeepAgent.PolicyGradient.A2C_v1 import A2CAgentV1
-from Agents.DeepAgent.PolicyGradient.A2C_v2 import A2CAgentV2
-from Agents.DeepAgent.PolicyGradient.PPOAgent import PPOAgent
-
-from Agents.Utils.HyperParams import HyperParameters
+from Agents.Utils import (
+    TabularFeature,
+    FLattenFeature,
+    ImageFeature,
+    HyperParameters,
+)
+from Agents.RandomAgent import RandomAgent
+from Agents.TabularAgent import (
+    QLearningAgent,
+    NStepQLearningAgent,
+    SarsaAgent,
+    DoubleQLearningAgent,
+)
+from Agents.DeepAgent.ValueBased import (
+    DQNAgent,
+    DoubleDQNAgent,
+    NStepDQNAgent,
+)
+from Agents.DeepAgent.PolicyGradient import (
+    ReinforceAgent,
+    ReinforceWithBaselineAgent,
+    A2CAgentV1,
+    A2CAgentV2,
+    PPOAgent,
+)
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -103,10 +110,10 @@ AGENT_DICT = {
         HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
                         target_update_freq=20,
-                        value_network=conv_network_1,
+                        value_network=fc_network_1,
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
     ),
     "NStepDQN": lambda env: NStepDQNAgent(
         get_env_action_space(env), 
@@ -128,7 +135,7 @@ AGENT_DICT = {
         get_num_envs(env),
         FLattenFeature,
     ),
-    "ReinforceWithBaseline": lambda env: ReinforceAgentWithBaseline(
+    "ReinforceWithBaseline": lambda env: ReinforceWithBaselineAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1,
@@ -144,25 +151,25 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
-                        actor_network=conv_network_1,
+                        actor_network=fc_network_1,
                         actor_step_size=0.001,
-                        critic_network=conv_network_1,
+                        critic_network=fc_network_1,
                         critic_step_size=0.001,
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
     ),
     "A2C_v2": lambda env: A2CAgentV2(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
-                        actor_network=conv_network_1,
+                        actor_network=fc_network_1,
                         actor_step_size=0.001,
-                        critic_network=conv_network_1,
+                        critic_network=fc_network_1,
                         critic_step_size=0.001,
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
     ),
     "PPO": lambda env: PPOAgent(
         get_env_action_space(env), 

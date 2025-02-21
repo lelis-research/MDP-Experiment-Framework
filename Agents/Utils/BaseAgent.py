@@ -86,14 +86,14 @@ class BaseAgent:
         """
         return self.policy.select_parallel_actions(observations)
     
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Update the agent (e.g., learning step).
         This should be implemented by learning agents.
         """
         pass  # Default: No learning
 
-    def parallel_update(self, observations, rewards, terminateds, truncateds):
+    def parallel_update(self, observations, rewards, terminateds, truncateds, call_back):
         """
         Update the agent (e.g., learning step).
         This should be implemented by learning agents.

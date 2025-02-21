@@ -1,14 +1,12 @@
-# main.py
 import argparse
 import os
 import datetime
-from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
-from Experiments.LoggerExperiment import LoggerExperiment
-from Experiments.BaseExperiment import BaseExperiment
-from Experiments.ParallelExperiment import ParallelExperiment
-from Environments.GetEnvironment import *
 
-from agent_config import AGENT_DICT
+from Evaluate import SingleExpAnalyzer
+from Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
+from Environments import get_env, ENV_LST
+
+from config import AGENT_DICT
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -77,7 +75,7 @@ def main():
         os.makedirs(runs_dir)
     
     # Env Creation
-    wrapping_lst = ["ViewSize", "ImgObs", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
+    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
     wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
     env = get_env(
             env_name=args.env,

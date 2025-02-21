@@ -1,9 +1,13 @@
 import numpy as np
 import random
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.TabularAgent.QLearningAgent import QLearningAgent, QLearningPolicy
-from Agents.Utils.Buffer import BasicBuffer
-from Agents.Utils.HelperFunction import *
+
+from Agents.Utils import (
+    BaseAgent,
+    BasePolicy,
+    BasicBuffer,
+    calculate_n_step_returns,
+)
+from .QLearning import QLearningAgent, QLearningPolicy
 
 class NStepQLearningPolicy(QLearningPolicy):
     """
@@ -26,7 +30,7 @@ class NStepQLearningPolicy(QLearningPolicy):
         super().reset(seed)
         self.rollout_buffer = BasicBuffer(np.inf)
         
-    def update(self, last_state, last_action, state, reward, terminated, truncated):
+    def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
 
         # Append the most recent transition (from the previous action) to the buffer.
         transition = (last_state, last_action, reward)
@@ -47,7 +51,11 @@ class NStepQLearningPolicy(QLearningPolicy):
 
             # Update the Q-value for the oldest transition.
             s, a, _ = self.rollout_buffer.remove_oldest()
-            self.q_table[s][a] += self.hp.step_size * (n_step_return - self.q_table[s][a])            
+            td_error = n_step_return - self.q_table[s][a]
+            self.q_table[s][a] += self.hp.step_size * td_error
+
+            if call_back is not None:
+                call_back({"value_loss": td_error})        
         
         # Now handle the end-of-episode scenario.
         if terminated or truncated:
@@ -59,7 +67,10 @@ class NStepQLearningPolicy(QLearningPolicy):
                 n_step_return = calculate_n_step_returns(rollout_rewards, bootstrap_value, self.hp.gamma)[0]
                 
                 s, a, _ = self.rollout_buffer.remove_oldest()
-                self.q_table[s][a] += self.hp.step_size * (n_step_return - self.q_table[s][a])
+                td_error = n_step_return - self.q_table[s][a]
+                self.q_table[s][a] += self.hp.step_size * td_error
+                if call_back is not None:
+                    call_back({"value_loss": td_error})
                 
 
 class NStepQLearningAgent(QLearningAgent):

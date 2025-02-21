@@ -4,7 +4,7 @@ import pickle
 import random
 import numpy as np
 
-from Experiments.BaseExperiment import BaseExperiment
+from . import BaseExperiment
 
 class ParallelExperiment(BaseExperiment):
     """    

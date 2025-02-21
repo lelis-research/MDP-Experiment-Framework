@@ -1,17 +1,17 @@
 import numpy as np
-import random
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.Buffer import BasicBuffer
-from Agents.Utils.HelperFunction import calculate_n_step_returns
-from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
-
+from Agents.Utils import (
+    BaseAgent,
+    BasePolicy,
+    BasicBuffer,
+    calculate_n_step_returns,
+    NetworkGen,
+    prepare_network_config,
+)
 class PPOPolicy(BasePolicy):
     """
     Proximal Policy Optimization policy for discrete actions.
@@ -61,7 +61,7 @@ class PPOPolicy(BasePolicy):
 
         return action_t.item(), log_prob_t.detach(), value_t
 
-    def update(self, states, actions, old_log_probs, states_values, rewards, next_states, dones):
+    def update(self, states, actions, old_log_probs, states_values, rewards, next_states, dones, call_back=None):
         """
         Perform a PPO update using the collected rollout buffer.
         
@@ -112,10 +112,9 @@ class PPOPolicy(BasePolicy):
                 ratios = torch.exp(new_log_probs_t - batch_log_prob)
                 surr1 = ratios * batch_advantages
                 surr2 = torch.clamp(ratios, 1 - self.hp.clip_range, 1 + self.hp.clip_range) * batch_advantages
-                actor_loss = -torch.min(surr1, surr2) - self.hp.entropy_coef * entropy
-                
+                actor_loss = torch.mean(-torch.min(surr1, surr2) - self.hp.entropy_coef * entropy)
                 self.actor_optimizer.zero_grad()
-                actor_loss.mean().backward()
+                actor_loss.backward()
                 self.actor_optimizer.step()
                 
                 # Critic update: MSE loss between predicted state value and the n-step return
@@ -124,6 +123,10 @@ class PPOPolicy(BasePolicy):
                 self.critic_optimizer.zero_grad()
                 critic_loss.backward()
                 self.critic_optimizer.step()
+
+                if call_back is not None:
+                    call_back({"critic_loss":critic_loss.item(),
+                            "actor_loss":actor_loss.item()})
     
     def save(self, file_path):
         checkpoint = {
@@ -180,7 +183,7 @@ class PPOAgent(BaseAgent):
         self.last_state_value = state_value
         return action
 
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Called every step. Stores the transition in the rollout buffer. When
         the buffer is full (or the episode ends), performs the PPO update.
@@ -195,7 +198,7 @@ class PPOAgent(BaseAgent):
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:
             rollout = self.rollout_buffer.get_all()
             states, actions, log_probs, states_values, rewards, next_states, dones = zip(*rollout)
-            self.policy.update(states, actions, log_probs, states_values, rewards, next_states, dones)
+            self.policy.update(states, actions, log_probs, states_values, rewards, next_states, dones, call_back=call_back)
             self.rollout_buffer.reset()
 
     def reset(self, seed):

@@ -53,7 +53,6 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
         return new_obs
         
 
-
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
     "ImgObs": ImgObsWrapper,

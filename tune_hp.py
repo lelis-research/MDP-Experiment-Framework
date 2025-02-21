@@ -4,12 +4,11 @@ import numpy as np
 import optuna
 import argparse
 
-from Agents.Utils.HyperParams import HyperParameters
-from Experiments.BaseExperiment import BaseExperiment
-from Experiments.ParallelExperiment import ParallelExperiment
-from Evaluate.SingleExpAnalyzer import SingleExpAnalyzer
-from Environments.GetEnvironment import *
-from agent_config import AGENT_DICT
+from Agents.Utils import HyperParameters
+from Experiments import BaseExperiment, ParallelExperiment
+from Evaluate import SingleExpAnalyzer
+from Environments import get_env, ENV_LST
+from config import AGENT_DICT
 
 def parse():
     parser = argparse.ArgumentParser()

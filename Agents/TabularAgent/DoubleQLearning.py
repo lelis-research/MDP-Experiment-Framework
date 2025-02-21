@@ -2,8 +2,7 @@ import numpy as np
 import random
 import pickle
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-
+from Agents.Utils import BaseAgent, BasePolicy
 
 class DoubleQLearningPolicy(BasePolicy):
     """
@@ -43,7 +42,7 @@ class DoubleQLearningPolicy(BasePolicy):
             return int(np.argmax(q_sum))
 
 
-    def update(self, last_state, last_action, state, reward, terminated, truncated):
+    def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
         """
         Double Q-learning update. We randomly pick which Q-table to update.
         """
@@ -61,16 +60,19 @@ class DoubleQLearningPolicy(BasePolicy):
                 target = reward
             else:
                 target = reward + self.hp.gamma * np.max(self.q2_table[state])
-            self.q1_table[last_state][last_action] += self.hp.step_size * \
-                (target - self.q1_table[last_state][last_action])
+            td_error = target - self.q1_table[last_state][last_action]
+            self.q1_table[last_state][last_action] += self.hp.step_size * td_error
+                
         else:
             # Q2 update
             if terminated:
                 target = reward
             else:
                 target = reward + self.hp.gamma * np.max(self.q1_table[state])
-            self.q2_table[last_state][last_action] += self.hp.step_size * \
-                (target - self.q2_table[last_state][last_action])
+            td_error = target - self.q2_table[last_state][last_action]
+            self.q2_table[last_state][last_action] += self.hp.step_size * td_error
+        if call_back is not None:
+            call_back({"value_loss": td_error})
 
 
     def reset(self, seed):
@@ -123,9 +125,9 @@ class DoubleQLearningAgent(BaseAgent):
         self.last_action = action
         return action
 
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Perform the Double Q-Learning update.
         """
         state = self.feature_extractor(observation)
-        self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated)
+        self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated, call_back=call_back)

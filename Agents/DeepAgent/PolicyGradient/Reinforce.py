@@ -1,16 +1,17 @@
 import numpy as np
-import random
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.Buffer import BasicBuffer
-from Agents.Utils.HelperFunction import *
-from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
+from Agents.Utils import (
+    BaseAgent,
+    BasePolicy,
+    BasicBuffer,
+    calculate_n_step_returns,
+    NetworkGen,
+    prepare_network_config,
+)
 
 class ReinforcePolicy(BasePolicy):
     """
@@ -59,7 +60,7 @@ class ReinforcePolicy(BasePolicy):
         
         return action_t.item(), log_prob_t
 
-    def update(self, log_probs, rewards):
+    def update(self, log_probs, rewards, call_back=None):
         """
         Once an episode ends, compute discounted returns and do the policy update.
         """
@@ -80,6 +81,9 @@ class ReinforcePolicy(BasePolicy):
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
+
+        if call_back is not None:
+            call_back({"actor_loss":policy_loss.item()})
     
     def save(self, file_path):
         checkpoint = {
@@ -126,7 +130,7 @@ class ReinforceAgent(BaseAgent):
         self.last_log_prob = log_prob
         return action
 
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Called each time-step by the experiment loop. We store the reward,
         and if the episode ends, we do a policy update.
@@ -138,7 +142,7 @@ class ReinforceAgent(BaseAgent):
             rollout = self.rollout_buffer.get_all()
             log_probs, rewards = zip(*rollout)
         
-            self.policy.update(log_probs, rewards)    
+            self.policy.update(log_probs, rewards, call_back=call_back)    
             self.rollout_buffer.reset()
 
     def reset(self, seed):

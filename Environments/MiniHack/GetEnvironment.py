@@ -1,9 +1,12 @@
 import gymnasium as gym
 import minihack
 
+from .Wrappers import WRAPPING_TO_WRAPPER
+
 MINIHACK_ENV_LST = [
     "MiniHack-Room-5x5-v0",
 ]
+
 def get_single_env(env_name, 
                    max_steps=500, 
                    render_mode=None, 

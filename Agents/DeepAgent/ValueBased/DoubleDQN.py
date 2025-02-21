@@ -4,9 +4,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.Buffer import BasicBuffer    
-from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
+from Agents.Utils import (
+    BaseAgent,
+    BasePolicy,
+    BasicBuffer,
+    NetworkGen,
+    prepare_network_config,
+)
 
 class DoubleDQNPolicy(BasePolicy):
     """
@@ -62,7 +66,7 @@ class DoubleDQNPolicy(BasePolicy):
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
         self.loss_fn = nn.MSELoss()
         
-    def update(self, states, actions, rewards, next_states, dones):
+    def update(self, states, actions, rewards, next_states, dones, call_back=None):
         """
         Double DQN update:
           1) a_star = argmax_a Q_online(next_states, a)
@@ -97,6 +101,9 @@ class DoubleDQNPolicy(BasePolicy):
         self.update_counter += 1
         if self.update_counter % self.hp.target_update_freq == 0:
             self.target_network.load_state_dict(self.online_network.state_dict())
+        
+        if call_back is not None:
+            call_back({"value_loss": loss.item()})
     
     def save(self, file_path):
         checkpoint = {
@@ -146,7 +153,7 @@ class DoubleDQNAgent(BaseAgent):
         self.last_action = action
         return action
     
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         state = self.feature_extractor(observation)
         
         # Add to replay buffer
@@ -158,7 +165,7 @@ class DoubleDQNAgent(BaseAgent):
         if self.replay_buffer.size >= self.hp.batch_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
             states, actions, rewards, next_states, dones = zip(*batch)
-            self.policy.update(states, actions, rewards, next_states, dones)
+            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
 
     def reset(self, seed):
         super().reset(seed)

@@ -1,19 +1,20 @@
 import numpy as np
-import random
-
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Categorical
 
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.Buffer import BasicBuffer
-from Agents.Utils.HelperFunction import *
-from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
+from Agents.Utils import (
+    BaseAgent,
+    BasePolicy,
+    BasicBuffer,
+    calculate_n_step_returns,
+    NetworkGen,
+    prepare_network_config,
+)
 
 
-class ReinforcePolicyWithBaseline(BasePolicy):
+class ReinforceWithBaselinePolicy(BasePolicy):
     """
     A Policy for REINFORCE with a learned baseline (value network).
     
@@ -68,7 +69,7 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         
         return action_t.item(), log_prob_t
 
-    def update(self, states, log_probs, rewards):
+    def update(self, states, log_probs, rewards, call_back=None):
         """
         End of episode => compute returns, train the baseline, do the policy gradient update with advantage.
         """
@@ -102,6 +103,10 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
+
+        if call_back is not None:
+            call_back({"critic_loss":critic_loss.item(),
+                       "actor_loss":actor_loss.item()})
     
     def save(self, file_path):
         checkpoint = {
@@ -127,7 +132,7 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         self.action_dim = checkpoint.get('action_dim', self.action_dim)
 
 
-class ReinforceAgentWithBaseline(BaseAgent):
+class ReinforceWithBaselineAgent(BaseAgent):
     """
     A REINFORCE-like agent that uses a learned baseline (value network)
     to reduce variance => 'Actor + Baseline'.
@@ -137,7 +142,7 @@ class ReinforceAgentWithBaseline(BaseAgent):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
 
         self.feature_extractor = feature_extractor_class(observation_space)
-        self.policy = ReinforcePolicyWithBaseline(
+        self.policy = ReinforceWithBaselinePolicy(
             action_space,
             self.feature_extractor.features_dim,
             hyper_params
@@ -153,7 +158,7 @@ class ReinforceAgentWithBaseline(BaseAgent):
         self.last_log_prob = log_prob
         return action
     
-    def update(self, observation, reward, terminated, truncated):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Called every step by the experiment loop:
         - If the episode ends, do a policy gradient update
@@ -164,7 +169,7 @@ class ReinforceAgentWithBaseline(BaseAgent):
         if terminated or truncated:
             rollout = self.rollout_buffer.get_all()
             states, log_probs, rewards, = zip(*rollout)
-            self.policy.update(states, log_probs, rewards)    
+            self.policy.update(states, log_probs, rewards, call_back=call_back)    
             self.rollout_buffer.reset()
 
     def reset(self, seed):

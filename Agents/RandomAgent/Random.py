@@ -1,4 +1,4 @@
-from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
+from Agents.Utils import BaseAgent, BasePolicy
 
 class RandomPolicy(BasePolicy):
     """A policy that selects actions randomly."""
