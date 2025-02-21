@@ -3,7 +3,6 @@ import random
 import pickle
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import TabularFeature
 
 class SarsaPolicy(BasePolicy):
     """
@@ -23,7 +22,7 @@ class SarsaPolicy(BasePolicy):
         Epsilon-greedy action selection based on Q-values.
         """
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(self.action_space.n)
+            self.q_table[state] = np.zeros(self.action_dim)
 
         # With probability epsilon choose a random action...
         if random.random() < self.hp.epsilon:
@@ -34,7 +33,7 @@ class SarsaPolicy(BasePolicy):
     
     def update(self, last_state, last_action, state, reward, terminated, truncated):
         if state not in self.q_table:
-                self.q_table[state] = np.zeros(self.action_space.n)
+                self.q_table[state] = np.zeros(self.action_dim)
         
         if terminated:
             target = reward
@@ -68,7 +67,7 @@ class SarsaPolicy(BasePolicy):
         self.hp = checkpoint.get('hyper_params', self.hp)
 
 class SarsaAgent(BaseAgent):
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:
             action_space: The environment's action space (assumed gym.spaces.Discrete)
@@ -79,7 +78,7 @@ class SarsaAgent(BaseAgent):
         """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
 
-        self.feature_extractor = TabularFeature(observation_space)
+        self.feature_extractor = feature_extractor_class(observation_space)
         self.policy = SarsaPolicy(action_space, hyper_params)
 
     def act(self, observation):

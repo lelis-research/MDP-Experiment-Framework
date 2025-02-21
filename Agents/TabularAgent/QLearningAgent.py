@@ -3,7 +3,6 @@ import random
 import pickle
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import TabularFeature
 
 class QLearningPolicy(BasePolicy):
     """
@@ -22,7 +21,7 @@ class QLearningPolicy(BasePolicy):
         Select an action using epsilon-greedy exploration.
         """        
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(self.action_space.n)
+            self.q_table[state] = np.zeros(self.action_dim)
 
         # With probability epsilon choose a random action...
         if random.random() < self.hp.epsilon:
@@ -34,7 +33,7 @@ class QLearningPolicy(BasePolicy):
             
     def update(self, last_state, last_action, state, reward, terminated, truncated):
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(self.action_space.n)
+            self.q_table[state] = np.zeros(self.action_dim)
 
         # Compute the target.
         if terminated:
@@ -74,7 +73,7 @@ class QLearningAgent(BaseAgent):
                 an update call so no need to reset the 
                 last_action and last_observation values
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:
             action_space: The environment's action space (assumed gym.spaces.Discrete)
@@ -85,7 +84,7 @@ class QLearningAgent(BaseAgent):
         """
         
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = TabularFeature(observation_space)
+        self.feature_extractor = feature_extractor_class(observation_space)
         self.policy = QLearningPolicy(action_space, hyper_params)
         
     

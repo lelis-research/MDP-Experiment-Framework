@@ -1,3 +1,5 @@
+from Agents.Utils.FeatureExtractor import TabularFeature, FLattenFeature, ImageFeature
+
 from Agents.RandomAgent.RandomAgent import RandomAgent
 from Agents.TabularAgent.QLearningAgent import QLearningAgent
 from Agents.TabularAgent.NStepQLearningAgent import NStepQLearningAgent
@@ -24,6 +26,16 @@ def get_env_observation_space(env):
 def get_num_envs(env):
     return env.num_envs if hasattr(env, 'num_envs') else 1
 
+conv_network_1 = [
+    {"type": "conv2d", "out_channels": 32, "kernel_size": 3, "stride": 1},
+    {"type": "relu"},
+    {"type": "conv2d", "in_channels": 32, "out_channels": 64, "kernel_size": 3, "stride": 1},
+    {"type": "relu"},
+    {"type": "flatten"},
+    {"type": "linear", "out_features": 512},
+    {"type": "relu"},
+    {"type": "linear", "in_features": 512}
+]
 two_hidden_layers_network_1 = [
     {"type": "linear", "out_features": 128},
     {"type": "relu"},
@@ -48,25 +60,29 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "Sarsa": lambda env: SarsaAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "DoubleQLearning": lambda env: DoubleQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "NStepQLearning": lambda env: NStepQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.01, n_steps=1),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     
     # Deep Agents
@@ -76,9 +92,10 @@ AGENT_DICT = {
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
                         target_update_freq=20,
-                        value_network=linear_network_1,
+                        value_network=conv_network_1,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        ImageFeature,
     ),
     "DoubleDQN": lambda env: DoubleDQNAgent(
         get_env_action_space(env), 
@@ -88,7 +105,8 @@ AGENT_DICT = {
                         target_update_freq=20,
                         value_network=two_hidden_layers_network_1,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "NStepDQN": lambda env: NStepDQNAgent(
         get_env_action_space(env), 
@@ -98,7 +116,8 @@ AGENT_DICT = {
                         target_update_freq=20, n_steps=10,
                         value_network=two_hidden_layers_network_1,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "Reinforce": lambda env: ReinforceAgent(
         get_env_action_space(env), 
@@ -106,7 +125,8 @@ AGENT_DICT = {
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1,
                         actor_network=two_hidden_layers_network_1,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "ReinforceWithBaseline": lambda env: ReinforceAgentWithBaseline(
         get_env_action_space(env), 
@@ -117,7 +137,8 @@ AGENT_DICT = {
                         critic_network=two_hidden_layers_network_1,
                         critic_step_size=0.001,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "A2C_v1": lambda env: A2CAgentV1(
         get_env_action_space(env), 
@@ -128,7 +149,8 @@ AGENT_DICT = {
                         critic_network=two_hidden_layers_network_1,
                         critic_step_size=0.001,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "A2C_v2": lambda env: A2CAgentV2(
         get_env_action_space(env), 
@@ -139,7 +161,8 @@ AGENT_DICT = {
                         critic_network=two_hidden_layers_network_1,
                         critic_step_size=0.001,
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     ),
     "PPO": lambda env: PPOAgent(
         get_env_action_space(env), 
@@ -152,6 +175,7 @@ AGENT_DICT = {
                         critic_network=two_hidden_layers_network_1,
                         critic_step_size=1e-4, 
                         ),
-        get_num_envs(env)
+        get_num_envs(env),
+        FLattenFeature,
     )
 }

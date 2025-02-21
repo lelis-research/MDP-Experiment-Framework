@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer    
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
@@ -33,7 +32,6 @@ class DoubleDQNPolicy(BasePolicy):
         super().__init__(action_space, hyper_params)
         
         self.features_dim = features_dim
-        self.action_dim = action_space.n
 
     def select_action(self, state):
         """
@@ -126,10 +124,9 @@ class DoubleDQNAgent(BaseAgent):
     """
     Double DQN agent with experience replay & target network.
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = FLattenFeature(observation_space)
-        self.action_dim = action_space.n
+        self.feature_extractor = feature_extractor_class(observation_space)
         
         # Replay buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)

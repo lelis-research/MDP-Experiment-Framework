@@ -7,6 +7,7 @@ class BasePolicy:
     """Abstract base class for policies."""
     def __init__(self, action_space, hyper_params=None):
         self.action_space = action_space
+        self.action_dim = int(action_space.n)
         self.set_hp(hyper_params)
             
     def select_action(self, observation):

@@ -2,7 +2,6 @@ import numpy as np
 import random
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
 from Agents.TabularAgent.QLearningAgent import QLearningAgent, QLearningPolicy
-from Agents.Utils.FeatureExtractor import TabularFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
 
@@ -34,7 +33,7 @@ class NStepQLearningPolicy(QLearningPolicy):
         self.rollout_buffer.add_single_item(transition)
         
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(self.action_space.n)
+            self.q_table[state] = np.zeros(self.action_dim)
         
         # If the buffer has at least n_step transitions, perform an update.
         if self.rollout_buffer.size >= self.hp.n_steps:
@@ -64,7 +63,7 @@ class NStepQLearningPolicy(QLearningPolicy):
                 
 
 class NStepQLearningAgent(QLearningAgent):
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         n-step Q-Learning agent that uses a buffer of transitions to perform
         multi-step updates.
@@ -75,5 +74,5 @@ class NStepQLearningAgent(QLearningAgent):
                 - step_size
                 - n_steps
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs)        
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)        
         self.policy = NStepQLearningPolicy(action_space, hyper_params)

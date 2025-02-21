@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import calculate_n_step_returns
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
@@ -30,7 +29,6 @@ class PPOPolicy(BasePolicy):
     def __init__(self, action_space, features_dim, hyper_params):
         super().__init__(action_space, hyper_params)
         self.features_dim = features_dim
-        self.action_dim = action_space.n
 
     def reset(self, seed):
         super().reset(seed)
@@ -157,9 +155,9 @@ class PPOAgent(BaseAgent):
     Rollouts are collected until either the specified rollout steps or an episode termination/truncation.
     The rollout buffer stores tuples of (state, action, log_prob, reward, next_state, done).
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = FLattenFeature(observation_space)
+        self.feature_extractor = feature_extractor_class(observation_space)
         
         self.policy = PPOPolicy(
             action_space, 

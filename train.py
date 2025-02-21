@@ -77,8 +77,8 @@ def main():
         os.makedirs(runs_dir)
     
     # Env Creation
-    wrapping_lst = ["ViewSize", "FlattenOnehotObj", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
-    wrapping_params = [{"agent_view_size": 3}, {}, {"step_reward": -1}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
+    wrapping_lst = ["ViewSize", "ImgObs", "StepReward"] #"ViewSize", "StepReward", "FlattenOnehotObj"
+    wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}] #{"agent_view_size": 3}, {"step_reward": -1}, {} 
     env = get_env(
             env_name=args.env,
             num_envs=args.num_envs,

@@ -3,7 +3,6 @@ import random
 import pickle
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import TabularFeature
 
 
 class DoubleQLearningPolicy(BasePolicy):
@@ -31,9 +30,9 @@ class DoubleQLearningPolicy(BasePolicy):
         Epsilon-greedy action selection using Q = Q1 + Q2.
         """
         if state not in self.q1_table:
-            self.q1_table[state] = np.zeros(self.action_space.n)
+            self.q1_table[state] = np.zeros(self.action_dim)
         if state not in self.q2_table:
-            self.q2_table[state] = np.zeros(self.action_space.n)
+            self.q2_table[state] = np.zeros(self.action_dim)
 
         # With probability epsilon choose a random action...
         if random.random() < self.hp.epsilon:
@@ -49,9 +48,9 @@ class DoubleQLearningPolicy(BasePolicy):
         Double Q-learning update. We randomly pick which Q-table to update.
         """
         if state not in self.q1_table:
-            self.q1_table[state] = np.zeros(self.action_space.n)
+            self.q1_table[state] = np.zeros(self.action_dim)
         if state not in self.q2_table:
-            self.q2_table[state] = np.zeros(self.action_space.n)
+            self.q2_table[state] = np.zeros(self.action_dim)
 
 
         # With probability 0.5, update Q1 using Q2
@@ -75,7 +74,6 @@ class DoubleQLearningPolicy(BasePolicy):
 
 
     def reset(self, seed):
-        print(seed)
         super().reset(seed)
         # Clear Q-tables
         self.q1_table = {}
@@ -102,7 +100,7 @@ class DoubleQLearningAgent(BaseAgent):
     """
     A Tabular Double Q-Learning agent that uses two Q-tables to reduce overestimation bias.
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:
             action_space: The environment's action space (assumed gym.spaces.Discrete)
@@ -112,7 +110,7 @@ class DoubleQLearningAgent(BaseAgent):
                 - step_size        
         """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = TabularFeature(observation_space)
+        self.feature_extractor = feature_extractor_class(observation_space)
         self.policy = DoubleQLearningPolicy(action_space, hyper_params)
 
     def act(self, observation):

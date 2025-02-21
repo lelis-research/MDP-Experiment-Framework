@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
@@ -31,7 +30,6 @@ class DQNPolicy(BasePolicy):
         super().__init__(action_space, hyper_params)
         
         self.features_dim = features_dim
-        self.action_dim = action_space.n
          
     def select_action(self, state):
         """
@@ -115,7 +113,7 @@ class DQNAgent(BaseAgent):
     """
     Deep Q-Network (DQN) agent.
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:
             action_space: The environment's action space (assumed to be Discrete).
@@ -130,12 +128,11 @@ class DQNAgent(BaseAgent):
         """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         
-        self.feature_extractor = FLattenFeature(observation_space)
-        self.action_dim = action_space.n
-
+        self.feature_extractor = feature_extractor_class(observation_space)
+        
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
-        
+
         # Create DQNPolicy using the online network.
         self.policy = DQNPolicy(action_space, 
                                 self.feature_extractor.features_dim, 

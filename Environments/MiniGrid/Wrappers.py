@@ -1,6 +1,6 @@
 import gymnasium as gym
 import numpy as np
-from minigrid.wrappers import ViewSizeWrapper
+from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
 from minigrid.core.constants import IDX_TO_OBJECT
 
@@ -56,6 +56,7 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
 
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
+    "ImgObs": ImgObsWrapper,
     "StepReward": StepRewardWrapper,
     "CompactAction": CompactActionWrapper,
     "FlattenOnehotObj": FlatOnehotObjectObsWrapper,

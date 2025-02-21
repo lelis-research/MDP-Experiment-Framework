@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
@@ -24,7 +23,6 @@ class NStepDQNPolicy(BasePolicy):
         """
         super().__init__(action_space, hyper_params)
         self.features_dim = features_dim
-        self.action_dim = action_space.n
         
     def select_action(self, state):
         """
@@ -108,7 +106,7 @@ class NStepDQNAgent(BaseAgent):
     """
     n-step Deep Q-Network (DQN) agent that uses a single replay buffer for all transitions.
     """
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         hyper_params must include:
             - epsilon
@@ -120,8 +118,7 @@ class NStepDQNAgent(BaseAgent):
             - n_steps   (number of steps for multi-step return)
         """
         super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = FLattenFeature(observation_space)
-        self.action_dim = action_space.n
+        self.feature_extractor = feature_extractor_class(observation_space)
         
         # Unified Replay Buffer: will store transitions as:
         # (state, action, cumulative_reward, next_state, done, n_steps)

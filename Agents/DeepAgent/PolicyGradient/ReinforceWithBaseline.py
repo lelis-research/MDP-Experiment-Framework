@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from torch.distributions import Categorical
 
 from Agents.Utils.BaseAgent import BaseAgent, BasePolicy
-from Agents.Utils.FeatureExtractor import FLattenFeature
 from Agents.Utils.Buffer import BasicBuffer
 from Agents.Utils.HelperFunction import *
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
@@ -37,7 +36,6 @@ class ReinforcePolicyWithBaseline(BasePolicy):
         super().__init__(action_space, hyper_params)
         
         self.features_dim = features_dim
-        self.action_dim = action_space.n
 
     def reset(self, seed):
         super().reset(seed)
@@ -135,10 +133,10 @@ class ReinforceAgentWithBaseline(BaseAgent):
     to reduce variance => 'Actor + Baseline'.
     """
 
-    def __init__(self, action_space, observation_space, hyper_params, num_envs):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         BaseAgent.__init__(action_space, observation_space, hyper_params, num_envs)
 
-        self.feature_extractor = FLattenFeature(observation_space)
+        self.feature_extractor = feature_extractor_class(observation_space)
 
         self.policy = ReinforcePolicyWithBaseline(
             action_space,
