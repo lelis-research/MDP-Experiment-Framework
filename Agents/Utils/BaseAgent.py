@@ -65,7 +65,6 @@ class BaseAgent:
         self.action_space = action_space
         self.observation_space = observation_space
         self.num_envs = num_envs
-
         self.policy = BasePolicy(action_space)
         
     

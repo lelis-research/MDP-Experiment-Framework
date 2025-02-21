@@ -134,10 +134,9 @@ class ReinforceAgentWithBaseline(BaseAgent):
     """
 
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        BaseAgent.__init__(action_space, observation_space, hyper_params, num_envs)
+        super().__init__(action_space, observation_space, hyper_params, num_envs)
 
         self.feature_extractor = feature_extractor_class(observation_space)
-
         self.policy = ReinforcePolicyWithBaseline(
             action_space,
             self.feature_extractor.features_dim,
