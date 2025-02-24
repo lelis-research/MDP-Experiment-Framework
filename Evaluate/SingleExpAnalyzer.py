@@ -26,18 +26,12 @@ class SingleExpAnalyzer:
         self.exp_path = exp_path
         self.metrics = metrics
         self.num_runs = len(metrics)
-        self.num_episodes = len(metrics[0]) if self.num_runs > 0 else 0
+        
 
         # Convert metrics into 2D NumPy arrays (runs x episodes)
-        self.total_rewards = np.array([
-            [episode.get("total_reward") for episode in run]
-            for run in metrics
-        ])
-        self.steps = np.array([
-            [episode.get("steps") for episode in run]
-            for run in metrics
-        ])
-
+        self.total_rewards = [[episode.get("total_reward") for episode in run] for run in metrics]
+        self.steps = [[episode.get("steps") for episode in run] for run in metrics]
+        
     def print_summary(self):
         """
         Print overall mean and standard deviation for rewards and steps.
@@ -50,10 +44,71 @@ class SingleExpAnalyzer:
         print("Experiment Summary:")
         print(f"  Average Reward: {avg_reward:.2f} ± {std_reward:.2f}")
         print(f"  Average Steps:  {avg_steps:.2f} ± {std_steps:.2f}")
+    
+    def _plot_reward_per_episode(self, ax, num_episodes):
+            total_rewards = np.array([run[:num_episodes] for run in self.total_rewards])
+            episodes = np.arange(1, num_episodes + 1)
+
+            for run in total_rewards:
+                ax.plot(episodes, run, color='blue', alpha=0.3)
+            mean_rewards = np.mean(total_rewards, axis=0)
+            ax.plot(episodes, mean_rewards, color='blue', label="Mean Reward")
+            
+            ax.set_title("Sum Reward per Episode")
+            ax.set_xlabel("Episode")
+            ax.set_ylabel("Sum Reward")
+            ax.legend()
+            ax.grid(True)
+
+    def _plot_steps_per_episode(self, ax, num_episodes):
+        steps = np.array([run[:num_episodes] for run in self.steps])
+        episodes = np.arange(1, num_episodes + 1)
+
+        for run in steps:
+            ax.plot(episodes, run, color='orange', alpha=0.3)
+        mean_steps = np.mean(steps, axis=0)
+        ax.plot(episodes, mean_steps, color='orange', label="Mean Steps")
+    
+        ax.set_title("Steps per Episode")
+        ax.set_xlabel("Episode")
+        ax.set_ylabel("Steps")
+        ax.legend()
+        ax.grid(True)
+    
+    def _plot_reward_per_steps(self, ax, num_steps):
+        total_rewards = self.total_rewards
+        steps = self.steps          
+        x_common = np.linspace(0, num_steps, 200)      
+        rewards_interpolation = []
+
+        # Build arrays for each run
+        for i in range(len(total_rewards)):
+            # Convert to numeric arrays
+            run_rewards = np.array(total_rewards[i], dtype=float)
+            run_steps = np.array(steps[i], dtype=float)
+        
+            # Get the cumulative steps
+            cum_steps = np.cumsum(run_steps)
+            
+            # Plot each run’s line and points (faint)
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color='blue')
+
+            # Interpolate the reward to fine in between values
+            rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))
+
+        rewards_interpolation = np.asarray(rewards_interpolation)
+        mean_rewards = np.mean(rewards_interpolation, axis=0)
+        ax.plot(x_common, mean_rewards, color='blue', label="Mean Reward")
+        
+        ax.set_title("Sum Rewards per Steps")
+        ax.set_xlabel("Steps")
+        ax.set_ylabel("Episode Reward")
+        ax.legend()
+        ax.grid(True)
 
     def plot_combined(self, save_dir=None, show=False):
         """
-        Plot total rewards and steps per episode.
+        Plot total rewards and steps per episode and per steps.
         
         Each run is plotted transparently; the mean is overlaid.
         
@@ -61,36 +116,15 @@ class SingleExpAnalyzer:
             save_dir (str, optional): Directory to save the plot.
             show (bool): Whether to display the plot.
         """
-        episodes = np.arange(1, self.num_episodes + 1)
-        fig, axs = plt.subplots(2, 1, figsize=(10, 8))
 
-        # Plot total rewards
-        for run in self.total_rewards:
-            axs[0].plot(episodes, run, color='blue', alpha=0.3)
-        mean_rewards = np.mean(self.total_rewards, axis=0)
-        std_rewards = np.std(self.total_rewards, axis=0)
-        axs[0].plot(episodes, mean_rewards, color='blue', label="Mean Reward")
-        # axs[0].fill_between(episodes, mean_rewards - std_rewards, mean_rewards + std_rewards,
-        #                     color='blue', alpha=0.2, label="Std. Dev.")
-        axs[0].set_title("Total Reward per Episode")
-        axs[0].set_xlabel("Episode")
-        axs[0].set_ylabel("Total Reward")
-        axs[0].legend()
-        axs[0].grid(True)
+        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
+        # find minimum number of episodes across runs
+        num_episodes = min([len(run) for run in self.total_rewards])
+        num_steps = min([sum(steps) for steps in self.steps])
 
-        # Plot steps
-        for run in self.steps:
-            axs[1].plot(episodes, run, color='orange', alpha=0.3)
-        mean_steps = np.mean(self.steps, axis=0)
-        std_steps = np.std(self.steps, axis=0)
-        axs[1].plot(episodes, mean_steps, color='orange', label="Mean Steps")
-        # axs[1].fill_between(episodes, mean_steps - std_steps, mean_steps + std_steps,
-        #                     color='orange', alpha=0.2, label="Std. Dev.")
-        axs[1].set_title("Steps per Episode")
-        axs[1].set_xlabel("Episode")
-        axs[1].set_ylabel("Steps")
-        axs[1].legend()
-        axs[1].grid(True)
+        self._plot_reward_per_episode(axs[0], num_episodes)
+        self._plot_reward_per_steps(axs[1], num_steps)
+        self._plot_steps_per_episode(axs[2], num_episodes)
 
         fig.tight_layout()
 
@@ -99,6 +133,7 @@ class SingleExpAnalyzer:
             fig.savefig(os.path.join(save_dir, "Combined.png"))
         if show:
             plt.show()
+    
 
     def save_seeds(self, save_dir):
         """

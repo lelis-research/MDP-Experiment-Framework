@@ -21,8 +21,10 @@ def parse():
     parser.add_argument("--num_runs", type=int, default=3, help="number of runs")
     # Number of episodes per run
     parser.add_argument("--num_episodes", type=int, default=200, help="number of episodes in each run")
+    # Number of total environment steps per run
+    parser.add_argument("--total_steps", type=int, default=0, help="number of episodes in each run")
     # Maximum steps per episode
-    parser.add_argument("--episode_max_steps", type=int, default=500, help="maximum number of steps in each episode")
+    parser.add_argument("--episode_max_steps", type=int, default=200, help="maximum number of steps in each episode")
     # Number of parallel environments
     parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
     # Render mode for the environment
@@ -64,9 +66,8 @@ def main():
         experiment = ParallelExperiment(env, agent, exp_dir)
     
     # Run the experiment and collect metrics
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, 
-                                   seed_offset=args.seed, dump_transitions=args.store_transitions,
-                                   checkpoint_freq=args.checkpoint_freq)
+    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, total_steps=args.total_steps,
+                                   seed_offset=args.seed, dump_transitions=args.store_transitions, checkpoint_freq=args.checkpoint_freq)
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)
