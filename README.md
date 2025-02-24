@@ -14,7 +14,8 @@
   - env: Environment name.
   - seed: Random seed.
   - num_runs: Number of independent runs.
-  - num_episodes: Episodes per run.
+  - num_episodes: Episodes per run. (**EITHER CHOOSE THIS OR total_steps**)
+  - total_steps: Maximum number of environment-action interactions. (**EITHER CHOOSE THIS OR num_episodes**)
   - episode_max_steps: Maximum steps per episode.
   - num_envs: Number of parallel environments.
   - render_mode: Rendering mode (None, human, rgb_array_list): rgb_array_list will store the frames in experiment directory which takes a lot of space
