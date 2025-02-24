@@ -1,2 +1,2 @@
-from .MultiExpAnalyzer import MultiExpAnalyzer
+from .MultiExpAnalyzer import AnalyzeMultiExp
 from .SingleExpAnalyzer import SingleExpAnalyzer

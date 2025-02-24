@@ -1,29 +1,28 @@
 import os
 import pickle
+from matplotlib import pyplot as plt
 
 from Experiments import BaseExperiment
-from Evaluate import MultiExpAnalyzer, SingleExpAnalyzer
+from Evaluate import AnalyzeMultiExp, SingleExpAnalyzer
 from Environments import get_env
 from config import AGENT_DICT
 
-def compare_agents(agents_dict):
-    '''
-    Example:
-        agents_dict = {
-            "Best": "Runs/QLearningAgent(HyperParameters({'alpha': 0.284, 'gamma': 0.99, 'epsilon': 0.078}))_seed [2500]_20250204_163353",
-            "Not Best": "Runs/QLearningAgent(HyperParameters({'alpha': 0.5, 'gamma': 0.99, 'epsilon': 0.1}))_seed [2500]_20250204_163410",
-            # Add more experiments as needed.
-        }
-    '''
-    analyzer = MultiExpAnalyzer(agents_dict)
-    analyzer.load_metrics()  # Loads metrics.pkl from each experiment directory.
-    analyzer.plot_combined(save_path="Runs/combined_rewards.png")
 
 def visualize(experiment_path, run_number, episode_number):
     analyzer = SingleExpAnalyzer(exp_path=experiment_path)
     analyzer.generate_video(run_number, episode_number)
 
+
 if __name__ == "__main__":
+    agent_dict = {
+            "exp1": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_155037",
+            "exp2": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_155131",
+            # Add more experiments as needed.
+        }
+    AnalyzeMultiExp(agent_dict, "Runs/Test")
+    exit(0)
+
+
     agent_type = "PPO"
     exp_name = "MiniGrid-Empty-5x5-v0_PPO_seed[123123]_20250220_145005"
     train_path = f"Runs/Train/{exp_name}"

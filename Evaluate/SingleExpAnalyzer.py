@@ -45,14 +45,14 @@ class SingleExpAnalyzer:
         print(f"  Average Reward: {avg_reward:.2f} ± {std_reward:.2f}")
         print(f"  Average Steps:  {avg_steps:.2f} ± {std_steps:.2f}")
     
-    def _plot_reward_per_episode(self, ax, num_episodes):
+    def _plot_reward_per_episode(self, ax, num_episodes, color, label):
             total_rewards = np.array([run[:num_episodes] for run in self.total_rewards])
             episodes = np.arange(1, num_episodes + 1)
 
             for run in total_rewards:
-                ax.plot(episodes, run, color='blue', alpha=0.3)
+                ax.plot(episodes, run, color=color, alpha=0.3)
             mean_rewards = np.mean(total_rewards, axis=0)
-            ax.plot(episodes, mean_rewards, color='blue', label="Mean Reward")
+            ax.plot(episodes, mean_rewards, color=color, label=label)
             
             ax.set_title("Sum Reward per Episode")
             ax.set_xlabel("Episode")
@@ -60,14 +60,14 @@ class SingleExpAnalyzer:
             ax.legend()
             ax.grid(True)
 
-    def _plot_steps_per_episode(self, ax, num_episodes):
+    def _plot_steps_per_episode(self, ax, num_episodes, color, label):
         steps = np.array([run[:num_episodes] for run in self.steps])
         episodes = np.arange(1, num_episodes + 1)
 
         for run in steps:
-            ax.plot(episodes, run, color='orange', alpha=0.3)
+            ax.plot(episodes, run, color=color, alpha=0.3)
         mean_steps = np.mean(steps, axis=0)
-        ax.plot(episodes, mean_steps, color='orange', label="Mean Steps")
+        ax.plot(episodes, mean_steps, color=color, label=label)
     
         ax.set_title("Steps per Episode")
         ax.set_xlabel("Episode")
@@ -75,7 +75,7 @@ class SingleExpAnalyzer:
         ax.legend()
         ax.grid(True)
     
-    def _plot_reward_per_steps(self, ax, num_steps):
+    def _plot_reward_per_steps(self, ax, num_steps, color, label):
         total_rewards = self.total_rewards
         steps = self.steps          
         x_common = np.linspace(0, num_steps, 200)      
@@ -91,14 +91,14 @@ class SingleExpAnalyzer:
             cum_steps = np.cumsum(run_steps)
             
             # Plot each run’s line and points (faint)
-            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color='blue')
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color=color)
 
             # Interpolate the reward to fine in between values
             rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))
 
         rewards_interpolation = np.asarray(rewards_interpolation)
         mean_rewards = np.mean(rewards_interpolation, axis=0)
-        ax.plot(x_common, mean_rewards, color='blue', label="Mean Reward")
+        ax.plot(x_common, mean_rewards, color=color, label=label)
         
         ax.set_title("Sum Rewards per Steps")
         ax.set_xlabel("Steps")
@@ -106,25 +106,28 @@ class SingleExpAnalyzer:
         ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, save_dir=None, show=False):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label=""):
         """
         Plot total rewards and steps per episode and per steps.
         
         Each run is plotted transparently; the mean is overlaid.
         
         Args:
+            fig (fig, optional): Matplotlib figure.
+            axs (axs, optional): Matplotlib axs list (must be 3x1).
             save_dir (str, optional): Directory to save the plot.
             show (bool): Whether to display the plot.
         """
+        if fig is None or axs is None:
+            fig, axs = plt.subplots(3, 1, figsize=(12, 10))
 
-        fig, axs = plt.subplots(3, 1, figsize=(12, 10))
         # find minimum number of episodes across runs
         num_episodes = min([len(run) for run in self.total_rewards])
         num_steps = min([sum(steps) for steps in self.steps])
 
-        self._plot_reward_per_episode(axs[0], num_episodes)
-        self._plot_reward_per_steps(axs[1], num_steps)
-        self._plot_steps_per_episode(axs[2], num_episodes)
+        self._plot_reward_per_episode(axs[0], num_episodes, color, label)
+        self._plot_reward_per_steps(axs[1], num_steps, color, label)
+        self._plot_steps_per_episode(axs[2], num_episodes, color, label)
 
         fig.tight_layout()
 
@@ -133,6 +136,8 @@ class SingleExpAnalyzer:
             fig.savefig(os.path.join(save_dir, "Combined.png"))
         if show:
             plt.show()
+
+        return fig, axs
     
 
     def save_seeds(self, save_dir):
