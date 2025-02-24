@@ -20,7 +20,7 @@ def parse():
     # Number of runs
     parser.add_argument("--num_runs", type=int, default=3, help="number of runs")
     # Number of episodes per run
-    parser.add_argument("--num_episodes", type=int, default=200, help="number of episodes in each run")
+    parser.add_argument("--num_episodes", type=int, default=0, help="number of episodes in each run")
     # Number of total environment steps per run
     parser.add_argument("--total_steps", type=int, default=0, help="number of episodes in each run")
     # Maximum steps per episode
