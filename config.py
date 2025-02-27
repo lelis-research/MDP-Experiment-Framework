@@ -56,7 +56,7 @@ linear_network_1 = [
 
 env_wrapping= ["ViewSize", "FlattenOnehotObj"] #, "StepReward"]
 wrapping_params = [{"agent_view_size": 5}, {}] #, {"step_reward": -1}]
-env_params = {"chain_length": 20}
+env_params = {} #{"chain_length": 20}
     
 AGENT_DICT = {
     "Random": lambda env: RandomAgent(
