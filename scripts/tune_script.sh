@@ -9,4 +9,4 @@
 #SBATCH --array=0-1
 
 source ~/MDP-Experiment-Framework/venvs/rl_v1/bin/activate
-python train.py
+python tune_hp.py --env MiniGrid-ChainEnv-v0 --agent A2C_v1 --num_episodes 200 
