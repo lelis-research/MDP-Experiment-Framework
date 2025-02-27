@@ -147,7 +147,7 @@ class DoubleDQNPolicy(BasePolicy):
         Args:
             file_path (str): Path to the checkpoint file.
         """
-        checkpoint = torch.load(file_path, map_location='cpu')
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         self.online_network.load_state_dict(checkpoint['online_network_state_dict'])
         self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

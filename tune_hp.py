@@ -8,7 +8,7 @@ from Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from Experiments import BaseExperiment, ParallelExperiment
 from Evaluate import SingleExpAnalyzer
 from Environments import get_env, ENV_LST
-from config import AGENT_DICT, env_wrapping, wrapping_params
+from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -77,8 +77,10 @@ def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, r
         agent.set_hp(tuned_hp)
 
         # Create a unique directory for the trial.
-        trial_dir = os.path.join(exp_dir, f"trial_{trial.number}_{agent}")
+        trial_dir = os.path.join(exp_dir, f"trial_{trial.number}")
         os.makedirs(trial_dir, exist_ok=True)
+        with open(f"{trial_dir}/agent.txt", "w") as file:
+            file.write(str(agent))
 
         # Run the experiment for the current trial.
         experiment = exp_class(env, agent, exp_dir=trial_dir)
@@ -117,6 +119,7 @@ def main(hp_range):
         env_name=args.env,
         num_envs=args.num_envs,
         render_mode=None,
+        env_params=env_params,
         max_steps=args.episode_max_steps,
         wrapping_lst=env_wrapping,
         wrapping_params=wrapping_params,
@@ -132,7 +135,7 @@ def main(hp_range):
     else:
         experiment_class = ParallelExperiment
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.env}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     # Run hyperparameter tuning.
@@ -157,8 +160,9 @@ def main(hp_range):
 if __name__ == "__main__":
     # Define the search ranges for hyperparameters.
     hp_range = {
-        "step_size": [0.001, 0.5],
+        "actor_step_size": [0.001, 0.5],
+        "critic_step_size": [0.001, 0.5],
         "epsilon": [0.01, 0.5],
-        "n_steps": [1, 7]
+        "rollout_steps": [1, 7]
     }
     main(hp_range)

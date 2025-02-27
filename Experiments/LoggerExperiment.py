@@ -30,8 +30,8 @@ class LoggerExperiment(BaseExperiment):
     """
     An experiment class that runs episodes, collects metrics, and logs them to TensorBoard.
     """
-    def __init__(self, env, agent, exp_dir, train=True):
-        super().__init__(env, agent, exp_dir, train=train)
+    def __init__(self, env, agent, exp_dir, train=True, config=None):
+        super().__init__(env, agent, exp_dir, train=train, config=config)
         self.call_back = call_back(log_dir=exp_dir)
     
     def run_episode(self, seed, call_back=None):
@@ -53,14 +53,18 @@ class LoggerExperiment(BaseExperiment):
         transitions = []
         while not (terminated or truncated):
             action = self.agent.act(observation)
-            observation, reward, terminated, truncated, info = self.env.step(action)
+            next_observation, reward, terminated, truncated, info = self.env.step(action)
+
             if self._dump_transitions:
-                transitions.append((observation, reward, terminated, truncated))
+                transitions.append((observation, action, reward, terminated, truncated))
             if self._train:
-                self.agent.update(observation, reward, terminated, truncated, call_back)
+                self.agent.update(next_observation, reward, terminated, truncated, call_back)
             
             total_reward += reward
             steps += 1
+
+            # Move to next observation
+            observation = next_observation
         
         frames = self.env.render()
         return {"total_reward": total_reward, "steps": steps, 
@@ -166,7 +170,7 @@ class LoggerExperiment(BaseExperiment):
 
                 # Optionally store transitions
                 if self._dump_transitions:
-                    transitions.append((observation, reward, terminated, truncated))
+                    transitions.append((observation, action, reward, terminated, truncated))
                 
                 # Train the agent if needed
                 if self._train:

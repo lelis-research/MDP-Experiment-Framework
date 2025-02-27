@@ -2,12 +2,14 @@ from tqdm import tqdm
 import os
 import pickle
 import random
+import shutil
+import importlib.util
 
 class BaseExperiment:
     """
     Base class for running episodes and collecting metrics.
     """
-    def __init__(self, env, agent, exp_dir=None, train=True):
+    def __init__(self, env, agent, exp_dir=None, train=True, config=None):
         """
         Args:
             env: An initialized environment.
@@ -15,11 +17,14 @@ class BaseExperiment:
             exp_dir (str, optional): Directory to save checkpoints and metrics.
             train (bool): Whether to train the agent.
         """
+        
         self.env = env
         self.agent = agent
         if exp_dir is not None:
             os.makedirs(exp_dir, exist_ok=True)
             self.exp_dir = exp_dir
+            if config is not None:
+                shutil.copy(config, exp_dir)
 
         self._dump_transitions = False
         self._checkpoint_freq = None
@@ -43,13 +48,18 @@ class BaseExperiment:
         transitions = []
         while not (terminated or truncated):
             action = self.agent.act(observation)
-            observation, reward, terminated, truncated, info = self.env.step(action)
+            next_observation, reward, terminated, truncated, info = self.env.step(action)
+            
             if self._dump_transitions:
-                transitions.append((observation, reward, terminated, truncated))
+                transitions.append((observation, action, reward, terminated, truncated))
             if self._train:
-                self.agent.update(observation, reward, terminated, truncated)
+                self.agent.update(next_observation, reward, terminated, truncated)
+            
             total_reward += reward
             steps += 1
+
+            # Move to next observation
+            observation = next_observation
         
         frames = self.env.render()
         return {
@@ -143,7 +153,7 @@ class BaseExperiment:
 
                 # Optionally store transitions
                 if self._dump_transitions:
-                    transitions.append((observation, reward, terminated, truncated))
+                    transitions.append((observation, action, reward, terminated, truncated))
                 
                 # Train the agent if needed
                 if self._train:
@@ -235,3 +245,71 @@ class BaseExperiment:
                 self.agent.save(path)
                     
         return all_runs_metrics
+    
+    @classmethod
+    def load_transitions(cls, exp_dir):
+        """
+        Load and return all transitions stored in the metrics file from a previous experiment run.
+
+        Args:
+            exp_dir (str): The directory where the metrics file is stored.
+
+        Returns:
+            list: A list of transitions collected across episodes and runs.
+        """
+        metrics_file = os.path.join(exp_dir, "metrics.pkl")
+        if not os.path.exists(metrics_file):
+            raise FileNotFoundError(f"No metrics file found in {exp_dir}")
+        with open(metrics_file, "rb") as f:
+            all_runs_metrics = pickle.load(f)
+        
+        # Extract transitions from every episode across all runs.
+        all_transitions = []
+        for run in all_runs_metrics:
+            episode_transitions = []
+            for episode in run:
+                episode_transitions.append(episode.get("transitions", []))
+            all_transitions.append(episode_transitions)
+        return all_transitions
+
+    @classmethod
+    def load_environment(cls, exp_dir):
+        """
+        Load and return the environment configuration from a previous experiment run.
+
+        Args:
+            exp_dir (str): The directory where the environment file is stored.
+
+        Returns:
+            dict: The environment configuration.
+        """
+        env_file = os.path.join(exp_dir, "env.pkl")
+        if not os.path.exists(env_file):
+            raise FileNotFoundError(f"No environment file found in {exp_dir}")
+        with open(env_file, "rb") as f:
+            env_config = pickle.load(f)
+        return env_config
+
+    @classmethod
+    def load_config(cls, exp_dir):
+        """
+        Load and return the configuration module from a previous experiment run.
+
+        Args:
+            exp_dir (str): The directory where the environment file is stored.
+
+        Returns:
+            dict: The configuration module.
+        """
+        config_path = os.path.join(exp_dir, "config.py")
+        spec = importlib.util.spec_from_file_location("loaded_module", config_path)
+        if spec is None:
+            raise ImportError(f"Could not load spec from {config_path}")
+        
+        # Create a module from the spec.
+        config = importlib.util.module_from_spec(spec)
+        
+        # Execute the module in its own namespace.
+        spec.loader.exec_module(config)
+        
+        return config

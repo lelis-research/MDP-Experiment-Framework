@@ -5,8 +5,7 @@ import datetime
 from Evaluate import SingleExpAnalyzer
 from Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
 from Environments import get_env, ENV_LST
-
-from config import AGENT_DICT, env_wrapping, wrapping_params
+from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
 
 def parse():
     import argparse
@@ -40,13 +39,14 @@ def main():
     runs_dir = "Runs/Train/"
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)  # Create directory if it doesn't exist
-    
+
     # Create environment with wrappers
     env = get_env(
             env_name=args.env,
             num_envs=args.num_envs,
-            render_mode=args.render_mode,
             max_steps=args.episode_max_steps,
+            render_mode=args.render_mode,
+            env_params=env_params,
             wrapping_lst=env_wrapping,
             wrapping_params=wrapping_params,
         )
@@ -56,12 +56,12 @@ def main():
 
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.env}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     # Choose experiment type based on number of environments
     if args.num_envs == 1:
-        experiment = LoggerExperiment(env, agent, exp_dir)
+        experiment = LoggerExperiment(env, agent, exp_dir, config="config.py")
     else:
         experiment = ParallelExperiment(env, agent, exp_dir)
     

@@ -16,8 +16,9 @@ def AnalyzeMultiExp(agent_dict, save_dir):
     '''
     os.makedirs(save_dir, exist_ok=True)
     
-    num_experiments = len(agent_dict)
-    colors = plt.cm.viridis(np.linspace(0, 1, num_experiments))
+    # num_experiments = len(agent_dict)
+    # colors = plt.cm.viridis(np.linspace(0, 1, num_experiments))
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     fig, axs = plt.subplots(3, 1, figsize=(12, 10))
 
     name = ""

@@ -7,7 +7,8 @@ ENV_LST = MINIGRID_ENV_LST + MINIHACK_ENV_LST
 def get_env(env_name,
             num_envs=1, 
             max_steps=500, 
-            render_mode=None, 
+            render_mode=None,
+            env_params={}, 
             wrapping_lst=None, 
             wrapping_params=[]):
     """
@@ -30,21 +31,22 @@ def get_env(env_name,
     if env_name in MINIGRID_ENV_LST:
         from .MiniGrid import get_single_env, get_parallel_env
         if num_envs == 1:
-            env = get_single_env(env_name, max_steps, render_mode, wrapping_lst, wrapping_params)
+            env = get_single_env(env_name, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
         else:
-            env = get_parallel_env(env_name, num_envs, max_steps, render_mode, wrapping_lst, wrapping_params)
+            env = get_parallel_env(env_name, num_envs, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
     elif env_name in MINIHACK_ENV_LST:
         from .MiniHack import get_single_env, get_parallel_env
         if num_envs == 1:
-            env = get_single_env(env_name, max_steps, render_mode, wrapping_lst, wrapping_params)
+            env = get_single_env(env_name, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
         else:
-            env = get_parallel_env(env_name, num_envs, max_steps, render_mode, wrapping_lst, wrapping_params)
+            env = get_parallel_env(env_name, num_envs, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
     
     # Attach custom configuration information to the environment.
     env.custom_config = {
         "env_name": env_name,
         "num_envs": num_envs,
         "max_steps": max_steps,
+        "env_params": env_params,
         "wrapping_lst": wrapping_lst,
         "wrapping_params": wrapping_params,
     }

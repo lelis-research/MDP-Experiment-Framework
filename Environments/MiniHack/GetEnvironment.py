@@ -11,6 +11,7 @@ MINIHACK_ENV_LST = [
 def get_single_env(env_name, 
                    max_steps=500, 
                    render_mode=None, 
+                   env_params={},
                    wrapping_lst=None, 
                    wrapping_params=[]):
     """
@@ -35,6 +36,7 @@ def get_parallel_env(env_name,
                      num_envs, 
                      max_steps=500, 
                      render_mode=None,
+                     env_params={},
                      wrapping_lst=None, 
                      wrapping_params=[]):
     """

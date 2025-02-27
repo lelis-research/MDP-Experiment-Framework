@@ -91,7 +91,7 @@ class SingleExpAnalyzer:
             cum_steps = np.cumsum(run_steps)
             
             # Plot each run’s line and points (faint)
-            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color=color)
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
             rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))

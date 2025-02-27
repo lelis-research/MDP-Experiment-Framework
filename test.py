@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 from Experiments import BaseExperiment
 from Evaluate import AnalyzeMultiExp, SingleExpAnalyzer
 from Environments import get_env
-from config import AGENT_DICT
 
 
 def visualize(experiment_path, run_number, episode_number):
@@ -14,25 +13,27 @@ def visualize(experiment_path, run_number, episode_number):
 
 
 if __name__ == "__main__":
-    agent_dict = {
-            "exp1": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_155037",
-            "exp2": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_155131",
-            # Add more experiments as needed.
-        }
-    AnalyzeMultiExp(agent_dict, "Runs/Test")
-    exit(0)
+    # agent_dict = {
+    #         "qlearning": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_164320",
+    #         "sarsa": "Runs/Train/MiniGrid-Empty-5x5-v0_Sarsa_seed[123123]_20250224_164336",
+    #         "nstep": "Runs/Train/MiniGrid-Empty-5x5-v0_NStepQLearning_seed[123123]_20250224_171603"
+    #         # Add more experiments as needed.
+    #     }
+    # AnalyzeMultiExp(agent_dict, "Runs/Test")
+    # exit(0)
 
 
-    agent_type = "PPO"
-    exp_name = "MiniGrid-Empty-5x5-v0_PPO_seed[123123]_20250220_145005"
+    agent_type = "DQN"
+    exp_name = "MiniGrid-Empty-5x5-v0_DQN_seed[123123]_20250225_093143"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
-    visualize(train_path, 1, 200)
+    # visualize(train_path, 1, 200)
 
-    with open(os.path.join(train_path, "env.pkl"), "rb") as file:
-        env_config = pickle.load(file)
+    env_config = BaseExperiment.load_environment(train_path)
     env = get_env(**env_config, render_mode="rgb_array_list")
-    agent = AGENT_DICT[agent_type](env)
+
+    config = BaseExperiment.load_config(train_path)
+    agent = config.AGENT_DICT[agent_type](env)
     agent.reset(123123)    
     agent.load(os.path.join(train_path, "Policy_Run1_Last.t"))
     

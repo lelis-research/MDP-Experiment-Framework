@@ -126,7 +126,7 @@ class ReinforceWithBaselinePolicy(BasePolicy):
         torch.save(checkpoint, file_path)
 
     def load(self, file_path):
-        checkpoint = torch.load(file_path, map_location='cpu')
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])

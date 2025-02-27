@@ -2,9 +2,12 @@ import gymnasium as gym
 from gymnasium.vector import AsyncVectorEnv  # or use SyncVectorEnv if desired
 
 from .Wrappers import WRAPPING_TO_WRAPPER
+from .Chain import ChainEnv
 
 # List of supported MiniGrid environments
 MINIGRID_ENV_LST = [
+    "MiniGrid-ChainEnv-v0",
+
     "MiniGrid-BlockedUnlockPickup-v0",
 
     "MiniGrid-LavaCrossingS9N1-v0",
@@ -82,7 +85,7 @@ MINIGRID_ENV_LST = [
     "MiniGrid-Playground-v0",
 ]
 
-def get_single_env(env_name, max_steps=500, render_mode=None, wrapping_lst=None, wrapping_params=[]):
+def get_single_env(env_name, max_steps=500, render_mode=None, env_params={}, wrapping_lst=None, wrapping_params=[]):
     """
     Create a single MiniGrid environment.
     
@@ -97,13 +100,13 @@ def get_single_env(env_name, max_steps=500, render_mode=None, wrapping_lst=None,
         gym.Env: A wrapped Gymnasium environment.
     """
     assert env_name in MINIGRID_ENV_LST, f"Environment {env_name} not supported."
-    env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode)
+    env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode, **env_params)
     # Apply each wrapper in the provided list with corresponding parameters.
     for i, wrapper_name in enumerate(wrapping_lst):
         env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
     return env
 
-def get_parallel_env(env_name, num_envs, max_steps=500, render_mode=None, wrapping_lst=None, wrapping_params=[]):
+def get_parallel_env(env_name, num_envs, max_steps=500, render_mode=None, env_params={}, wrapping_lst=None, wrapping_params=[]):
     """
     Create a vectorized (parallel) MiniGrid environment.
     
@@ -122,7 +125,7 @@ def get_parallel_env(env_name, num_envs, max_steps=500, render_mode=None, wrappi
     
     env_fns = []
     for _ in range(num_envs):
-        env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode)
+        env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode, **env_params)
         for i, wrapper_name in enumerate(wrapping_lst):
             env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
         env_fns.append(lambda: env)
