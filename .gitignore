@@ -21,6 +21,7 @@ env/
 # Logs & Debug files
 logs/
 *.log
+*.out
 
 # IDE & Editor settings
 .vscode/
