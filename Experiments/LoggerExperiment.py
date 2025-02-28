@@ -30,8 +30,8 @@ class LoggerExperiment(BaseExperiment):
     """
     An experiment class that runs episodes, collects metrics, and logs them to TensorBoard.
     """
-    def __init__(self, env, agent, exp_dir, train=True, config=None):
-        super().__init__(env, agent, exp_dir, train=train, config=config)
+    def __init__(self, env, agent, exp_dir, train=True, config=None, args=None):
+        super().__init__(env, agent, exp_dir, train=train, config=config, args=args)
         self.call_back = call_back(log_dir=exp_dir)
     
     def run_episode(self, seed, call_back=None):

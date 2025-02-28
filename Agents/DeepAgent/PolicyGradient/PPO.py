@@ -186,6 +186,7 @@ class PPOAgent(BaseAgent):
     Rollout buffer stores tuples of:
         (state, action, log_prob, state_value, reward, next_state, done)
     """
+    name = "PPO"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:

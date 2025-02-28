@@ -41,14 +41,4 @@ def get_env(env_name,
         else:
             env = get_parallel_env(env_name, num_envs, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
     
-    # Attach custom configuration information to the environment.
-    env.custom_config = {
-        "env_name": env_name,
-        "num_envs": num_envs,
-        "max_steps": max_steps,
-        "env_params": env_params,
-        "wrapping_lst": wrapping_lst,
-        "wrapping_params": wrapping_params,
-    }
-    
     return env

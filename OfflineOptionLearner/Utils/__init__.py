@@ -1,1 +1,1 @@
-from .Losses import calculate_levin_loss
+from .Losses import levin_loss_for_masks

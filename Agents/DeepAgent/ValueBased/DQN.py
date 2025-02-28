@@ -157,6 +157,7 @@ class DQNAgent(BaseAgent):
         num_envs (int): Number of parallel environments.
         feature_extractor_class: Class to extract features from observations.
     """
+    name = "DQN"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = feature_extractor_class(observation_space)

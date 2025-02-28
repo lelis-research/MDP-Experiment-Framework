@@ -140,6 +140,7 @@ class ReinforceWithBaselineAgent(BaseAgent):
     """
     REINFORCE agent with a learned baseline (value network) to reduce variance.
     """
+    name = "ReinforceWithBaseline"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:

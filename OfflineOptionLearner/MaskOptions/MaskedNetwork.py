@@ -8,13 +8,22 @@ class MaskedNetwork(nn.Module):
         the outputs of specified activation layers are masked.
         
         Args:
-            net: The original network.
-            mask_dict: A dictionary mapping layer indices (as strings) or full names
-                       to their mask.
+            net: The original network. Must have only one sequential attribute called network
+            mask_dict: A dictionary mapping layer indices as strings to their mask.
         """
         super(MaskedNetwork, self).__init__()
         self.network = original_net.network # Assuming original_net has one sequential module called network
+        assert self.is_mask_valid(mask_dict), "Mask layers are not in the network"
         self.mask_dict = mask_dict
+
+    def is_mask_valid(self, mask_dict):
+        layers_names = []
+        for name, module in self.network.named_children():
+            layers_names.append(name)
+        for layer in mask_dict:
+            if layer not in layers_names:
+                return False
+        return True
 
     def forward(self, x):
         # Assume the network is a Sequential for simplicity.

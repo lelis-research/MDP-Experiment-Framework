@@ -4,12 +4,14 @@ import pickle
 import random
 import shutil
 import importlib.util
+import yaml
+import argparse
 
 class BaseExperiment:
     """
     Base class for running episodes and collecting metrics.
     """
-    def __init__(self, env, agent, exp_dir=None, train=True, config=None):
+    def __init__(self, env, agent, exp_dir=None, train=True, config=None, args=None):
         """
         Args:
             env: An initialized environment.
@@ -21,10 +23,16 @@ class BaseExperiment:
         self.env = env
         self.agent = agent
         if exp_dir is not None:
+            # Copy config file
             os.makedirs(exp_dir, exist_ok=True)
             self.exp_dir = exp_dir
             if config is not None:
                 shutil.copy(config, exp_dir)
+        
+            # Save args
+            file = os.path.join(self.exp_dir, "args.yaml")
+            with open(file, "w") as f:
+                yaml.dump(vars(args), f)
 
         self._dump_transitions = False
         self._checkpoint_freq = None
@@ -222,11 +230,6 @@ class BaseExperiment:
 
         all_runs_metrics = []
 
-        # Save environment configuration for repeatability.
-        file = os.path.join(self.exp_dir, "env.pkl")
-        with open(file, "wb") as f:
-            pickle.dump(self.env.custom_config, f)
-
         for run in range(1, num_runs + 1):
             print(f"Starting Run {run}")
             if case_num == 1:
@@ -273,7 +276,7 @@ class BaseExperiment:
         return all_transitions
 
     @classmethod
-    def load_environment(cls, exp_dir):
+    def load_args(cls, exp_dir):
         """
         Load and return the environment configuration from a previous experiment run.
 
@@ -283,12 +286,13 @@ class BaseExperiment:
         Returns:
             dict: The environment configuration.
         """
-        env_file = os.path.join(exp_dir, "env.pkl")
-        if not os.path.exists(env_file):
-            raise FileNotFoundError(f"No environment file found in {exp_dir}")
-        with open(env_file, "rb") as f:
-            env_config = pickle.load(f)
-        return env_config
+        args_file = os.path.join(exp_dir, "args.yaml")
+        if not os.path.exists(args_file):
+            raise FileNotFoundError(f"No args file found in {exp_dir}")
+        with open(args_file, "r") as f:
+            args_dict = yaml.safe_load(f)
+        args = argparse.Namespace(**args_dict)
+        return args
 
     @classmethod
     def load_config(cls, exp_dir):

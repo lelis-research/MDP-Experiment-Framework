@@ -61,7 +61,7 @@ def main():
 
     # Choose experiment type based on number of environments
     if args.num_envs == 1:
-        experiment = LoggerExperiment(env, agent, exp_dir, config="config.py")
+        experiment = LoggerExperiment(env, agent, exp_dir, config="config.py", args=args)
     else:
         experiment = ParallelExperiment(env, agent, exp_dir)
     

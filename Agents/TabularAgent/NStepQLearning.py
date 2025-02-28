@@ -108,6 +108,7 @@ class NStepQLearningAgent(QLearningAgent):
         num_envs (int): Number of parallel environments.
         feature_extractor_class (class): Class for extracting features from observations.
     """
+    name = "NStepQLearning"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         self.policy = NStepQLearningPolicy(action_space, hyper_params)

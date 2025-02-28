@@ -1,17 +1,17 @@
 import math
 
-def calculate_levin_loss(trajectory, base_policy, masks, num_actions):
+def levin_loss_for_masks(trajectory, base_policy, masks, num_actions):
     """
     Calculates the Levin Loss for a given trajectory and a list of agents.
     
     Parameters:
-        trajectory: List of (observation, action) pairs.
-        base_policy: The base policy
-        masks: List of mask dicts
-        num_actions: Number of primitive actions
-    
+        trajectory (List[Tuple[Any, Any]]): A list of (state, action) pairs.
+        base_policy: An object with select_action_masked(state, mask) method for action prediction.
+        masks (List[Dict[str, Any]]): A list of mask dictionaries for the agents.
+        num_actions (int): The number of available primitive actions.
+
     Returns:
-        Levin Loss as a float.
+        float: The computed Levin Loss.
     """
     T = len(trajectory)
     

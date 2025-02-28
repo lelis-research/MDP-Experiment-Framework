@@ -8,17 +8,26 @@ from OfflineOptionLearner.MaskOptions import MaskedOptionLearner_v1
 
 if __name__ == "__main__":
 
-    agent_type = "DQN"
-    exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_DQN_seed[123123]_20250226_150731"
+    exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250227_140907"
+    exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250227_160949"
+
+    args = BaseExperiment.load_args(exp_path)
+    config = BaseExperiment.load_config(exp_path)
 
     # Load Environment
-    env_config = BaseExperiment.load_environment(exp_path)
-    env = get_env(**env_config, render_mode="rgb_array_list")
+    env = get_env(
+        env_name=args.env,
+        num_envs=args.num_envs,
+        max_steps=args.episode_max_steps,
+        render_mode=args.render_mode,
+        env_params=config.env_params,
+        wrapping_lst=config.env_wrapping,
+        wrapping_params=config.wrapping_params,
+    )
 
     # Load Agent
-    config = BaseExperiment.load_config(exp_path)
-    agent = config.AGENT_DICT[agent_type](env)
-    agent.reset(123123)    
+    agent = config.AGENT_DICT[args.agent](env)
+    agent.reset(args.seed)    
     agent.load(os.path.join(exp_path, "Policy_Run1_Last.t"))
 
     # Load Transitions
@@ -26,4 +35,4 @@ if __name__ == "__main__":
 
     # Learning Options
     option_learner = MaskedOptionLearner_v1(agent, all_transitions)
-    option_learner.random_search()
+    option_learner.random_search(masked_layers=["1", "6"], num_options=5)

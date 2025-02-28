@@ -32,7 +32,7 @@ def parse():
     parser.add_argument("--metric_ratio", type=float, default=0.5, help="Ratio of the last episode to consider")
     return parser.parse_args()
 
-def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, ratio=0.5, n_trials=20, num_runs=3, num_episodes=50, seed_offset=1):
+def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, ratio=0.5, n_trials=20, num_runs=3, num_episodes=50, seed_offset=1, args=None):
     """
     Tune hyperparameters using Optuna.
     
@@ -83,7 +83,7 @@ def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, r
             file.write(str(agent))
 
         # Run the experiment for the current trial.
-        experiment = exp_class(env, agent, exp_dir=trial_dir)
+        experiment = exp_class(env, agent, exp_dir=trial_dir, args=args)
         metrics = experiment.multi_run(num_episodes=num_episodes, num_runs=num_runs, seed_offset=seed_offset, dump_metrics=True)
 
         # Save seed info.
@@ -151,6 +151,7 @@ def main(hp_range):
         num_runs=args.num_runs,
         num_episodes=args.num_episodes,
         seed_offset=args.seed,
+        args=args,
     )
 
     print("Best hyperparameters found:")

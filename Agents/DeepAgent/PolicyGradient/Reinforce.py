@@ -108,6 +108,7 @@ class ReinforceAgent(BaseAgent):
     """
     Minimal REINFORCE agent for discrete actions without a baseline.
     """
+    name = "Reinforce"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:

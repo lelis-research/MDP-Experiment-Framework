@@ -110,6 +110,7 @@ class DoubleQLearningAgent(BaseAgent):
     """
     Agent that uses Double Q-Learning with a feature extractor.
     """
+    name = "DoubleQLearning"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Initialize the agent.

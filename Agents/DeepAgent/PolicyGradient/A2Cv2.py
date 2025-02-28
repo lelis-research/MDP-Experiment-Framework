@@ -157,6 +157,7 @@ class A2CAgentV2(BaseAgent):
     """
     Advantage Actor-Critic agent using n-step rollouts.
     """
+    name = "A2C_v2"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         """
         Args:
