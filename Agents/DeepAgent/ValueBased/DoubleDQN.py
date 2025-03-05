@@ -10,8 +10,11 @@ from Agents.Utils import (
     BasicBuffer,
     NetworkGen,
     prepare_network_config,
+    register_agent,
+    register_policy,
 )
 
+@register_policy
 class DoubleDQNPolicy(BasePolicy):
     """
     Epsilon-greedy policy for Double DQN with online and target networks.
@@ -123,39 +126,60 @@ class DoubleDQNPolicy(BasePolicy):
         if call_back is not None:
             call_back({"value_loss": loss.item()})
     
-    def save(self, file_path):
+    def save(self, file_path=None):
         """
         Save network states, optimizer state, and hyper-parameters.
         
         Args:
             file_path (str): Path to save the checkpoint.
         """
+        
         checkpoint = {
             'online_network_state_dict': self.online_network.state_dict(),
             'target_network_state_dict': self.target_network.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
-            'hyper_params': self.hp,
-            'features_dim': self.features_dim,
-            'action_dim': self.action_dim,
-        }
-        torch.save(checkpoint, file_path)
 
-    def load(self, file_path):
+            'action_space': self.action_space,
+            'features_dim': self.features_dim,
+            'hyper_params': self.hp,
+            
+            'action_dim': self.action_dim,            
+            'policy_class': self.__class__.__name__,
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_policy.t")
+        return checkpoint
+    
+    @classmethod
+    def load_from_file(cls, file_path, seed=0):
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        instance = cls(checkpoint['action_space'], checkpoint['features_dim'], checkpoint['hyper_params'])
+
+        instance.reset(seed)
+        instance.online_network.load_state_dict(checkpoint['online_network_state_dict'])
+        instance.target_network.load_state_dict(checkpoint['target_network_state_dict'])
+        instance.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+        return instance
+
+    def load_from_checkpoint(self, checkpoint):
         """
         Load network states, optimizer state, and hyper-parameters.
         
         Args:
-            file_path (str): Path to the checkpoint file.
+            checkpoint (dictionary)
         """
-        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         self.online_network.load_state_dict(checkpoint['online_network_state_dict'])
         self.target_network.load_state_dict(checkpoint['target_network_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.hp = checkpoint.get('hyper_params', self.hp)
-        self.features_dim = checkpoint.get('features_dim', self.features_dim)
-        self.action_dim = checkpoint.get('action_dim', self.action_dim)
 
+        self.action_space = checkpoint.get('action_space')
+        self.features_dim = checkpoint.get('features_dim')
+        self.hp = checkpoint.get('hyper_params')
 
+        self.action_dim = checkpoint.get('action_dim')
+
+@register_agent
 class DoubleDQNAgent(BaseAgent):
     """
     Double DQN agent with experience replay and target network.
@@ -169,8 +193,7 @@ class DoubleDQNAgent(BaseAgent):
     """
     name = "DoubleDQN"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = feature_extractor_class(observation_space)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         
         # Initialize replay buffer with capacity hyper_params.replay_buffer_cap.
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)

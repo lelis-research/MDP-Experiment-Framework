@@ -99,7 +99,7 @@ class BaseExperiment:
                 "Steps": metrics['steps'],
             })
             if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Policy_Run{n_run}_E{episode}.t")
+                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
                 self.agent.save(path)
         return all_metrics
     
@@ -199,7 +199,7 @@ class BaseExperiment:
             
             # Checkpointing if desired
             if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Policy_Run{n_run}_E{episode_idx}.t")
+                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode_idx}")
                 self.agent.save(path)
         pbar.close()
         return all_metrics
@@ -244,7 +244,7 @@ class BaseExperiment:
                 file = os.path.join(self.exp_dir, "metrics.pkl")
                 with open(file, "wb") as f:
                     pickle.dump(all_runs_metrics, f)
-                path = os.path.join(self.exp_dir, f"Policy_Run{run}_Last.t")
+                path = os.path.join(self.exp_dir, f"Run{run}_Last")
                 self.agent.save(path)
                     
         return all_runs_metrics

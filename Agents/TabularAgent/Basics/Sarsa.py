@@ -1,9 +1,15 @@
 import numpy as np
 import random
-import pickle
+import torch
 
-from Agents.Utils import BaseAgent, BasePolicy
+from Agents.Utils import (
+    BaseAgent, 
+    BasePolicy,
+    register_agent,
+    register_policy,
+)
 
+@register_policy
 class SarsaPolicy(BasePolicy):
     """
     Epsilon-greedy SARSA policy that updates Q(s,a) using Q(s',a') from the selected action.
@@ -74,7 +80,7 @@ class SarsaPolicy(BasePolicy):
         super().reset(seed)
         self.q_table = {}
     
-    def save(self, file_path):
+    def save(self, file_path=None):
         """
         Save the Q-table and hyper-parameters.
         
@@ -84,22 +90,49 @@ class SarsaPolicy(BasePolicy):
         checkpoint = {
             'q_table': self.q_table,
             'hyper_params': self.hp,
-        }
-        with open(file_path, 'wb') as f:
-            pickle.dump(checkpoint, f)
 
-    def load(self, file_path):
+            'action_space': self.action_space,
+            'hyper_params': self.hp,
+
+            'action_dim': self.action_dim,  
+            'policy_class': self.__class__.__name__,
+
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_policy.t")
+        return checkpoint
+    
+    @classmethod
+    def load_from_file(cls, file_path, seed=0):
         """
         Load the Q-table and hyper-parameters.
         
         Args:
             file_path (str): File path from which to load the checkpoint.
         """
-        with open(file_path, 'rb') as f:
-            checkpoint = pickle.load(f)
-        self.q_table = checkpoint.get('q_table', {})
-        self.hp = checkpoint.get('hyper_params', self.hp)
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        instance = cls(checkpoint['action_space'], checkpoint['hyper_params'])
+        
+        instance.reset(seed)
 
+        instance.q_table = checkpoint.get('q_table')
+        return instance
+    
+    def load_from_checkpoint(self, checkpoint):
+        """
+        Load the Q-table and hyper-parameters.
+        
+        Args:
+            file_path (str): File path from which to load the checkpoint.
+        """
+        self.q_table = checkpoint.get('q_table')
+
+        self.action_space = checkpoint.get('action_space')
+        self.hp = checkpoint.get('hyper_params')
+
+        self.action_dim = checkpoint.get('action_dim')
+
+@register_agent
 class SarsaAgent(BaseAgent):
     """
     SARSA agent that uses a feature extractor and SARSA policy.
@@ -113,8 +146,7 @@ class SarsaAgent(BaseAgent):
     """
     name = "Sarsa"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = feature_extractor_class(observation_space)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         self.policy = SarsaPolicy(action_space, hyper_params)
 
     def act(self, observation):

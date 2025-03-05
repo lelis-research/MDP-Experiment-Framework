@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import torch
-import pickle
+from .HyperParams import HyperParameters
 
 class BasePolicy:
     """Abstract base class for policies."""
@@ -33,16 +33,21 @@ class BasePolicy:
     def save(self, file_path):
         raise NotImplementedError("This method should be implemented by subclasses.")
 
-    def load(self, file_path):
+    @classmethod
+    def load_from_file(cls, file_path, seed=0):
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+    def load_from_checkpoint(self, checkpoint):
         raise NotImplementedError("This method should be implemented by subclasses.")
         
 class BaseAgent:
     """Base class for an RL agent using a policy."""
-    def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None):
+    def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None, feature_extractor_class=None):
         self.hp = hyper_params
         self.action_space = action_space
         self.observation_space = observation_space
         self.num_envs = num_envs
+        self.feature_extractor = feature_extractor_class(observation_space)
         self.policy = BasePolicy(action_space)
         
     def act(self, observation):
@@ -65,13 +70,39 @@ class BaseAgent:
     def set_hp(self, hp):
         self.hp = hp
         self.policy.set_hp(hp)
-    
-    def save(self, file_path):
-        self.policy.save(file_path)
-    
-    def load(self, file_path):
-        self.policy.load(file_path)
-        self.set_hp(self.policy.hp)
+       
+    def save(self, file_path=None):
+        policy_checkpoint = self.policy.save(file_path)
+        feature_extractor_checkpoint = self.feature_extractor.save()
+        checkpoint = {
+            'action_space': self.action_space,
+            'observation_space': self.observation_space,
+            'hyper_params': self.hp,
+            'num_envs': self.num_envs,
+
+            'policy': policy_checkpoint,
+            'feature_extractor': feature_extractor_checkpoint,
+
+            'agent_class': self.__class__.__name__,
+            'feature_extractor_class': self.feature_extractor.__class__
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_agent.t")
+        return checkpoint
+
+    @classmethod
+    def load_from_file(cls, file_path, seed=0):
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        instance = cls(checkpoint['action_space'], checkpoint['observation_space'], 
+                       checkpoint['hyper_params'], checkpoint['num_envs'],
+                       checkpoint['feature_extractor_class'])
+        instance.reset(seed)
+
+        instance.feature_extractor.load_from_checkpoint(checkpoint['feature_extractor'])
+
+        instance.policy.load_from_checkpoint(checkpoint['policy'])
+        
+        return instance
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.hp})"

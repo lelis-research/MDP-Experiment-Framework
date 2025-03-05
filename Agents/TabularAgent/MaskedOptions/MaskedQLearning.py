@@ -2,9 +2,9 @@ import numpy as np
 import random
 import pickle
 
-from Agents.Utils import BaseAgent, BasePolicy
+from Agents.TabularAgent.Basics import QLearningAgent, QLearningPolicy
 
-class QLearningPolicy(BasePolicy):
+class MaskedQLearningPolicy(QLearningPolicy):
     """
     Epsilon-greedy policy using a Q-table.
     
@@ -94,7 +94,7 @@ class QLearningPolicy(BasePolicy):
         self.q_table = checkpoint.get('q_table', {})
         self.hp = checkpoint.get('hyper_params', self.hp)
         
-class QLearningAgent(BaseAgent):
+class MaskedQLearningAgent(QLearningAgent):
     """
     Tabular Q-Learning agent using a feature extractor and QLearningPolicy.
     
@@ -107,7 +107,7 @@ class QLearningAgent(BaseAgent):
         num_envs (int): Number of parallel environments.
         feature_extractor_class: Class for feature extraction.
     """
-    name = "QLearning"
+    name = "MaskedQLearning"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs)
         self.feature_extractor = feature_extractor_class(observation_space)

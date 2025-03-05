@@ -9,7 +9,7 @@ from OfflineOptionLearner.MaskOptions import MaskedOptionLearner_v1
 if __name__ == "__main__":
 
     exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250227_140907"
-    exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250227_160949"
+    # exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250227_160949"
 
     args = BaseExperiment.load_args(exp_path)
     config = BaseExperiment.load_config(exp_path)
@@ -35,4 +35,12 @@ if __name__ == "__main__":
 
     # Learning Options
     option_learner = MaskedOptionLearner_v1(agent, all_transitions)
-    option_learner.random_search(masked_layers=["1", "6"], num_options=5)
+    options_lst = option_learner.random_search(masked_layers=["1"], num_options=5, iteration=10)
+
+    options_dir = os.path.join(exp_path, "options")
+    if not os.path.exists(options_dir):
+        os.makedirs(options_dir) 
+
+    for e, option in enumerate(options_lst):
+        option.save(f"{options_dir}/{e}")
+    print(options_lst)

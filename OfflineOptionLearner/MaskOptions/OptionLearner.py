@@ -1,9 +1,11 @@
 from .PolicyMaskers import POLICY_TO_MASKER
 from OfflineOptionLearner.Utils import levin_loss_for_masks
+from Agents.Utils.Option import MaskedOption
 
 import random
 import torch
 import numpy as np
+from tqdm import tqdm
 
 class MaskedOptionLearner_v1:
     def __init__(self, base_agent, transitions):
@@ -76,8 +78,15 @@ class MaskedOptionLearner_v1:
         return trajectories
     
     def random_search(self, masked_layers, num_options, iteration=10):
-        min_loss, best_masks = np.inf, []
-        for _ in range(iteration):
+        best_masks = []
+        min_loss = 0
+        pbar = tqdm(range(1, iteration + 1), desc="Search Iteration")
+        for trajectory in self.trajectories:
+            min_loss += levin_loss_for_masks(trajectory, self.base_policy, [], self.num_actions)
+        min_loss /= len(self.trajectories)
+        org_loss = min_loss # Levin loss with no options
+    
+        for _ in pbar:
             loss = 0
             random_masks = self.generate_random_maskings(layer_names=masked_layers, number_of_masks=num_options)
             for trajectory in self.trajectories:
@@ -86,7 +95,17 @@ class MaskedOptionLearner_v1:
             if loss < min_loss:
                 min_loss = loss
                 best_masks = random_masks
-        return best_masks
+            pbar.set_postfix({
+                "loss": loss,
+                "min loss": min_loss,
+                "org loss": org_loss
+            })
+        
+        options_lst = []
+        for mask in best_masks:
+            option = MaskedOption(self.base_policy, mask)
+            options_lst.append(option)
+        return options_lst
 
     def generate_random_maskings(self, layer_names, number_of_masks):
         """
@@ -117,7 +136,7 @@ class MaskedOptionLearner_v1:
             mask_dict = {}
             for layer_name in layer_names:
                 if layer_name not in maskable_layers:
-                    raise ValueError(f"Layer '{layer_name}' not found in base_policy maskable layers.")
+                    raise ValueError(f"Layer '{layer_name}' not in maskable layers {maskable_layers}")
                 size = maskable_layers[layer_name]['size']
                 # Generate a random mask: a list of length 'size' with values chosen from -1, 0, or 1.
                 mask_dict[layer_name] = [random.choice([-1, 0, 1]) for _ in range(size)]

@@ -5,7 +5,7 @@ from Agents.Utils import (
     HyperParameters,
 )
 from Agents.RandomAgent import RandomAgent
-from Agents.TabularAgent import (
+from Agents.TabularAgent.Basics import (
     QLearningAgent,
     NStepQLearningAgent,
     SarsaAgent,
@@ -22,6 +22,9 @@ from Agents.DeepAgent.PolicyGradient import (
     A2CAgentV1,
     A2CAgentV2,
     PPOAgent,
+)
+from Agents.TabularAgent.MaskedOptions import (
+    MaskedQLearningAgent
 )
 
 def get_env_action_space(env):
@@ -56,7 +59,7 @@ linear_network_1 = [
 
 env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"]
 wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
-env_params = {}#{"chain_length": 5}
+env_params = {}#{"chain_length": 20}
     
 AGENT_DICT = {
     RandomAgent.name: lambda env: RandomAgent(
@@ -81,7 +84,7 @@ AGENT_DICT = {
         get_num_envs(env),
         TabularFeature,
     ),
-    DoubleDQNAgent.name: lambda env: DoubleQLearningAgent(
+    DoubleQLearningAgent.name: lambda env: DoubleQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1),
@@ -95,6 +98,14 @@ AGENT_DICT = {
         get_num_envs(env),
         TabularFeature,
     ),
+    
+    # MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
+    #     get_env_action_space(env), 
+    #     get_env_observation_space(env),
+    #     HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
+    #     get_num_envs(env),
+    #     TabularFeature,
+    # ),
     
     # Deep Agents
     DQNAgent.name: lambda env: DQNAgent(
@@ -125,10 +136,10 @@ AGENT_DICT = {
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
                         replay_buffer_cap=512, batch_size=32,
                         target_update_freq=20, n_steps=10,
-                        value_network=conv_network_1,
+                        value_network=fc_network_1,
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
     ),
     ReinforceAgent.name: lambda env: ReinforceAgent(
         get_env_action_space(env), 

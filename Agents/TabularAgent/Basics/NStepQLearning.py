@@ -6,9 +6,12 @@ from Agents.Utils import (
     BasePolicy,
     BasicBuffer,
     calculate_n_step_returns,
+    register_agent,
+    register_policy,
 )
 from .QLearning import QLearningAgent, QLearningPolicy
 
+@register_policy
 class NStepQLearningPolicy(QLearningPolicy):
     """
     n-step Q-Learning policy that maintains a buffer of the last n transitions.
@@ -90,7 +93,7 @@ class NStepQLearningPolicy(QLearningPolicy):
                 if call_back is not None:
                     call_back({"value_loss": td_error})
                 
-
+@register_agent
 class NStepQLearningAgent(QLearningAgent):
     """
     n-step Q-Learning agent that uses a feature extractor and performs multi-step updates.

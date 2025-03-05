@@ -1,6 +1,7 @@
 import numpy as np
 import torch 
 
+
 class BaseFeature:
     def __init__(self, observation_space):
         self.observation_space = observation_space
@@ -19,7 +20,19 @@ class BaseFeature:
 
     def reset(self, seed):
         pass
-
+    
+    def save(self, file_path=None):
+        checkpoint = {
+            'observation_space': self.observation_space,
+            'feature_extractor_class': self.__class__.__name__,
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_feature_extractor.t")
+        return checkpoint
+    
+    def load_from_checkpoint(self, checkpoint):
+        self.observation_space = checkpoint['observation_space']
+    
 class TabularFeature(BaseFeature):
     def __call__(self, observation):
         # Flatten and convert observation to a tuple.
@@ -38,6 +51,7 @@ class FLattenFeature(BaseFeature):
         batch_size = observation.shape[0]
         observation = observation.reshape(batch_size, -1)
         return observation
+    
 
 class ImageFeature(BaseFeature):
     @property
@@ -52,3 +66,4 @@ class ImageFeature(BaseFeature):
             observation = observation[np.newaxis, ...]
         observation = np.transpose(observation, (0, 3, 1, 2))
         return observation
+        

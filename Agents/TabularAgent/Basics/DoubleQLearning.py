@@ -1,9 +1,15 @@
 import numpy as np
 import random
-import pickle
+import torch
 
-from Agents.Utils import BaseAgent, BasePolicy
+from Agents.Utils import (
+    BaseAgent, 
+    BasePolicy,
+    register_agent,
+    register_policy,
+)
 
+@register_policy
 class DoubleQLearningPolicy(BasePolicy):
     """
     Double Q-Learning policy with two Q-tables (q1_table and q2_table).
@@ -77,7 +83,7 @@ class DoubleQLearningPolicy(BasePolicy):
         self.q1_table = {}
         self.q2_table = {}
 
-    def save(self, file_path):
+    def save(self, file_path=None):
         """
         Save the current Q-tables and hyper-parameters.
         
@@ -88,24 +94,53 @@ class DoubleQLearningPolicy(BasePolicy):
             'q1_table': self.q1_table,
             'q2_table': self.q2_table,
             'hyper_params': self.hp,
+
+            'action_space': self.action_space,
+            'hyper_params': self.hp,
+
+            'action_dim': self.action_dim,  
+            'policy_class': self.__class__.__name__,
+
         }
-        with open(file_path, 'wb') as f:
-            pickle.dump(checkpoint, f)
-            
-    def load(self, file_path):
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_policy.t")
+        return checkpoint
+
+    @classmethod         
+    def load_from_file(cls, file_path, seed=0):
         """
         Load Q-tables and hyper-parameters from a checkpoint.
         
         Args:
             file_path (str): Path to the checkpoint file.
         """
-        with open(file_path, 'rb') as f:
-            checkpoint = pickle.load(f)
-        self.q1_table = checkpoint.get('q1_table', {})
-        self.q2_table = checkpoint.get('q2_table', {})
-        self.hp = checkpoint.get('hyper_params', self.hp)
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        instance = cls(checkpoint['action_space'], checkpoint['hyper_params'])
+        
+        instance.reset(seed)
+
+        instance.q1_table = checkpoint.get('q1_table')
+        instance.q2_table = checkpoint.get('q2_table')
+        return instance
+    
+    def load_from_checkpoint(self, checkpoint):
+        """
+        Load the Q-table and hyper-parameters.
+        
+        Args:
+            file_path (str): File path from which to load the checkpoint.
+        """
+        self.q1_table = checkpoint.get('q1_table')
+        self.q2_table = checkpoint.get('q2_table')
+
+        self.action_space = checkpoint.get('action_space')
+        self.hp = checkpoint.get('hyper_params')
+
+        self.action_dim = checkpoint.get('action_dim')
+    
 
 
+@register_agent
 class DoubleQLearningAgent(BaseAgent):
     """
     Agent that uses Double Q-Learning with a feature extractor.
@@ -122,8 +157,7 @@ class DoubleQLearningAgent(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class (class): Class to extract features from observations.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = feature_extractor_class(observation_space)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         self.policy = DoubleQLearningPolicy(action_space, hyper_params)
 
     def act(self, observation):

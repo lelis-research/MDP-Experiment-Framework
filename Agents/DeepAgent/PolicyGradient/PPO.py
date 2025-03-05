@@ -11,9 +11,12 @@ from Agents.Utils import (
     calculate_n_step_returns,
     NetworkGen,
     prepare_network_config,
+    register_agent,
+    register_policy,
 )
 from Agents.Utils.NetworkGenerator import NetworkGen, prepare_network_config
 
+@register_policy
 class PPOPolicy(BasePolicy):
     """
     Proximal Policy Optimization (PPO) policy for discrete actions.
@@ -145,40 +148,56 @@ class PPOPolicy(BasePolicy):
                     call_back({"critic_loss": critic_loss.item(),
                                "actor_loss": actor_loss.item()})
     
-    def save(self, file_path):
-        """
-        Save actor and critic network states and optimizers.
-        
-        Args:
-            file_path (str): Path to save the checkpoint.
-        """
+    def save(self, file_path=None):
         checkpoint = {
             'actor_state_dict': self.actor.state_dict(),
             'critic_state_dict': self.critic.state_dict(),
             'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
             'critic_optimizer_state_dict': self.critic_optimizer.state_dict(),
-            'hyper_params': self.hp,
-            'features_dim': self.features_dim,
-            'action_dim': self.action_dim,
-        }
-        torch.save(checkpoint, file_path)
 
-    def load(self, file_path):
+            'action_space': self.action_space,
+            'features_dim': self.features_dim,
+            'hyper_params': self.hp,
+            
+            'action_dim': self.action_dim,            
+            'policy_class': self.__class__.__name__,
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_policy.t")
+        return checkpoint
+
+    @classmethod
+    def load_from_file(cls, file_path, seed=0):
+        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        instance = cls(checkpoint['action_space'], checkpoint['features_dim'], checkpoint['hyper_params'])
+
+        instance.reset(seed)
+        instance.actor.load_state_dict(checkpoint['actor_state_dict'])
+        instance.critic.load_state_dict(checkpoint['critic_state_dict'])
+        instance.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
+        instance.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+        
+        return instance
+
+    def load_from_checkpoint(self, checkpoint):
         """
-        Load the checkpoint for actor and critic networks and optimizers.
+        Load network states, optimizer state, and hyper-parameters.
         
         Args:
-            file_path (str): Path to the checkpoint file.
+            checkpoint (dictionary)
         """
-        checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         self.actor.load_state_dict(checkpoint['actor_state_dict'])
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-        self.hp = checkpoint.get('hyper_params', self.hp)
-        self.features_dim = checkpoint.get('features_dim', self.features_dim)
-        self.action_dim = checkpoint.get('action_dim', self.action_dim)
 
+        self.action_space = checkpoint.get('action_space')
+        self.features_dim = checkpoint.get('features_dim')
+        self.hp = checkpoint.get('hyper_params')
+
+        self.action_dim = checkpoint.get('action_dim')
+
+@register_agent
 class PPOAgent(BaseAgent):
     """
     PPO agent using on-policy rollouts with n-step trajectories.
@@ -196,8 +215,8 @@ class PPOAgent(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class: Class to extract features from observations.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs)
-        self.feature_extractor = feature_extractor_class(observation_space)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+
         self.policy = PPOPolicy(action_space, self.feature_extractor.features_dim, hyper_params)
         self.rollout_buffer = BasicBuffer(np.inf)
 

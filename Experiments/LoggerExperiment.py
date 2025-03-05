@@ -54,7 +54,6 @@ class LoggerExperiment(BaseExperiment):
         while not (terminated or truncated):
             action = self.agent.act(observation)
             next_observation, reward, terminated, truncated, info = self.env.step(action)
-
             if self._dump_transitions:
                 transitions.append((observation, action, reward, terminated, truncated))
             if self._train:
@@ -107,7 +106,7 @@ class LoggerExperiment(BaseExperiment):
                 "Steps": metrics['steps'],
             })
             if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Policy_Run{n_run}_E{episode}")
+                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
                 self.agent.save(path)
         return all_metrics
     
@@ -212,7 +211,7 @@ class LoggerExperiment(BaseExperiment):
             
             # Checkpointing if desired
             if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Policy_Run{n_run}_E{episode}.t")
+                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
                 self.agent.save(path)
         pbar.close()
         return all_metrics
