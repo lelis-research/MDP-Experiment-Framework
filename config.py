@@ -1,31 +1,31 @@
-from Agents.Utils import (
+from RLBase.Agents.Utils import (
     TabularFeature,
     FLattenFeature,
     ImageFeature,
     HyperParameters,
 )
-from Agents.RandomAgent import RandomAgent
-from Agents.TabularAgent.Basics import (
+from RLBase.Agents.RandomAgent import RandomAgent
+from RLBase.Agents.TabularAgent import (
     QLearningAgent,
     NStepQLearningAgent,
     SarsaAgent,
     DoubleQLearningAgent,
+    MaskedQLearningAgent
 )
-from Agents.DeepAgent.ValueBased import (
+from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
     DoubleDQNAgent,
     NStepDQNAgent,
 )
-from Agents.DeepAgent.PolicyGradient import (
+from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceAgent,
     ReinforceWithBaselineAgent,
     A2CAgentV1,
     A2CAgentV2,
     PPOAgent,
 )
-from Agents.TabularAgent.MaskedOptions import (
-    MaskedQLearningAgent
-)
+from RLBase import load_option
+
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -66,7 +66,7 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(),
-        get_num_envs(env)
+        get_num_envs(env),
     ),
 
     #Tabular Agents
@@ -99,13 +99,14 @@ AGENT_DICT = {
         TabularFeature,
     ),
     
-    # MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
-    #     get_num_envs(env),
-    #     TabularFeature,
-    # ),
+    MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
+        get_num_envs(env),
+        TabularFeature,
+        initial_options=load_option("Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113108/Run1_Last_options.t"),        
+    ),
     
     # Deep Agents
     DQNAgent.name: lambda env: DQNAgent(

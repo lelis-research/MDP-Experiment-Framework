@@ -4,10 +4,10 @@ import numpy as np
 import optuna
 import argparse
 
-from Agents.Utils import HyperParameters  # For handling hyper-parameter objects
-from Experiments import BaseExperiment, ParallelExperiment
-from Evaluate import SingleExpAnalyzer
-from Environments import get_env, ENV_LST
+from RLBase.Agents.Utils import HyperParameters  # For handling hyper-parameter objects
+from RLBase.Experiments import BaseExperiment, ParallelExperiment
+from RLBase.Evaluate import SingleExpAnalyzer
+from RLBase.Environments import get_env, ENV_LST
 from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
 
 def parse():

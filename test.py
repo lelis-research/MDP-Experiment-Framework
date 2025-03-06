@@ -2,10 +2,10 @@ import os
 import pickle
 from matplotlib import pyplot as plt
 
-from Experiments import BaseExperiment
-from Evaluate import AnalyzeMultiExp, SingleExpAnalyzer
-from Environments import get_env
-from Agents.Utils import load_policy, load_agent
+from RLBase.Experiments import BaseExperiment
+from RLBase.Evaluate import AnalyzeMultiExp, SingleExpAnalyzer
+from RLBase.Environments import get_env
+from RLBase import load_policy, load_agent
 
 def visualize(experiment_path, run_number, episode_number):
     analyzer = SingleExpAnalyzer(exp_path=experiment_path)
@@ -14,16 +14,17 @@ def visualize(experiment_path, run_number, episode_number):
 
 if __name__ == "__main__":
     # agent_dict = {
-    #         "qlearning": "Runs/Train/MiniGrid-Empty-5x5-v0_QLearning_seed[123123]_20250224_164320",
-    #         "sarsa": "Runs/Train/MiniGrid-Empty-5x5-v0_Sarsa_seed[123123]_20250224_164336",
-    #         "nstep": "Runs/Train/MiniGrid-Empty-5x5-v0_NStepQLearning_seed[123123]_20250224_171603"
+    #         "qlearning_16x16": "Runs/Train/MiniGrid-Empty-16x16-v0_{}_QLearning_seed[123123]_20250305_131913",
+    #         "masked_qlearning_16x16": "Runs/Train/MiniGrid-Empty-16x16-v0_{}_MaskedQLearning_seed[123123]_20250305_131923",
+    #         # "masked_qlearning2":"Runs/Train/MiniGrid-Empty-8x8-v0_{}_MaskedQLearning_seed[123123]_20250305_131625"
+
     #         # Add more experiments as needed.
     #     }
     # AnalyzeMultiExp(agent_dict, "Runs/Test")
     # exit(0)
 
 
-    exp_name = "MiniGrid-Empty-5x5-v0_{}_A2C_v1_seed[123123]_20250304_173612"
+    exp_name = "MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113125"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
     # visualize(train_path, 1, 200)
