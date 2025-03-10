@@ -16,6 +16,7 @@ from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
     DoubleDQNAgent,
     NStepDQNAgent,
+    MaskedDQNAgent,
 )
 from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceAgent,
@@ -57,10 +58,12 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"]
+env_wrapping= ["ViewSize", "ImgObs", "StepReward"] #FlattenOnehotObj
 wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
 env_params = {}#{"chain_length": 20}
-    
+
+device="cpu" # cpu, mps, cuda
+
 AGENT_DICT = {
     RandomAgent.name: lambda env: RandomAgent(
         get_env_action_space(env), 
@@ -119,7 +122,21 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device,
     ),
+    MaskedDQNAgent.name: lambda env: MaskedDQNAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
+                        replay_buffer_cap=512, batch_size=32,
+                        target_update_freq=20,
+                        value_network=fc_network_1,
+                        ),
+        get_num_envs(env),
+        FLattenFeature,
+        initial_options=load_option("Runs/Train/MiniGrid-DoorKey-5x5-v0_{}_DQN_seed[123123]_20250306_162847/Run1_Last_options.t"),
+    ),
+
     DoubleDQNAgent.name: lambda env: DoubleDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
@@ -130,6 +147,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
     NStepDQNAgent.name: lambda env: NStepDQNAgent(
         get_env_action_space(env), 
@@ -141,7 +159,9 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
+    
     ReinforceAgent.name: lambda env: ReinforceAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
@@ -150,6 +170,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
     ReinforceWithBaselineAgent.name: lambda env: ReinforceWithBaselineAgent(
         get_env_action_space(env), 
@@ -162,6 +183,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
     A2CAgentV1.name: lambda env: A2CAgentV1(
         get_env_action_space(env), 
@@ -174,6 +196,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
     A2CAgentV2.name: lambda env: A2CAgentV2(
         get_env_action_space(env), 
@@ -186,6 +209,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
     ),
     PPOAgent.name: lambda env: PPOAgent(
         get_env_action_space(env), 
@@ -193,12 +217,13 @@ AGENT_DICT = {
         HyperParameters(gamma=0.99, clip_range=0.2,
                         mini_batch_size=64, rollout_steps=2048, 
                         entropy_coef=0.01, num_epochs=10,
-                        actor_network=fc_network_1,
+                        actor_network=conv_network_1,
                         actor_step_size=3e-4,
-                        critic_network=fc_network_1,
+                        critic_network=conv_network_1,
                         critic_step_size=1e-4, 
                         ),
         get_num_envs(env),
-        FLattenFeature,
+        ImageFeature,
+        device=device
     )
 }

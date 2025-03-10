@@ -32,14 +32,14 @@ class PPOPolicy(BasePolicy):
         
     Actor and Critic networks are built from provided network configurations.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Action space.
             features_dim (int): Dimension of the flattened feature vector.
             hyper_params: Hyper-parameters container.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
 
     def reset(self, seed):
@@ -61,8 +61,8 @@ class PPOPolicy(BasePolicy):
             input_dim=self.features_dim,
             output_dim=1
         )
-        self.actor = NetworkGen(layer_descriptions=actor_description)
-        self.critic = NetworkGen(layer_descriptions=critic_description)
+        self.actor = NetworkGen(layer_descriptions=actor_description).to(self.device)
+        self.critic = NetworkGen(layer_descriptions=critic_description).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 
@@ -76,7 +76,8 @@ class PPOPolicy(BasePolicy):
         Returns:
             tuple: (action (int), log_prob (torch.Tensor), state_value (torch.Tensor))
         """
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
+
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -99,16 +100,16 @@ class PPOPolicy(BasePolicy):
             dones (list): List of done flags (bool).
             call_back (function, optional): Callback to report loss metrics.
         """
-        states_t = torch.FloatTensor(np.array(states))
-        actions_t = torch.LongTensor(np.array(actions))
-        log_probs_t = torch.stack(old_log_probs)
-        states_values_t = torch.stack(states_values)
-        next_states_t = torch.FloatTensor(np.array(next_states))
-        
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device)
+        log_probs_t = torch.stack(old_log_probs).to(dtype=torch.float32, device=self.device)
+        states_values_t = torch.stack(states_values).to(dtype=torch.float32, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+    
         with torch.no_grad():
             bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
         returns = calculate_n_step_returns(rewards, bootstrap_value, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns).unsqueeze(1)  # shape [rollout_steps, 1]
+        returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device).unsqueeze(1)  # shape [rollout_steps, 1]
         
         advantages_t = returns_t - states_values_t
         
@@ -123,7 +124,7 @@ class PPOPolicy(BasePolicy):
                 batch_advantages = advantages_t[batch_indices]
                 batch_returns = returns_t[batch_indices]
                 batch_log_prob = log_probs_t[batch_indices]
-                
+
                 logits = self.actor(batch_states)
                 dist = Categorical(logits=logits)
                 new_log_probs_t = dist.log_prob(batch_actions).unsqueeze(1)
@@ -206,7 +207,7 @@ class PPOAgent(BaseAgent):
         (state, action, log_prob, state_value, reward, next_state, done)
     """
     name = "PPO"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Action space.
@@ -215,9 +216,9 @@ class PPOAgent(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class: Class to extract features from observations.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
 
-        self.policy = PPOPolicy(action_space, self.feature_extractor.features_dim, hyper_params)
+        self.policy = PPOPolicy(action_space, self.feature_extractor.features_dim, hyper_params, device=device)
         self.rollout_buffer = BasicBuffer(np.inf)
 
     def act(self, observation):
@@ -250,8 +251,8 @@ class PPOAgent(BaseAgent):
             call_back (function, optional): Callback to report loss metrics.
         """
         state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_action, self.last_log_prob, 
-                      self.last_state_value[0], reward, state[0], terminated)
+        transition = (self.last_state, self.last_action, self.last_log_prob, 
+                      self.last_state_value[0], reward, state, terminated)
         self.rollout_buffer.add_single_item(transition)
         
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:

@@ -15,26 +15,27 @@ def extract_trajectories(transitions):
         for episode in run:
             # For each episode, create a trajectory by extracting the state and action.
             trajectory = [(obs, action) for obs, action, *_ in episode]
-            trajectories.append(trajectory)
+            if len(trajectory) > 0:
+                trajectories.append(trajectory)
     return trajectories
 
 if __name__ == "__main__":
     
-    exp_path = "Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113108"
+    exp_path = "Runs/Train/MiniGrid-DoorKey-5x5-v0_{}_DQN_seed[123123]_20250306_162847"
     
     args = BaseExperiment.load_args(exp_path)
     config = BaseExperiment.load_config(exp_path)
 
-    # Load Environment
-    env = get_env(
-        env_name=args.env,
-        num_envs=args.num_envs,
-        max_steps=args.episode_max_steps,
-        render_mode=args.render_mode,
-        env_params=config.env_params,
-        wrapping_lst=config.env_wrapping,
-        wrapping_params=config.wrapping_params,
-    )
+    # # Load Environment
+    # env = get_env(
+    #     env_name=args.env,
+    #     num_envs=args.num_envs,
+    #     max_steps=args.episode_max_steps,
+    #     render_mode=args.render_mode,
+    #     env_params=config.env_params,
+    #     wrapping_lst=config.env_wrapping,
+    #     wrapping_params=config.wrapping_params,
+    # )
     
     # Load Agent
     agent = load_agent(os.path.join(exp_path, "Run1_Last_agent.t"))
@@ -42,10 +43,11 @@ if __name__ == "__main__":
     # Load Transitions
     all_transitions = BaseExperiment.load_transitions(exp_path)
     trajectories = extract_trajectories(all_transitions)
+    print(f"{len(trajectories)} many trajectories extracted")
     
     # Learning Options
-    option_learner = LevinLossMaskedOptionLearner(agent.action_space, agent.observation_space, agent.policy, trajectories, agent.feature_extractor)
-    options = option_learner.learn(num_options=10, search_budget=50, verbose=True)
+    option_learner = LevinLossMaskedOptionLearner(agent.action_space, agent.observation_space, agent.policy, trajectories[-100:], agent.feature_extractor)
+    options = option_learner.learn(num_options=5, search_budget=10, verbose=True)
 
     #Store Options
     option_path = os.path.join(exp_path, "Run1_Last") 

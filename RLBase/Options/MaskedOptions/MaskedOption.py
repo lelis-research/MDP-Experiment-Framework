@@ -16,7 +16,7 @@ class LevinLossMaskedOptionLearner():
         self.action_space = action_space
         self.observation_space = observation_space
         self.policy = None
-
+        
         self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
         
 
@@ -38,7 +38,7 @@ class LevinLossMaskedOptionLearner():
             self.masked_layers = masked_layers 
         
         if feature_extractor is not None:
-            self.feature_extractor = feature_extractor
+            self.feature_extractor = copy.deepcopy(feature_extractor)
         
         if not hasattr(self, "masked_layers") and hasattr(self, "policy"):
             self.masked_layers = self.maskable_layers

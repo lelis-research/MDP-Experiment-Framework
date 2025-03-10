@@ -27,14 +27,14 @@ class NStepDQNPolicy(BasePolicy):
         - target_update_freq (int)
         - value_network (list): configuration for network layers.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Action space.
             features_dim (int): Dimension of the flattened features.
             hyper_params: Container with hyper-parameters.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
         
     def select_action(self, state):
@@ -50,7 +50,7 @@ class NStepDQNPolicy(BasePolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = self.network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
@@ -71,8 +71,8 @@ class NStepDQNPolicy(BasePolicy):
             output_dim=self.action_dim
         )
         
-        self.network = NetworkGen(layer_descriptions=network_description)
-        self.target_network = NetworkGen(layer_descriptions=network_description)
+        self.network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
         self.target_network.load_state_dict(self.network.state_dict())
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
@@ -91,12 +91,12 @@ class NStepDQNPolicy(BasePolicy):
             n_steps (list/np.array): Number of steps for each transition; shape [batch].
             call_back (function, optional): Callback to track training progress.
         """
-        states_t = torch.FloatTensor(np.array(states))
-        actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-        n_step_returns_t = torch.FloatTensor(np.array(n_step_returns)).unsqueeze(1)
-        next_states_t = torch.FloatTensor(np.array(next_states))
-        dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
-        n_steps_t = torch.FloatTensor(np.array(n_steps)).unsqueeze(1)
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1)
+        n_step_returns_t = torch.tensor(np.array(n_step_returns), dtype=torch.float32, device=self.device).unsqueeze(1)
+        dones_t = torch.tensor(np.array(dones), dtype=torch.float32, device=self.device).unsqueeze(1)
+        n_steps_t = torch.tensor(np.array(n_steps), dtype=torch.float32, device=self.device).unsqueeze(1)
         
         # Q-values for current states (for chosen actions)
         qvalues_t = self.network(states_t).gather(1, actions_t)
@@ -188,8 +188,8 @@ class NStepDQNAgent(BaseAgent):
         feature_extractor_class: Class for extracting features from observations.
     """
     name = "NStepDQN"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         
         # Replay buffer to store n-step transitions.
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)
@@ -197,7 +197,8 @@ class NStepDQNAgent(BaseAgent):
         # The DQN policy.
         self.policy = NStepDQNPolicy(action_space, 
                                      self.feature_extractor.features_dim, 
-                                     hyper_params)
+                                     hyper_params,
+                                     device=device)
         
         # Buffer to accumulate n-step transitions.
         self.n_step_buffer = BasicBuffer(hyper_params.n_steps)
@@ -232,7 +233,7 @@ class NStepDQNAgent(BaseAgent):
         state = self.feature_extractor(observation)
         # Append current transition to n-step buffer:
         # (state, action, reward, next_state, done)
-        transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
+        transition = (self.last_state, self.last_action, reward, state, terminated)
         self.n_step_buffer.add_single_item(transition)
 
         # If enough transitions are accumulated or if episode ends:

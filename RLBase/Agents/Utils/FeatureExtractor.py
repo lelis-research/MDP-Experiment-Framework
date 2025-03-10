@@ -17,9 +17,12 @@ class FLattenFeature(BaseFeature):
         return int(np.prod(self.observation_space.shape))
     
     def __call__(self, observation):
+        if not isinstance(observation, torch.Tensor):
+            observation = torch.tensor(observation, device=self.device, dtype=torch.float32)
+
         # Ensure a batch dimension and flatten each observation.
-        if observation.ndim == len(self.observation_space.shape):
-            observation = np.expand_dims(observation, axis=0)
+        if observation.dim() == len(self.observation_space.shape):
+            observation = observation.unsqueeze(0)
         batch_size = observation.shape[0]
         observation = observation.reshape(batch_size, -1)
         return observation
@@ -33,9 +36,12 @@ class ImageFeature(BaseFeature):
         return (shape[2], shape[0], shape[1])
     
     def __call__(self, observation):
+        if not isinstance(observation, torch.Tensor):
+            observation = torch.tensor(observation, device=self.device, dtype=torch.float32)
+
         # Add batch dimension if missing and transpose to (batch, C, W, H).
-        if observation.ndim == len(self.observation_space.shape):
-            observation = observation[np.newaxis, ...]
-        observation = np.transpose(observation, (0, 3, 1, 2))
+        if observation.dim() == len(self.observation_space.shape):
+            observation = observation.unsqueeze(0)
+        observation = observation.permute(0, 3, 1, 2)
         return observation
         

@@ -32,8 +32,8 @@ class DQNPolicy(BasePolicy):
         features_dim (int): Dimension of the flattened observation.
         hyper_params: Container for hyper-parameters.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
-        super().__init__(action_space, hyper_params)
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
          
     def select_action(self, state):
@@ -49,7 +49,7 @@ class DQNPolicy(BasePolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = self.network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
@@ -69,8 +69,8 @@ class DQNPolicy(BasePolicy):
             input_dim=self.features_dim,
             output_dim=self.action_dim
         )
-        self.network = NetworkGen(layer_descriptions=network_description)
-        self.target_network = NetworkGen(layer_descriptions=network_description)
+        self.network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
         self.target_network.load_state_dict(self.network.state_dict())
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
@@ -88,11 +88,11 @@ class DQNPolicy(BasePolicy):
             dones (list/np.array): Batch of done flags; shape [batch].
             call_back (function, optional): Callback to track loss.
         """
-        states_t = torch.FloatTensor(np.array(states))
-        actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-        rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-        next_states_t = torch.FloatTensor(np.array(next_states))
-        dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1)
+        rewards_t = torch.tensor(np.array(rewards), dtype=torch.float32, device=self.device).unsqueeze(1)
+        dones_t = torch.tensor(np.array(dones), dtype=torch.float32, device=self.device).unsqueeze(1)
         
         # Compute Q-values for actions taken.
         qvalues_t = self.network(states_t).gather(1, actions_t)
@@ -130,6 +130,7 @@ class DQNPolicy(BasePolicy):
             'action_space': self.action_space,
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
+            'device': self.device,
             
             'action_dim': self.action_dim,            
             'policy_class': self.__class__.__name__,
@@ -181,9 +182,9 @@ class DQNAgent(BaseAgent):
         feature_extractor_class: Class to extract features from observations.
     """
     name = "DQN"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
-        
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
+
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
 
@@ -191,7 +192,8 @@ class DQNAgent(BaseAgent):
         self.policy = DQNPolicy(
             action_space, 
             self.feature_extractor.features_dim, 
-            hyper_params
+            hyper_params,
+            device=device
         )
         
     def act(self, observation):
@@ -222,7 +224,7 @@ class DQNAgent(BaseAgent):
             call_back (function): Callback function to track training progress.
         """
         state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
+        transition = (self.last_state, self.last_action, reward, state, terminated)
         self.replay_buffer.add_single_item(transition)
         
         if self.replay_buffer.size >= self.hp.batch_size:

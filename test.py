@@ -13,15 +13,15 @@ def visualize(experiment_path, run_number, episode_number):
 
 
 if __name__ == "__main__":
-    # agent_dict = {
-    #         "qlearning_16x16": "Runs/Train/MiniGrid-Empty-16x16-v0_{}_QLearning_seed[123123]_20250305_131913",
-    #         "masked_qlearning_16x16": "Runs/Train/MiniGrid-Empty-16x16-v0_{}_MaskedQLearning_seed[123123]_20250305_131923",
-    #         # "masked_qlearning2":"Runs/Train/MiniGrid-Empty-8x8-v0_{}_MaskedQLearning_seed[123123]_20250305_131625"
+    agent_dict = {
+            "DQN": "Runs/Train/MiniGrid-DoorKey-6x6-v0_{}_DQN_seed[123123]_20250306_164258",
+            "MaskedDQN": "Runs/Train/MiniGrid-DoorKey-6x6-v0_{}_MaskedDQN_seed[123123]_20250306_164236",
+            # "masked_qlearning2":"Runs/Train/MiniGrid-Empty-8x8-v0_{}_MaskedQLearning_seed[123123]_20250305_131625"
 
-    #         # Add more experiments as needed.
-    #     }
-    # AnalyzeMultiExp(agent_dict, "Runs/Test")
-    # exit(0)
+            # Add more experiments as needed.
+        }
+    AnalyzeMultiExp(agent_dict, "Runs/Test")
+    exit(0)
 
 
     exp_name = "MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113125"

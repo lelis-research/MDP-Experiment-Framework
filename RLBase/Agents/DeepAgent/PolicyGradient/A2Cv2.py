@@ -20,14 +20,14 @@ class A2CPolicyV2(BasePolicy):
     """
     Advantage Actor-Critic (A2C) policy using n-step rollouts.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Action space.
             features_dim (int): Dimensionality of the extracted features.
             hyper_params: Contains gamma, actor_step_size, critic_step_size, n_steps, actor_network, critic_network.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
 
     def reset(self, seed):
@@ -47,8 +47,8 @@ class A2CPolicyV2(BasePolicy):
                                                     input_dim=self.features_dim,
                                                     output_dim=1)
 
-        self.actor = NetworkGen(layer_descriptions=actor_description)
-        self.critic = NetworkGen(layer_descriptions=critic_description)
+        self.actor = NetworkGen(layer_descriptions=actor_description).to(self.device)
+        self.critic = NetworkGen(layer_descriptions=critic_description).to(self.device)
 
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
@@ -63,7 +63,7 @@ class A2CPolicyV2(BasePolicy):
         Returns:
             int: Selected action.
         """
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -82,22 +82,22 @@ class A2CPolicyV2(BasePolicy):
             call_back (function, optional): To report loss values.
         """
         # Convert states and next_states to tensors.
-        states_t = torch.FloatTensor(np.array(states))
-        actions_t = torch.FloatTensor(np.array(actions))
-        next_states_t = torch.FloatTensor(np.array(next_states))
-        
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+
         # Compute log-probabilities for actions using actor.
         logits = self.actor(states_t)
         dist = Categorical(logits=logits)
-        log_probs_t = dist.log_prob(actions_t).unsqueeze(1)  # shape [n_steps, 1]
-        
+        log_probs_t = dist.log_prob(actions_t) # shape [n_steps, 1]
+
         with torch.no_grad():
             # Bootstrap from the last state if not terminal.
             bootstrap_value = self.critic(next_states_t)[-1] if not dones[-1] else 0.0
         
         # Calculate n-step returns.
         returns = calculate_n_step_returns(rewards, bootstrap_value, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns).unsqueeze(1)
+        returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device).unsqueeze(1)
         
         # Critic update: minimize MSE between V(s) and returns.
         predicted_values_t = self.critic(states_t)
@@ -110,7 +110,7 @@ class A2CPolicyV2(BasePolicy):
         with torch.no_grad():
             predicted_values_t = self.critic(states_t)
         advantages_t = returns_t - predicted_values_t
-        
+
         # Actor update: maximize log_prob * advantage.
         actor_loss = - (log_probs_t * advantages_t).sum()
         self.actor_optimizer.zero_grad()
@@ -177,7 +177,7 @@ class A2CAgentV2(BaseAgent):
     Advantage Actor-Critic agent using n-step rollouts.
     """
     name = "A2C_v2"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Environment's action space.
@@ -186,9 +186,9 @@ class A2CAgentV2(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class: Class to extract features from observations.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
 
-        self.policy = A2CPolicyV2(action_space, self.feature_extractor.features_dim, hyper_params)
+        self.policy = A2CPolicyV2(action_space, self.feature_extractor.features_dim, hyper_params, device=device)
         # Rollout buffer stores transitions as (state, action, reward, next_state, done)
         self.rollout_buffer = BasicBuffer(np.inf)
 
@@ -220,7 +220,7 @@ class A2CAgentV2(BaseAgent):
             call_back (function, optional): Callback to report losses.
         """
         state = self.feature_extractor(observation)
-        transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
+        transition = (self.last_state, self.last_action, reward, state, terminated)
         self.rollout_buffer.add_single_item(transition)
 
         if self.rollout_buffer.size >= self.hp.rollout_steps or terminated or truncated:

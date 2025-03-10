@@ -3,8 +3,9 @@ import random
 import torch
 
 class BaseFeature:
-    def __init__(self, observation_space):
+    def __init__(self, observation_space, device='cpu'):
         self.observation_space = observation_space
+        self.device = device
     
     @property
     def features_dim(self):
@@ -42,9 +43,10 @@ class BaseFeature:
 
 class BasePolicy:
     """Abstract base class for policies."""
-    def __init__(self, action_space, hyper_params=None):
+    def __init__(self, action_space, hyper_params=None, device='cpu'):
         self.action_space = action_space
         self.action_dim = int(action_space.n)
+        self.device = device
         self.set_hp(hyper_params)
             
     def select_action(self, observation):
@@ -79,14 +81,15 @@ class BasePolicy:
         
 class BaseAgent:
     """Base class for an RL agent using a policy."""
-    def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None, feature_extractor_class=None):
+    def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None, feature_extractor_class=None, device='cpu'):
         self.hp = hyper_params
         self.action_space = action_space
         self.observation_space = observation_space
         self.num_envs = num_envs
-        self.feature_extractor = None if feature_extractor_class is None else feature_extractor_class(observation_space)
-        
-        self.policy = BasePolicy(action_space)
+        self.device = device
+
+        self.feature_extractor = None if feature_extractor_class is None else feature_extractor_class(observation_space, device=device)
+        self.policy = BasePolicy(action_space, device=device)
         
     def act(self, observation):
         return self.policy.select_action(observation)

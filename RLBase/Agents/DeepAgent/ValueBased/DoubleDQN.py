@@ -28,14 +28,14 @@ class DoubleDQNPolicy(BasePolicy):
         - target_update_freq (int)
         - value_network (list): Layer configuration for the network.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Environment's action space.
             features_dim (int): Flattened observation dimension.
             hyper_params: Hyper-parameters container.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
 
     def select_action(self, state):
@@ -52,7 +52,7 @@ class DoubleDQNPolicy(BasePolicy):
             return self.action_space.sample()
         else:
             # Convert state to tensor; shape expected: [batch, features_dim]
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = self.online_network(state_t)
             # Returns action from the first (and only) batch element.
@@ -74,8 +74,8 @@ class DoubleDQNPolicy(BasePolicy):
             input_dim=self.features_dim,
             output_dim=self.action_dim
         )
-        self.online_network = NetworkGen(layer_descriptions=network_description)
-        self.target_network = NetworkGen(layer_descriptions=network_description)
+        self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
         self.target_network.load_state_dict(self.online_network.state_dict())
 
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
@@ -94,11 +94,11 @@ class DoubleDQNPolicy(BasePolicy):
             call_back (function, optional): Callback to track training progress.
         """
         # Convert inputs to tensors.
-        states_t = torch.FloatTensor(np.array(states))
-        actions_t = torch.LongTensor(np.array(actions)).unsqueeze(1)
-        rewards_t = torch.FloatTensor(np.array(rewards)).unsqueeze(1)
-        next_states_t = torch.FloatTensor(np.array(next_states))
-        dones_t = torch.FloatTensor(np.array(dones)).unsqueeze(1)
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1)
+        rewards_t = torch.tensor(np.array(rewards), dtype=torch.float32, device=self.device).unsqueeze(1)
+        dones_t = torch.tensor(np.array(dones), dtype=torch.float32, device=self.device).unsqueeze(1)
         
         # Get current Q-values for the taken actions.
         qvalues_t = self.online_network(states_t).gather(1, actions_t)
@@ -193,8 +193,8 @@ class DoubleDQNAgent(BaseAgent):
         feature_extractor_class: Class to extract features from observations.
     """
     name = "DoubleDQN"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         
         # Initialize replay buffer with capacity hyper_params.replay_buffer_cap.
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)
@@ -203,7 +203,8 @@ class DoubleDQNAgent(BaseAgent):
         self.policy = DoubleDQNPolicy(
             action_space, 
             self.feature_extractor.features_dim, 
-            hyper_params
+            hyper_params,
+            device=device
         )
 
     def act(self, observation):
@@ -236,7 +237,7 @@ class DoubleDQNAgent(BaseAgent):
         state = self.feature_extractor(observation)
         # Store transition as (state, action, reward, next_state, done)
         self.replay_buffer.add_single_item(
-            (self.last_state[0], self.last_action, reward, state[0], terminated)
+            (self.last_state, self.last_action, reward, state, terminated)
         )
         
         # If enough transitions, sample a random batch and update.

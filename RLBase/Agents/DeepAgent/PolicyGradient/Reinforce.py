@@ -21,14 +21,14 @@ class ReinforcePolicy(BasePolicy):
     A pure REINFORCE policy (no baseline). 
     Stores log probabilities and rewards over an episode and performs a single update at the end.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Discrete action space.
             features_dim (int): Number of features in the flattened observation.
             hyper_params: Hyper-parameters; must include gamma and step_size.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
 
     def reset(self, seed):
@@ -45,7 +45,7 @@ class ReinforcePolicy(BasePolicy):
             input_dim=self.features_dim, 
             output_dim=self.action_dim
         )
-        self.actor = NetworkGen(layer_descriptions=actor_description)
+        self.actor = NetworkGen(layer_descriptions=actor_description).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.step_size)
 
     def select_action(self, state):
@@ -58,7 +58,7 @@ class ReinforcePolicy(BasePolicy):
         Returns:
             tuple: (action (int), log_prob (torch.Tensor))
         """
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -74,10 +74,10 @@ class ReinforcePolicy(BasePolicy):
             rewards (list): List of rewards (float) per time step.
             call_back (function, optional): Callback to report loss metrics.
         """
-        log_probs_t = torch.stack(log_probs)
+        log_probs_t = torch.stack(log_probs).to(dtype=torch.float32, device=self.device)
         # Compute discounted returns from the episode.
         returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns).unsqueeze(1)
+        returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device).unsqueeze(1)
         # Policy loss: negative sum of (log_prob * return)
         policy_loss = - (log_probs_t * returns_t).sum()
 
@@ -138,7 +138,7 @@ class ReinforceAgent(BaseAgent):
     Minimal REINFORCE agent for discrete actions without a baseline.
     """
     name = "Reinforce"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Discrete action space.
@@ -147,12 +147,13 @@ class ReinforceAgent(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class: Class for feature extraction.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
 
         self.policy = ReinforcePolicy(
             action_space,
             self.feature_extractor.features_dim,
-            hyper_params
+            hyper_params,
+            device=device
         )
         self.rollout_buffer = BasicBuffer(np.inf)
         

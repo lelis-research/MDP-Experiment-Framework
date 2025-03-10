@@ -22,14 +22,14 @@ class ReinforceWithBaselinePolicy(BasePolicy):
     Stores states, log probabilities, and rewards for an episode, then updates
     both the actor (policy) and critic (baseline) at episode end.
     """
-    def __init__(self, action_space, features_dim, hyper_params):
+    def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Discrete action space.
             features_dim (int): Number of features from the feature extractor.
             hyper_params: Hyper-parameters; must include gamma, actor_step_size, and critic_step_size.
         """
-        super().__init__(action_space, hyper_params)
+        super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
 
     def reset(self, seed):
@@ -52,8 +52,8 @@ class ReinforceWithBaselinePolicy(BasePolicy):
             input_dim=self.features_dim,
             output_dim=1
         )
-        self.actor = NetworkGen(layer_descriptions=actor_description)
-        self.critic = NetworkGen(layer_descriptions=critic_description)
+        self.actor = NetworkGen(layer_descriptions=actor_description).to(self.device)
+        self.critic = NetworkGen(layer_descriptions=critic_description).to(self.device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
 
@@ -67,7 +67,7 @@ class ReinforceWithBaselinePolicy(BasePolicy):
         Returns:
             tuple: (action (int), log_prob (torch.Tensor))
         """
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -85,12 +85,12 @@ class ReinforceWithBaselinePolicy(BasePolicy):
             rewards (list): List of rewards received.
             call_back (function, optional): Callback to report losses.
         """
-        states_t = torch.FloatTensor(np.array(states))
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
         log_probs_t = torch.stack(log_probs)
-        
+
         # Compute discounted returns (G_t) from the episode
         returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-        returns_t = torch.FloatTensor(returns).unsqueeze(1)
+        returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device).unsqueeze(1)
         
         # Update the critic (value network) with MSE loss
         predicted_values_t = self.critic(states_t)
@@ -172,7 +172,7 @@ class ReinforceWithBaselineAgent(BaseAgent):
     REINFORCE agent with a learned baseline (value network) to reduce variance.
     """
     name = "ReinforceWithBaseline"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         """
         Args:
             action_space (gym.spaces.Discrete): Discrete action space.
@@ -181,12 +181,13 @@ class ReinforceWithBaselineAgent(BaseAgent):
             num_envs (int): Number of parallel environments.
             feature_extractor_class: Class to extract features from observations.
         """
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
 
         self.policy = ReinforceWithBaselinePolicy(
             action_space,
             self.feature_extractor.features_dim,
-            hyper_params
+            hyper_params,
+            device=device
         )
         self.rollout_buffer = BasicBuffer(np.inf)
 
@@ -218,7 +219,7 @@ class ReinforceWithBaselineAgent(BaseAgent):
             call_back (function, optional): Callback to report losses.
         """
         # Store log_prob and reward for the last time step.
-        transition = (self.last_state[0], self.last_log_prob, reward)
+        transition = (self.last_state, self.last_log_prob, reward)
         self.rollout_buffer.add_single_item(transition)
 
         # If episode ends, perform policy update.
