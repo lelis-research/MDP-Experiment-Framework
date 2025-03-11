@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
-def AnalyzeMultiExp(agent_dict, save_dir):
+def AnalyzeMultiExp(agent_dict, save_dir, name_tag=""):
     '''
     Example:
         agents_dict = {
@@ -24,9 +24,9 @@ def AnalyzeMultiExp(agent_dict, save_dir):
     name = ""
     for i, exp in enumerate(agent_dict):
         analyzer = SingleExpAnalyzer(exp_path=agent_dict[exp])
-        analyzer.plot_combined(fig, axs, color=colors[i], label=exp)
+        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, show_legend=(i==len(agent_dict)-1)) # show legend only for the last which combines all of them
         name += f"{exp}_"
     
-    path = os.path.join(save_dir, f"{name}.png")
+    path = os.path.join(save_dir, f"{name}_{name_tag}.png")
     fig.savefig(path)
 

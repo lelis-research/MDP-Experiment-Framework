@@ -45,9 +45,10 @@ class LevinLossMaskedOptionLearner():
         
         self.mask_dict_size = self._get_mask_dict_size()
         
+        
     def learn(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
         self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
-
+        
         # Compute total number of parameters for the list of mask_dicts
         total_params = self.num_options * sum(sum(spec.values()) for spec in self.mask_dict_size)       
         instrum = ng.p.Array(shape=(total_params,), lower=-1, upper=1).set_integer_casting()
@@ -91,7 +92,8 @@ class LevinLossMaskedOptionLearner():
     def _decode_candidate(self, candidate):
         """
         Convert a flat candidate list into a list of mask dictionaries.
-        For example, if mask_dict_size = [{'1': 128}, {'3': 128}],
+        For example, if candidate is a list of 256 and 
+        mask_dict_size = [{'1': 128}, {'3': 128}],
         then one mask dictionary will be constructed as:
             {'1': candidate_slice_of_length_128, '3': candidate_slice_of_length_128}
         """
@@ -108,6 +110,10 @@ class LevinLossMaskedOptionLearner():
         return decoded
     
     def _get_mask_dict_size(self):
+        '''
+        Returns a list of mask_dicts with their size
+        e.g. [{'1': 128}, {'3': 128}] means first and third layer and both have sizes 128
+        '''
         maskable_layers = self.policy.maskable_layers
         space = []
         for layer_name in self.masked_layers:

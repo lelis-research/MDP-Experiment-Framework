@@ -21,13 +21,40 @@ class NetworkMasker(nn.Module):
         for name, module in self.network.named_children():
             layers_names.append(name)
         for layer in mask_dict:
-            if layer not in layers_names:
+            if layer not in layers_names+['input']:
                 return False
         return True
 
     def forward(self, x):
-        # Assume the network is a Sequential for simplicity.
-        # This example shows how to handle Sequential models.
+        '''
+        1: active
+        -1: deactive
+        0: part of the program
+        '''
+        # Assume the network is a Sequential.
+        
+        if 'input' in self.mask_dict:
+            # mask the input 
+            mask = self.mask_dict['input']
+            
+            if not isinstance(mask, torch.Tensor):
+                mask_tensor = torch.tensor(mask, dtype=x.dtype, device=x.device)
+            else:
+                mask_tensor = mask.to(x.device)
+            
+            if mask_tensor.dim() == 1:
+                if x.dim() == 2:
+                    # linear input (batch, features)
+                    mask_tensor = mask_tensor.unsqueeze(0).expand(x.size(0), -1)
+                elif x.dim() >2:
+                    # image input (batch, channels, H, W)
+                    mask_tensor = mask_tensor.view(1, -1, 1, 1).expand(x.size(0), -1, x.size(2), x.size(3))
+                else:
+                    raise ValueError("layer dimension for the mask is unknown")
+                    
+            x[mask_tensor == 1] = 1 #input 1 is active
+            x[mask_tensor == -1] = 0 #input 0 is inactive
+       
         for name, module in self.network.named_children():
             output = module(x)
             if name in self.mask_dict:
@@ -90,11 +117,22 @@ class NetworkMasker(nn.Module):
             dict: A mapping from incremental string keys to dictionaries with keys 'layer' and 'size'.
         """
         maskable_layers = {}
+        
 
         # Retrieve the underlying sequential module.
         seq_net = network.network
-        
+
         last_output_size = None
+
+        # Mask for the input
+        if hasattr(seq_net[0], 'in_features'):
+            last_output_size = seq_net[0].in_features
+        elif hasattr(seq_net[0], 'in_channels'):
+            last_output_size = seq_net[0].in_channels
+        maskable_layers['input'] = {
+            'layer': None,
+            'size': last_output_size
+        }
 
         # Iterate through layers to detect activation functions.
         for idx, module in enumerate(seq_net):
@@ -113,5 +151,4 @@ class NetworkMasker(nn.Module):
                     'layer': module,
                     'size': last_output_size
                 }
-
         return maskable_layers

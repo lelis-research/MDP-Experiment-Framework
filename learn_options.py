@@ -21,7 +21,7 @@ def extract_trajectories(transitions):
 
 if __name__ == "__main__":
     
-    exp_path = "Runs/Train/MiniGrid-DoorKey-5x5-v0_{}_DQN_seed[123123]_20250306_162847"
+    exp_path = "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250"
     
     args = BaseExperiment.load_args(exp_path)
     config = BaseExperiment.load_config(exp_path)
@@ -46,11 +46,11 @@ if __name__ == "__main__":
     print(f"{len(trajectories)} many trajectories extracted")
     
     # Learning Options
-    option_learner = LevinLossMaskedOptionLearner(agent.action_space, agent.observation_space, agent.policy, trajectories[-100:], agent.feature_extractor)
-    options = option_learner.learn(num_options=5, search_budget=10, verbose=True)
+    option_learner = LevinLossMaskedOptionLearner(agent.action_space, agent.observation_space, agent.policy, trajectories[-10:], agent.feature_extractor)
+    options = option_learner.learn(num_options=5, search_budget=10, verbose=True, masked_layers=['3'])
 
     #Store Options
-    option_path = os.path.join(exp_path, "Run1_Last") 
+    option_path = os.path.join(exp_path, "Run1_Last_3") 
     options.save(option_path)
 
     #Load Options

@@ -130,7 +130,6 @@ class DQNPolicy(BasePolicy):
             'action_space': self.action_space,
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
-            'device': self.device,
             
             'action_dim': self.action_dim,            
             'policy_class': self.__class__.__name__,

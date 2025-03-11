@@ -2,11 +2,13 @@ import gymnasium as gym
 from gymnasium.vector import AsyncVectorEnv  # or use SyncVectorEnv if desired
 
 from .Wrappers import WRAPPING_TO_WRAPPER
-from .Chain import ChainEnv
+from .Chain import ChainEnv, ChainEnvLava
 
 # List of supported MiniGrid environments
 MINIGRID_ENV_LST = [
     "MiniGrid-ChainEnv-v0",
+    "MiniGrid-ChainEnvLava-v0",
+    "MiniGrid-ChainEnv-v1",
 
     "MiniGrid-BlockedUnlockPickup-v0",
 

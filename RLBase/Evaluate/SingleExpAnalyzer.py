@@ -50,14 +50,14 @@ class SingleExpAnalyzer:
             episodes = np.arange(1, num_episodes + 1)
 
             for run in total_rewards:
-                ax.plot(episodes, run, color=color, alpha=0.3)
+                ax.plot(episodes, run, color=color, alpha=0.15)
             mean_rewards = np.mean(total_rewards, axis=0)
             ax.plot(episodes, mean_rewards, color=color, label=label)
             
             ax.set_title("Sum Reward per Episode")
             ax.set_xlabel("Episode")
             ax.set_ylabel("Sum Reward")
-            ax.legend()
+            # ax.legend()
             ax.grid(True)
 
     def _plot_steps_per_episode(self, ax, num_episodes, color, label):
@@ -65,14 +65,14 @@ class SingleExpAnalyzer:
         episodes = np.arange(1, num_episodes + 1)
 
         for run in steps:
-            ax.plot(episodes, run, color=color, alpha=0.3)
+            ax.plot(episodes, run, color=color, alpha=0.15)
         mean_steps = np.mean(steps, axis=0)
         ax.plot(episodes, mean_steps, color=color, label=label)
     
         ax.set_title("Steps per Episode")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Steps")
-        ax.legend()
+        # ax.legend()
         ax.grid(True)
     
     def _plot_reward_per_steps(self, ax, num_steps, color, label):
@@ -91,7 +91,7 @@ class SingleExpAnalyzer:
             cum_steps = np.cumsum(run_steps)
             
             # Plot each run’s line and points (faint)
-            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.3, color=color, markersize=1)
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.15, color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
             rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))
@@ -103,10 +103,10 @@ class SingleExpAnalyzer:
         ax.set_title("Sum Rewards per Steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Episode Reward")
-        ax.legend()
+        # ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label=""):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True):
         """
         Plot total rewards and steps per episode and per steps.
         
@@ -129,7 +129,13 @@ class SingleExpAnalyzer:
         self._plot_reward_per_steps(axs[1], num_steps, color, label)
         self._plot_steps_per_episode(axs[2], num_episodes, color, label)
 
-        fig.tight_layout()
+        if show_legend:
+            # Retrieve handles and labels from one of the subplots.
+            handles, labels = axs[0].get_legend_handles_labels()
+
+            # Create one legend for the entire figure.
+            fig.legend(handles, labels, loc='upper center', ncol=len(labels), shadow=False)
+            fig.tight_layout(rect=[0, 0, 1, 0.95])
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)

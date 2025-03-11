@@ -14,13 +14,21 @@ def visualize(experiment_path, run_number, episode_number):
 
 if __name__ == "__main__":
     agent_dict = {
-            "DQN": "Runs/Train/MiniGrid-DoorKey-6x6-v0_{}_DQN_seed[123123]_20250306_164258",
-            "MaskedDQN": "Runs/Train/MiniGrid-DoorKey-6x6-v0_{}_MaskedDQN_seed[123123]_20250306_164236",
-            # "masked_qlearning2":"Runs/Train/MiniGrid-Empty-8x8-v0_{}_MaskedQLearning_seed[123123]_20250305_131625"
-
+            "DQN": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_DQN_seed[123123]_20250310_185658",
+            "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190218",
+            "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190314",
+            "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190341"
             # Add more experiments as needed.
         }
-    AnalyzeMultiExp(agent_dict, "Runs/Test")
+    AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Chain")
+    agent_dict = {
+        "DQN": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_DQN_seed[123123]_20250310_192233",
+        "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192349",
+        "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192309",
+        "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192336"
+        # Add more experiments as needed.
+        }
+    AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Door Chain")
     exit(0)
 
 

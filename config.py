@@ -58,11 +58,11 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "ImgObs", "StepReward"] #FlattenOnehotObj
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"] #
 wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
-env_params = {}#{"chain_length": 20}
+env_params = {"chain_length": 40}
 
-device="cpu" # cpu, mps, cuda
+device="cpu" # cpu, mps, cuda#
 
 AGENT_DICT = {
     RandomAgent.name: lambda env: RandomAgent(
@@ -116,7 +116,7 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=512, batch_size=32,
+                        replay_buffer_cap=10000, batch_size=128,
                         target_update_freq=20,
                         value_network=fc_network_1,
                         ),
@@ -128,13 +128,14 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=512, batch_size=32,
+                        replay_buffer_cap=10000, batch_size=128,
                         target_update_freq=20,
                         value_network=fc_network_1,
                         ),
         get_num_envs(env),
         FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-DoorKey-5x5-v0_{}_DQN_seed[123123]_20250306_162847/Run1_Last_options.t"),
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_input_options.t"),
+        device=device
     ),
 
     DoubleDQNAgent.name: lambda env: DoubleDQNAgent(

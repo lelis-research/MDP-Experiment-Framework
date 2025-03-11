@@ -25,7 +25,7 @@ class DQNPolicyMasker(DQNPolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = masked_network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
@@ -41,7 +41,7 @@ class DoubleDQNPolicyMasker(DoubleDQNPolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = masked_online_network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
@@ -56,7 +56,7 @@ class NStepDQNPolicyMasker(NStepDQNPolicy):
         if random.random() < self.hp.epsilon:
             return self.action_space.sample()
         else:
-            state_t = torch.FloatTensor(state)
+            state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = masked_network(state_t)
             return int(torch.argmax(q_values, dim=1).item())
@@ -69,7 +69,7 @@ class ReinforcePolicyMasker(ReinforcePolicy):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = masked_actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -86,7 +86,7 @@ class ReinforceWithBaselinePolicyMasker(ReinforceWithBaselinePolicy):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = masked_actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -103,7 +103,7 @@ class A2CPolicyV1Masker(A2CPolicyV1):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = masked_actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -120,7 +120,7 @@ class A2CPolicyV2Masker(A2CPolicyV2):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = masked_actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()
@@ -135,7 +135,7 @@ class PPOPolicyMasker(PPOPolicy):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
-        state_t = torch.FloatTensor(state)
+        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = masked_actor(state_t)
         dist = Categorical(logits=logits)
         action_t = dist.sample()

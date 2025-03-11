@@ -30,8 +30,8 @@ class MaskedDQNAgent(DQNAgent):
         feature_extractor_class: Class to extract features from observations.
     """
     name = "MaskedDQN"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, initial_options):
-        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, initial_options, device="cpu"):
+        super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.atomic_action_space = action_space
         self.options = initial_options
         print(f"Number of options: {self.options.n}")
@@ -45,7 +45,8 @@ class MaskedDQNAgent(DQNAgent):
         self.policy = MaskedDQNPolicy(
             self.action_space, 
             self.feature_extractor.features_dim, 
-            hyper_params
+            hyper_params,
+            device=device
         )
         self.running_option_index = None
         
@@ -88,9 +89,9 @@ class MaskedDQNAgent(DQNAgent):
         """
         state = self.feature_extractor(observation)
         if self.running_option_index is not None:
-            transition = (self.last_state[0], self.running_option_index + self.atomic_action_space.n, reward, state[0], terminated)
+            transition = (self.last_state, self.running_option_index + self.atomic_action_space.n, reward, state, terminated)
         else:
-            transition = (self.last_state[0], self.last_action, reward, state[0], terminated)
+            transition = (self.last_state, self.last_action, reward, state, terminated)
         self.replay_buffer.add_single_item(transition)
         
         if self.replay_buffer.size >= self.hp.batch_size:
