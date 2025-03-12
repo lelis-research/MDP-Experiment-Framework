@@ -5,21 +5,12 @@ import torch.nn as nn
 import torch.optim as optim
 from gymnasium.spaces import Discrete
 
-from ...Utils import (
+from ..Utils import (
     BasicBuffer,
-    NetworkGen,
-    prepare_network_config,
+    BaseAgent,
 )
-from .DQN import DQNAgent, DQNPolicy
-from ....registry import register_agent, register_policy
-from ....loaders import load_option
 
-@register_policy
-class MaskedDQNPolicy(DQNPolicy):
-    pass
-
-@register_agent
-class MaskedDQNAgent(DQNAgent):
+class HumanAgent(BaseAgent):
     """
     Deep Q-Network (DQN) agent that uses experience replay and target networks.
     
@@ -30,25 +21,17 @@ class MaskedDQNAgent(DQNAgent):
         num_envs (int): Number of parallel environments.
         feature_extractor_class: Class to extract features from observations.
     """
-    name = "MaskedDQN"
+    name = "Human"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, initial_options, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.atomic_action_space = action_space
         self.options = initial_options
+
         print(f"Number of options: {self.options.n}")
         # action space includes actions and options
         self.action_space = Discrete(self.atomic_action_space.n + self.options.n) 
 
-        # Experience Replay Buffer
-        self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
 
-        # Create DQNPolicy using the feature extractor's feature dimension.
-        self.policy = MaskedDQNPolicy(
-            self.action_space, 
-            self.feature_extractor.features_dim, 
-            hyper_params,
-            device=device
-        )
         self.running_option_index = None
         
     def act(self, observation):
@@ -61,17 +44,22 @@ class MaskedDQNAgent(DQNAgent):
         Returns:
             int: Selected action.
         """
+        
+
         state = self.feature_extractor(observation)
         if self.options.is_terminated(observation):
             self.running_option_index = None
         
         if self.running_option_index is not None:
             action = self.options.select_action(observation, self.running_option_index)
+            print(action, end=",")
         else:
-            action = self.policy.select_action(state)
+            self.print_action_menu()
+            action = int(input("Action:"))
             if action >= self.atomic_action_space.n:
                 self.running_option_index = action - self.atomic_action_space.n
                 action = self.options.select_action(observation, self.running_option_index)
+                print(action, end=",")
 
         self.last_state = state
         self.last_action = action
@@ -88,20 +76,10 @@ class MaskedDQNAgent(DQNAgent):
             truncated (bool): True if the episode was truncated.
             call_back (function): Callback function to track training progress.
         """
-        state = self.feature_extractor(observation)
-        if terminated or truncated:
+        if truncated or terminated:
             self.running_option_index = None
-            
-        if self.running_option_index is not None:
-            transition = (self.last_state, self.running_option_index + self.atomic_action_space.n, reward, state, terminated)
-        else:
-            transition = (self.last_state, self.last_action, reward, state, terminated)
-        self.replay_buffer.add_single_item(transition)
+
         
-        if self.replay_buffer.size >= self.hp.batch_size:
-            batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, rewards, next_states, dones = zip(*batch)
-            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
           
     def reset(self, seed):
         """
@@ -112,31 +90,18 @@ class MaskedDQNAgent(DQNAgent):
         """
         super().reset(seed)
         self.feature_extractor.reset(seed)
-        self.replay_buffer.reset()
+
+    def print_action_menu(self):
+        print("")
+        print("****** Available Actions ******")
+        print("Atomic actions:", [i for i in self.hp.actions_enum])
+        print("Options:", list(range(self.atomic_action_space.n, self.atomic_action_space.n+self.options.n)))
 
     def save(self, file_path=None):
-        checkpoint = super().save(file_path=None)
-        options_checkpoint = self.options.save(file_path=None)
-
-        checkpoint['options'] = options_checkpoint
-        checkpoint['atomic_action_space'] = self.atomic_action_space
-
-        if file_path is not None:
-            torch.save(checkpoint, f"{file_path}_agent.t")
-        return checkpoint
+        pass
 
     @classmethod
     def load_from_file(cls, file_path, seed=0, checkpoint=None):
-        if checkpoint is None:
-            checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
-        options = load_option(file_path=None, checkpoint=checkpoint['options'])
-
-        instance = cls(checkpoint['atomic_action_space'], checkpoint['observation_space'], 
-                       checkpoint['hyper_params'], checkpoint['num_envs'],
-                       checkpoint['feature_extractor_class'], options)
-        instance.reset(seed)
-
-        instance.feature_extractor.load_from_checkpoint(checkpoint['feature_extractor'])
-        instance.policy.load_from_checkpoint(checkpoint['policy'])
+        pass
         
-        return instance
+

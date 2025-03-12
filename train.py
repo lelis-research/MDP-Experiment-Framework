@@ -32,6 +32,9 @@ def parse():
     parser.add_argument("--store_transitions", action='store_true', help="store the transitions during the experiment")
     # Frequency of checking saving checkpoints
     parser.add_argument("--checkpoint_freq", type=int, default=None, help="frequency of saving checkpoints")
+    # Add a name tag
+    parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
+
     return parser.parse_args()
 
 def main():
@@ -56,7 +59,7 @@ def main():
 
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.name_tag}_{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
 
     # Choose experiment type based on number of environments
@@ -71,7 +74,7 @@ def main():
 
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)
-    analyzer.plot_combined(save_dir=exp_dir)
+    analyzer.plot_combined(save_dir=exp_dir, show_legend=False)
     analyzer.save_seeds(save_dir=exp_dir)
 
 if __name__ == "__main__":

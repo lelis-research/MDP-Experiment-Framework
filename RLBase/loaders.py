@@ -10,7 +10,7 @@ def load_option(file_path, checkpoint=None):
     option_cls = OPTION_REGISTRY.get(option_class_name)
     if option_cls is None:
         raise ValueError(f"Unknown policy class: {option_class_name}")
-    return option_cls.load_from_file(file_path)
+    return option_cls.load_from_file(file_path, checkpoint=checkpoint)
 
 
 def load_policy(file_path, checkpoint=None):

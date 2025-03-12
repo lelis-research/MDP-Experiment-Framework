@@ -4,6 +4,7 @@ from RLBase.Agents.Utils import (
     ImageFeature,
     HyperParameters,
 )
+from RLBase.Agents.HumanAgent import HumanAgent
 from RLBase.Agents.RandomAgent import RandomAgent
 from RLBase.Agents.TabularAgent import (
     QLearningAgent,
@@ -58,13 +59,22 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"] #
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"]
 wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
 env_params = {"chain_length": 40}
 
 device="cpu" # cpu, mps, cuda#
 
 AGENT_DICT = {
+    HumanAgent.name: lambda env: HumanAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
+        get_num_envs(env),
+        FLattenFeature,
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_input_options.t"),
+        device=device
+    ),
     RandomAgent.name: lambda env: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
@@ -134,7 +144,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_input_options.t"),
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_all_options.t"),
         device=device
     ),
 

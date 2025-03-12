@@ -66,10 +66,15 @@ class MaskedQLearningAgent(QLearningAgent):
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
         state = self.feature_extractor(observation)
+        if terminated or truncated:
+            self.running_option_index = None
+            
         if self.running_option_index is not None:
             self.policy.update(self.last_state, self.running_option_index + self.atomic_action_space.n, state, reward, terminated, truncated, call_back=call_back)
         else:
             self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated, call_back=call_back)
+        
+        
 
     def reset(self, seed):
         super().reset(seed)

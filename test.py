@@ -17,7 +17,8 @@ if __name__ == "__main__":
             "DQN": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_DQN_seed[123123]_20250310_185658",
             "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190218",
             "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190314",
-            "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190341"
+            "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190341",
+            "Masked_all": "Runs/Train/option_all_MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250311_133844"
             # Add more experiments as needed.
         }
     AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Chain")
@@ -25,14 +26,15 @@ if __name__ == "__main__":
         "DQN": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_DQN_seed[123123]_20250310_192233",
         "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192349",
         "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192309",
-        "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192336"
+        "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192336",
+        "Masked_all":"Runs/Train/option_all_MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250311_134012"
         # Add more experiments as needed.
         }
     AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Door Chain")
     exit(0)
 
 
-    exp_name = "MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113125"
+    exp_name = "option_input_MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250311_104912"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
     # visualize(train_path, 1, 200)
@@ -58,4 +60,10 @@ if __name__ == "__main__":
     metrics = experiment.multi_run(num_runs=1, num_episodes=5, seed_offset=1)
     analyzer = SingleExpAnalyzer(exp_path=test_path)
     analyzer.generate_video(1, 1)
+    analyzer.generate_video(1, 2)
+    analyzer.generate_video(1, 3)
+    analyzer.generate_video(1, 4)
+    analyzer.generate_video(1, 5)
+
+
     analyzer.save_seeds(test_path)

@@ -132,10 +132,11 @@ class SingleExpAnalyzer:
         if show_legend:
             # Retrieve handles and labels from one of the subplots.
             handles, labels = axs[0].get_legend_handles_labels()
-
             # Create one legend for the entire figure.
             fig.legend(handles, labels, loc='upper center', ncol=len(labels), shadow=False)
             fig.tight_layout(rect=[0, 0, 1, 0.95])
+        else:
+            fig.tight_layout()
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)

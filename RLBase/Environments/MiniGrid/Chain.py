@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.core.mission import MissionSpace
 from minigrid.core.grid import Grid
@@ -52,7 +54,7 @@ class ChainEnv(MiniGridEnv):
             self.place_agent()
 
         self.mission = "Traverse the chain from left to right."
-
+    
 
 class ChainEnv2(MiniGridEnv):
     def __init__(

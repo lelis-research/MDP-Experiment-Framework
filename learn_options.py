@@ -47,10 +47,10 @@ if __name__ == "__main__":
     
     # Learning Options
     option_learner = LevinLossMaskedOptionLearner(agent.action_space, agent.observation_space, agent.policy, trajectories[-10:], agent.feature_extractor)
-    options = option_learner.learn(num_options=5, search_budget=10, verbose=True, masked_layers=['3'])
+    options = option_learner.learn(num_options=5, search_budget=10, verbose=True, masked_layers=None)
 
     #Store Options
-    option_path = os.path.join(exp_path, "Run1_Last_3") 
+    option_path = os.path.join(exp_path, "Run1_Last_all") 
     options.save(option_path)
 
     #Load Options

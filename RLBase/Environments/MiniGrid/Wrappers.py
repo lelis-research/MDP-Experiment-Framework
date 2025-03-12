@@ -12,6 +12,7 @@ class StepRewardWrapper(RewardWrapper):
     
     def reward(self, reward):
         return reward + self.step_reward
+    
 
 # ActionWrapper that remaps a discrete action index to a predefined list of actions.
 class CompactActionWrapper(ActionWrapper):
@@ -22,6 +23,7 @@ class CompactActionWrapper(ActionWrapper):
     
     def action(self, action):
         return self.actions_lst[action]
+    
 
 # ObservationWrapper that flattens the image observation by one-hot encoding object indices
 # and concatenating the agent's direction.
@@ -59,6 +61,9 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
         new_obs = np.concatenate((one_hot, [observation['direction']]))
         return new_obs
 
+    
+
+    
 # Dictionary mapping string keys to corresponding wrapper classes.
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
