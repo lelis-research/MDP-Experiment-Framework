@@ -1,6 +1,7 @@
 import argparse
 import os
 import datetime
+import argcomplete
 
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
@@ -8,7 +9,6 @@ from RLBase.Environments import get_env, ENV_LST
 from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
 
 def parse():
-    import argparse
     parser = argparse.ArgumentParser()
     # Agent type to run
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
@@ -23,7 +23,7 @@ def parse():
     # Number of total environment steps per run
     parser.add_argument("--total_steps", type=int, default=0, help="number of episodes in each run")
     # Maximum steps per episode
-    parser.add_argument("--episode_max_steps", type=int, default=200, help="maximum number of steps in each episode")
+    parser.add_argument("--episode_max_steps", type=int, default=None, help="maximum number of steps in each episode")
     # Number of parallel environments
     parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
     # Render mode for the environment
@@ -34,7 +34,8 @@ def parse():
     parser.add_argument("--checkpoint_freq", type=int, default=None, help="frequency of saving checkpoints")
     # Add a name tag
     parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
-
+    
+    argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 def main():
@@ -59,8 +60,9 @@ def main():
 
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.name_tag}_{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
-    exp_dir = os.path.join(runs_dir, exp_name)
+    exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params}", args.agent, exp_name)
+    os.makedirs(exp_dir, exist_ok=True)
 
     # Choose experiment type based on number of environments
     if args.num_envs == 1:

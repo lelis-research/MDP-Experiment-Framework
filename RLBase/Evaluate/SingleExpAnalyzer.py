@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import imageio
+import math
 
 class SingleExpAnalyzer:
     """
@@ -23,14 +24,19 @@ class SingleExpAnalyzer:
             metrics_path = os.path.join(exp_path, "metrics.pkl")
             with open(metrics_path, "rb") as f:
                 metrics = pickle.load(f)
+        
         self.exp_path = exp_path
         self.metrics = metrics
-        self.num_runs = len(metrics)
+        self.calculate_rewards_steps()
         
-
-        # Convert metrics into 2D NumPy arrays (runs x episodes)
-        self.total_rewards = [[episode.get("total_reward") for episode in run] for run in metrics]
-        self.steps = [[episode.get("steps") for episode in run] for run in metrics]
+    
+    @property
+    def num_runs(self):
+        return len(self.metrics)
+    
+    def calculate_rewards_steps(self):
+        self.total_rewards = [[episode.get("total_reward") for episode in run] for run in self.metrics]
+        self.steps = [[episode.get("steps") for episode in run] for run in self.metrics]
         
     def print_summary(self):
         """
@@ -50,7 +56,7 @@ class SingleExpAnalyzer:
             episodes = np.arange(1, num_episodes + 1)
 
             for run in total_rewards:
-                ax.plot(episodes, run, color=color, alpha=0.15)
+                ax.plot(episodes, run, color=color, alpha=min(1/(len(total_rewards)), 0.15))
             mean_rewards = np.mean(total_rewards, axis=0)
             ax.plot(episodes, mean_rewards, color=color, label=label)
             
@@ -65,7 +71,7 @@ class SingleExpAnalyzer:
         episodes = np.arange(1, num_episodes + 1)
 
         for run in steps:
-            ax.plot(episodes, run, color=color, alpha=0.15)
+            ax.plot(episodes, run, color=color, alpha=min(1/(len(steps)), 0.15))
         mean_steps = np.mean(steps, axis=0)
         ax.plot(episodes, mean_steps, color=color, label=label)
     
@@ -91,7 +97,7 @@ class SingleExpAnalyzer:
             cum_steps = np.cumsum(run_steps)
             
             # Plot each run’s line and points (faint)
-            ax.plot(cum_steps, run_rewards, marker='o', alpha=0.15, color=color, markersize=1)
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=min(1/(len(total_rewards)), 0.15), color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
             rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))
@@ -133,7 +139,7 @@ class SingleExpAnalyzer:
             # Retrieve handles and labels from one of the subplots.
             handles, labels = axs[0].get_legend_handles_labels()
             # Create one legend for the entire figure.
-            fig.legend(handles, labels, loc='upper center', ncol=len(labels), shadow=False)
+            fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False)
             fig.tight_layout(rect=[0, 0, 1, 0.95])
         else:
             fig.tight_layout()

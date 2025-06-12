@@ -45,7 +45,7 @@ class BasePolicy:
     """Abstract base class for policies."""
     def __init__(self, action_space, hyper_params=None, device='cpu'):
         self.action_space = action_space
-        self.action_dim = int(action_space.n)
+        # self.action_dim = int(action_space.n)
         self.device = device
         self.set_hp(hyper_params)
             

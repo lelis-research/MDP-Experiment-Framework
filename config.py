@@ -22,8 +22,7 @@ from RLBase.Agents.DeepAgent.ValueBased import (
 from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceAgent,
     ReinforceWithBaselineAgent,
-    A2CAgentV1,
-    A2CAgentV2,
+    A2CAgent,
     PPOAgent,
 )
 from RLBase import load_option
@@ -49,19 +48,18 @@ conv_network_1 = [
     {"type": "linear", "in_features": 512}
 ]
 fc_network_1 = [
-    {"type": "linear", "out_features": 128},
+    {"type": "linear", "out_features": 64},
     {"type": "relu"},
-    {"type": "linear", "in_features": 128, "out_features": 128},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 128}
+    {"type": "linear", "in_features": 64},
+
 ]
 linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "StepReward"]
-wrapping_params = [{"agent_view_size": 5}, {}, {"step_reward": -1}]
-env_params = {"chain_length": 40}
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed"]
+wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 2000}]
+env_params = {}#{"chain_length": 40}
 
 device="cpu" # cpu, mps, cuda#
 
@@ -72,7 +70,7 @@ AGENT_DICT = {
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_input_options.t"),
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['input']_S100_options.t"),
         device=device
     ),
     RandomAgent.name: lambda env: RandomAgent(
@@ -118,7 +116,7 @@ AGENT_DICT = {
         HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
         get_num_envs(env),
         TabularFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-Empty-5x5-v0_{}_DQN_seed[123123]_20250306_113108/Run1_Last_options.t"),        
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),        
     ),
     
     # Deep Agents
@@ -144,7 +142,7 @@ AGENT_DICT = {
                         ),
         get_num_envs(env),
         FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}_DQN_seed[123123]_20250310_185250/Run1_Last_all_options.t"),
+        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),
         device=device
     ),
 
@@ -196,27 +194,14 @@ AGENT_DICT = {
         FLattenFeature,
         device=device
     ),
-    A2CAgentV1.name: lambda env: A2CAgentV1(
+    A2CAgent.name: lambda env: A2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
+        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=5,
                         actor_network=fc_network_1,
-                        actor_step_size=0.001,
+                        actor_step_size=7e-4,
                         critic_network=fc_network_1,
-                        critic_step_size=0.001,
-                        ),
-        get_num_envs(env),
-        FLattenFeature,
-        device=device
-    ),
-    A2CAgentV2.name: lambda env: A2CAgentV2(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(gamma=0.99, epsilon=0.1, rollout_steps=5,
-                        actor_network=fc_network_1,
-                        actor_step_size=0.001,
-                        critic_network=fc_network_1,
-                        critic_step_size=0.001,
+                        critic_step_size=7e-4,
                         ),
         get_num_envs(env),
         FLattenFeature,

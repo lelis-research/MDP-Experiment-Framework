@@ -1,8 +1,9 @@
 from .MiniGrid import MINIGRID_ENV_LST
 from .MiniHack import MINIHACK_ENV_LST
+from .Mujoco import MUJOCO_ENV_LST
 
 # Combine supported environment lists from both MiniGrid and MiniHack.
-ENV_LST = MINIGRID_ENV_LST + MINIHACK_ENV_LST
+ENV_LST = MINIGRID_ENV_LST + MINIHACK_ENV_LST + MUJOCO_ENV_LST
 
 def get_env(env_name,
             num_envs=1, 
@@ -36,6 +37,12 @@ def get_env(env_name,
             env = get_parallel_env(env_name, num_envs, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
     elif env_name in MINIHACK_ENV_LST:
         from .MiniHack import get_single_env, get_parallel_env
+        if num_envs == 1:
+            env = get_single_env(env_name, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
+        else:
+            env = get_parallel_env(env_name, num_envs, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
+    elif env_name in MUJOCO_ENV_LST:
+        from .Mujoco import get_single_env, get_parallel_env
         if num_envs == 1:
             env = get_single_env(env_name, max_steps, render_mode, env_params, wrapping_lst, wrapping_params)
         else:

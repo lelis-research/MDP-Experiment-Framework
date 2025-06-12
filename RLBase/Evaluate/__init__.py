@@ -1,2 +1,2 @@
-from .MultiExpAnalyzer import AnalyzeMultiExp
+from .MultiExpAnalyzer import plot_experiments, gather_experiments
 from .SingleExpAnalyzer import SingleExpAnalyzer

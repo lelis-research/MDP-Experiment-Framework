@@ -23,7 +23,16 @@ class CompactActionWrapper(ActionWrapper):
     
     def action(self, action):
         return self.actions_lst[action]
-    
+
+class FixedSeedWrapper(gym.Wrapper):
+    def __init__(self, env, seed):
+        super().__init__(env)
+        self._seed = seed
+
+    def reset(self, **kwargs):
+        # force the same seed every reset
+        kwargs.pop('seed', None)
+        return super().reset(seed=self._seed, **kwargs)  
 
 # ObservationWrapper that flattens the image observation by one-hot encoding object indices
 # and concatenating the agent's direction.
@@ -45,7 +54,7 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
         flatten_shape = (
             self.observation_space['image'].shape[0] *
             self.observation_space['image'].shape[1] *
-            one_hot_dim + 1
+            one_hot_dim + 4 # 4 is for the directions
         )
         self.observation_space = gym.spaces.Box(low=0,
                                                 high=100,
@@ -58,7 +67,9 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
         # Convert each object index into its one-hot representation.
         one_hot = np.array([self.object_to_onehot[int(x)] for x in flatten_object_obs]).flatten()
         # Concatenate the flattened one-hot array with the agent's direction.
-        new_obs = np.concatenate((one_hot, [observation['direction']]))
+        one_hot_dir = np.zeros([4])
+        one_hot_dir[observation['direction']] = 1
+        new_obs = np.concatenate((one_hot, one_hot_dir))
         return new_obs
 
     
@@ -71,4 +82,5 @@ WRAPPING_TO_WRAPPER = {
     "StepReward": StepRewardWrapper,
     "CompactAction": CompactActionWrapper,
     "FlattenOnehotObj": FlatOnehotObjectObsWrapper,
+    "FixedSeed": FixedSeedWrapper,
 }

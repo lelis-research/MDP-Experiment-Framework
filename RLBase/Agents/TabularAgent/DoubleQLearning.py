@@ -133,8 +133,6 @@ class DoubleQLearningPolicy(BasePolicy):
 
         self.action_space = checkpoint.get('action_space')
         self.hp = checkpoint.get('hyper_params')
-
-        self.action_dim = checkpoint.get('action_dim')
     
 
 

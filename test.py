@@ -1,43 +1,20 @@
 import os
-import pickle
-from matplotlib import pyplot as plt
 
 from RLBase.Experiments import BaseExperiment
-from RLBase.Evaluate import AnalyzeMultiExp, SingleExpAnalyzer
+from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env
 from RLBase import load_policy, load_agent
 
-def visualize(experiment_path, run_number, episode_number):
-    analyzer = SingleExpAnalyzer(exp_path=experiment_path)
-    analyzer.generate_video(run_number, episode_number)
-
 
 if __name__ == "__main__":
-    agent_dict = {
-            "DQN": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_DQN_seed[123123]_20250310_185658",
-            "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190218",
-            "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190314",
-            "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250310_190341",
-            "Masked_all": "Runs/Train/option_all_MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250311_133844"
-            # Add more experiments as needed.
-        }
-    AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Chain")
-    agent_dict = {
-        "DQN": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_DQN_seed[123123]_20250310_192233",
-        "Masked_Input": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192349",
-        "Masked_1": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192309",
-        "Masked_3": "Runs/Train/MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250310_192336",
-        "Masked_all":"Runs/Train/option_all_MiniGrid-ChainEnv-v1_{'chain_length': 40}_MaskedDQN_seed[123123]_20250311_134012"
-        # Add more experiments as needed.
-        }
-    AnalyzeMultiExp(agent_dict, "Runs/Test", name_tag="Door Chain")
-    exit(0)
 
-
-    exp_name = "option_input_MiniGrid-ChainEnv-v0_{'chain_length': 30}_MaskedDQN_seed[123123]_20250311_104912"
+    exp_name = "MiniGrid-SimpleCrossingS9N1-v0_{}/A2C/_seed[123123]_20250612_152550"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
-    # visualize(train_path, 1, 200)
+
+    # If saved the frames during training you can visualize them like this
+    # analyzer = SingleExpAnalyzer(exp_path=train_path)
+    # analyzer.generate_video(1, 1)
 
     args = BaseExperiment.load_args(train_path)
     config = BaseExperiment.load_config(train_path)

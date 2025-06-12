@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 import optuna
 import argparse
+import argcomplete
 
 from RLBase.Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from RLBase.Experiments import BaseExperiment, ParallelExperiment
@@ -30,6 +31,7 @@ def parse():
     parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
     # Ratio of last episodes to consider for metric calculation
     parser.add_argument("--metric_ratio", type=float, default=0.5, help="Ratio of the last episode to consider")
+    argcomplete.autocomplete(parser)
     return parser.parse_args()
 
 def tune_hyperparameters(env, agent, default_hp, hp_range, exp_dir, exp_class, ratio=0.5, n_trials=20, num_runs=3, num_episodes=50, seed_offset=1, args=None):

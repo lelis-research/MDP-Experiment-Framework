@@ -13,8 +13,7 @@ from ...Agents.DeepAgent.PolicyGradient import (
     ReinforcePolicy,
     ReinforceWithBaselinePolicy,
     PPOPolicy,
-    A2CPolicyV1,
-    A2CPolicyV2,
+    A2CPolicyDiscrete,
 )
 from .NetworkMasker import NetworkMasker
 
@@ -99,7 +98,7 @@ class ReinforceWithBaselinePolicyMasker(ReinforceWithBaselinePolicy):
         return NetworkMasker.maskable_layers(self.actor)
     
 @register_policy
-class A2CPolicyV1Masker(A2CPolicyV1):
+class A2CPolicyDiscreteMasker(A2CPolicyDiscrete):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 
@@ -110,21 +109,6 @@ class A2CPolicyV1Masker(A2CPolicyV1):
         log_prob_t = dist.log_prob(action_t)
         
         return action_t.item(), log_prob_t
-    
-    @property
-    def maskable_layers(self):
-        return NetworkMasker.maskable_layers(self.actor) 
-
-@register_policy
-class A2CPolicyV2Masker(A2CPolicyV2):
-    def select_action_masked(self, state, mask_dict):
-        masked_actor = NetworkMasker(self.actor, mask_dict)
-
-        state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
-        logits = masked_actor(state_t)
-        dist = Categorical(logits=logits)
-        action_t = dist.sample()
-        return action_t.item()
     
     @property
     def maskable_layers(self):
@@ -156,7 +140,6 @@ POLICY_TO_MASKER = {
 
     ReinforcePolicy: ReinforcePolicyMasker,
     ReinforceWithBaselinePolicy: ReinforceWithBaselinePolicyMasker,
-    A2CPolicyV1: A2CPolicyV1Masker,
-    A2CPolicyV2: A2CPolicyV2Masker,
+    A2CPolicyDiscrete: A2CPolicyDiscreteMasker,
     PPOPolicy: PPOPolicyMasker,
 }

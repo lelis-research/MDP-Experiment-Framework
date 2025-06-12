@@ -2,6 +2,9 @@
 Runs/
 venvs/
 
+# Old Codes
+Archive/
+
 # Byte-compiled / cached files
 __pycache__/
 *.py[cod]

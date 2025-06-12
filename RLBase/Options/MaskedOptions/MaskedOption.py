@@ -50,9 +50,9 @@ class LevinLossMaskedOptionLearner():
         self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
         
         # Compute total number of parameters for the list of mask_dicts
-        total_params = self.num_options * sum(sum(spec.values()) for spec in self.mask_dict_size)       
-        instrum = ng.p.Array(shape=(total_params,), lower=-1, upper=1).set_integer_casting()
-        optimizer = ng.optimizers.RandomSearch(parametrization=instrum, budget=search_budget, num_workers=10)
+        total_params = self.num_options * sum(sum(spec.values()) for spec in self.mask_dict_size)   
+        instrum = ng.p.Array(shape=(total_params,), lower=-1, upper=1).set_integer_casting() #-1, 0, 1 maskings
+        optimizer = ng.optimizers.PortfolioDiscreteOnePlusOne(parametrization=instrum, budget=search_budget, num_workers=10)
 
         if verbose:
             min_loss = self.org_loss

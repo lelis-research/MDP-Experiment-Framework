@@ -178,8 +178,6 @@ class DoubleDQNPolicy(BasePolicy):
         self.features_dim = checkpoint.get('features_dim')
         self.hp = checkpoint.get('hyper_params')
 
-        self.action_dim = checkpoint.get('action_dim')
-
 @register_agent
 class DoubleDQNAgent(BaseAgent):
     """
