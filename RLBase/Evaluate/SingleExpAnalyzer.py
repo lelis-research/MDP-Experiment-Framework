@@ -10,7 +10,7 @@ class SingleExpAnalyzer:
     Analyzes and plots metrics from multiple runs of an experiment.
     
     Expects metrics as a list of runs, where each run is a list of episode dictionaries.
-    Each episode dictionary should contain keys like "total_reward", "steps", etc.
+    Each episode dictionary should contain keys like "ep_return", "steps", etc.
     """
     def __init__(self, metrics=None, exp_path=None):
         """
@@ -35,29 +35,29 @@ class SingleExpAnalyzer:
         return len(self.metrics)
     
     def calculate_rewards_steps(self):
-        self.total_rewards = [[episode.get("total_reward") for episode in run] for run in self.metrics]
-        self.steps = [[episode.get("steps") for episode in run] for run in self.metrics]
+        self.ep_returns = [[episode.get("ep_return") for episode in run] for run in self.metrics]
+        self.ep_lengths = [[episode.get("ep_length") for episode in run] for run in self.metrics]
         
     def print_summary(self):
         """
         Print overall mean and standard deviation for rewards and steps.
         """
-        avg_reward = np.mean(self.total_rewards)
-        std_reward = np.std(self.total_rewards)
-        avg_steps = np.mean(self.steps)
-        std_steps = np.std(self.steps)
+        avg_return= np.mean(self.ep_returns)
+        std_return = np.std(self.ep_returns)
+        avg_steps = np.mean(self.ep_lengths)
+        std_steps = np.std(self.ep_lengths)
 
         print("Experiment Summary:")
-        print(f"  Average Reward: {avg_reward:.2f} ± {std_reward:.2f}")
-        print(f"  Average Steps:  {avg_steps:.2f} ± {std_steps:.2f}")
+        print(f"  Average Episode Return: {avg_return:.2f} ± {std_return:.2f}")
+        print(f"  Average Episode Length:  {avg_steps:.2f} ± {std_steps:.2f}")
     
     def _plot_reward_per_episode(self, ax, num_episodes, color, label):
-            total_rewards = np.array([run[:num_episodes] for run in self.total_rewards])
+            ep_return = np.array([run[:num_episodes] for run in self.ep_returns])
             episodes = np.arange(1, num_episodes + 1)
 
-            for run in total_rewards:
-                ax.plot(episodes, run, color=color, alpha=min(1/(len(total_rewards)), 0.15))
-            mean_rewards = np.mean(total_rewards, axis=0)
+            for run in ep_return:
+                ax.plot(episodes, run, color=color, alpha=min(1/(len(ep_return)), 0.15))
+            mean_rewards = np.mean(ep_return, axis=0)
             ax.plot(episodes, mean_rewards, color=color, label=label)
             
             ax.set_title("Sum Reward per Episode")
@@ -67,7 +67,7 @@ class SingleExpAnalyzer:
             ax.grid(True)
 
     def _plot_steps_per_episode(self, ax, num_episodes, color, label):
-        steps = np.array([run[:num_episodes] for run in self.steps])
+        steps = np.array([run[:num_episodes] for run in self.ep_lengths])
         episodes = np.arange(1, num_episodes + 1)
 
         for run in steps:
@@ -82,22 +82,22 @@ class SingleExpAnalyzer:
         ax.grid(True)
     
     def _plot_reward_per_steps(self, ax, num_steps, color, label):
-        total_rewards = self.total_rewards
-        steps = self.steps          
+        ep_returns = self.ep_returns
+        steps = self.ep_lengths          
         x_common = np.linspace(0, num_steps, 200)      
         rewards_interpolation = []
 
         # Build arrays for each run
-        for i in range(len(total_rewards)):
+        for i in range(len(ep_returns)):
             # Convert to numeric arrays
-            run_rewards = np.array(total_rewards[i], dtype=float)
+            run_rewards = np.array(ep_returns[i], dtype=float)
             run_steps = np.array(steps[i], dtype=float)
         
             # Get the cumulative steps
             cum_steps = np.cumsum(run_steps)
             
             # Plot each run’s line and points (faint)
-            ax.plot(cum_steps, run_rewards, marker='o', alpha=min(1/(len(total_rewards)), 0.15), color=color, markersize=1)
+            ax.plot(cum_steps, run_rewards, marker='o', alpha=min(1/(len(ep_returns)), 0.15), color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
             rewards_interpolation.append(np.interp(x_common, cum_steps, run_rewards))
@@ -128,8 +128,8 @@ class SingleExpAnalyzer:
             fig, axs = plt.subplots(3, 1, figsize=(12, 10))
 
         # find minimum number of episodes across runs
-        num_episodes = min([len(run) for run in self.total_rewards])
-        num_steps = min([sum(steps) for steps in self.steps])
+        num_episodes = min([len(run) for run in self.ep_returns])
+        num_steps = min([sum(steps) for steps in self.ep_lengths])
 
         self._plot_reward_per_episode(axs[0], num_episodes, color, label)
         self._plot_reward_per_steps(axs[1], num_steps, color, label)
@@ -163,8 +163,8 @@ class SingleExpAnalyzer:
         seed_lst = []
         for r, run in enumerate(self.metrics):
             for e, episode in enumerate(run):
-                agent_seed = episode.get("agent_seed")
-                env_seed = episode.get("env_seed")
+                agent_seed = episode.get("agent_seed", None)
+                env_seed = episode.get("env_seed", None)
                 seed_lst.append(f"run {r + 1}, episode {e + 1} -> env_seed = {env_seed}, agent_seed = {agent_seed}\n")
         
         with open(os.path.join(save_dir, "seed.txt"), "w") as file:

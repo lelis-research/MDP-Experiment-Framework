@@ -34,83 +34,78 @@ class LoggerExperiment(BaseExperiment):
         super().__init__(env, agent, exp_dir, train=train, config=config, args=args)
         self.call_back = call_back(log_dir=exp_dir)
     
-    def run_episode(self, seed, call_back=None):
-        """
-        Run a single episode.
-        
-        Args:
-            seed: Seed for reproducibility.
-            call_back (function, optional): Callback to log intermediate metrics.
-        
-        Returns:
-            dict: Episode metrics including total_reward, steps, frames, env_seed, and transitions.
-        """
-        observation, info = self.env.reset(seed=seed) 
-        total_reward = 0.0
-        steps = 0
-        terminated = False
-        truncated = False
-        transitions = []
-        while not (terminated or truncated):
-            action = self.agent.act(observation)
-            next_observation, reward, terminated, truncated, info = self.env.step(action)
-            if self._dump_transitions:
-                transitions.append((observation, action, reward, terminated, truncated))
-            if self._train:
-                self.agent.update(next_observation, reward, terminated, truncated, call_back)
-            
-            total_reward += reward
-            steps += 1
-
-            # Move to next observation
-            observation = next_observation
-        
-        frames = self.env.render()
-        return {"total_reward": total_reward, "steps": steps, 
-                "frames": frames, "env_seed": seed, "transitions": transitions}
-    
-    def _single_run_episodes(self, num_episodes, seed, n_run):
+    def _single_run_episodes(self, env, agent, num_episodes, seed, run_idx):
         """
         Run a series of episodes for one experimental run and log metrics to TensorBoard.
         
         Args:
             num_episodes (int): Number of episodes in the run.
             seed (int): Base seed for reproducibility.
-            n_run (int): Run identifier.
+            run_idx (int): Run identifier.
         
         Returns:
             list: A list of episode metrics.
         """
         self.call_back.reset()
         if self._train:
-            self.agent.reset(seed)
+            agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
-        for episode in pbar:
+        for episode_idx in pbar:
             # Use a seed to ensure reproducibility.
-            metrics = self.run_episode(episode + seed,
-                                       call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{n_run}"))
+            # ep_seed = episode_idx + seed
+            observation, info = env.reset() # seed=ep_seed
+            ep_return = 0.0
+            steps = 0
+            terminated = False
+            truncated = False
+            transitions = []
+
+            while not (terminated or truncated):
+                action = agent.act(observation)
+                next_observation, reward, terminated, truncated, info = env.step(action)
+
+                if self._dump_transitions:
+                    transitions.append((observation, action, reward, terminated, truncated))
+                if self._train:
+                    # Pass history to callback
+                    agent.update(next_observation, reward, terminated, truncated,
+                                    call_back=lambda data: self.call_back(data, f"agents/run_{run_idx}"))
+
+                ep_return += reward
+                steps += 1
+                observation = next_observation
+
+            frames = env.render()
+            metrics = {
+                "ep_return":    ep_return,
+                "ep_length":    steps,
+                "frames":       frames,
+                # "env_seed":     ep_seed,
+                "transitions":  transitions
+            }
+            
             metrics['agent_seed'] = seed
-            metrics['episode_index'] = episode
+            metrics['episode_index'] = episode_idx
             all_metrics.append(metrics)
 
-            self.call_back({"total_reward": metrics["total_reward"]},
-                           f"total_reward/run_{n_run}", 
-                           episode)
-            self.call_back({"num_steps": metrics["steps"]},
-                           f"num_steps/run_{n_run}", 
-                           episode)
+            self.call_back({"ep_return": metrics["ep_return"]},
+                           f"ep_return/run_{run_idx}", 
+                           episode_idx)
+            self.call_back({"ep_length": metrics["ep_length"]},
+                           f"ep_length/run_{run_idx}", 
+                           episode_idx)
             
             pbar.set_postfix({
-                "Reward": metrics['total_reward'], 
-                "Steps": metrics['steps'],
+                "Return": metrics['ep_return'], 
+                "Steps": metrics['ep_length'],
             })
-            if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
-                self.agent.save(path)
+            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
+                agent.save(path)
         return all_metrics
     
-    def _single_run_steps(self, total_steps, seed, n_run):
+    def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
         """
         Run until we have executed 'total_steps' agent-environment interactions.
         If we reach total_steps in the middle of an episode, that episode is truncated 
@@ -119,7 +114,7 @@ class LoggerExperiment(BaseExperiment):
         Args:
             total_steps (int): The total number of steps to run across one or more episodes.
             seed (int): Seed for reproducibility.
-            n_run (int): Index of the current run (used for checkpoint naming).
+            run_idx (int): Index of the current run (used for checkpoint naming).
             
         Returns:
             list of dict: 
@@ -128,11 +123,11 @@ class LoggerExperiment(BaseExperiment):
         """
         self.call_back.reset()
         if self._train:
-            self.agent.reset(seed)
+            agent.reset(seed)
             
         all_metrics = []
         steps_so_far = 0
-        episode = 0
+        episode_idx = 0
 
         # We will manage the steps in a custom loop, so we do not call run_episode() directly.
         # Instead, we do what run_episode does, but with the additional constraint of total_steps.
@@ -140,11 +135,12 @@ class LoggerExperiment(BaseExperiment):
         pbar = tqdm(total=total_steps, desc="Running steps")
 
         while steps_so_far < total_steps:
-            episode += 1
+            episode_idx += 1
             
             # Initialize an episode
-            observation, info = self.env.reset(seed=(seed + episode))
-            episode_reward = 0.0
+            # ep_seed = episode_idx + seed
+            observation, info = env.reset() #seed=ep_seed)
+            ep_return = 0.0
             steps_in_episode = 0
             transitions = []
             terminated = False
@@ -153,13 +149,13 @@ class LoggerExperiment(BaseExperiment):
             # Step loop
             while not (terminated or truncated):
                 # Agent selects action
-                action = self.agent.act(observation)
+                action = agent.act(observation)
                 
                 # Environment steps
-                next_observation, reward, terminated, truncated, info = self.env.step(action)
+                next_observation, reward, terminated, truncated, info = env.step(action)
 
                 # Update reward/step counters
-                episode_reward += reward
+                ep_return += reward
                 steps_in_episode += 1
                 steps_so_far += 1
 
@@ -173,46 +169,46 @@ class LoggerExperiment(BaseExperiment):
                 
                 # Train the agent if needed
                 if self._train:
-                    self.agent.update(next_observation, reward, terminated, truncated, 
-                                      call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{n_run}"))
+                    agent.update(next_observation, reward, terminated, truncated, 
+                                      call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}"))
                 
                 pbar.update(1)
                 # Move to next observation
                 observation = next_observation
                 
             # Collect frames from the environment if needed
-            frames = self.env.render()
+            frames = env.render()
             
             # Episode metrics
             metrics = {
-                "total_reward": episode_reward,
-                "steps": steps_in_episode,
+                "ep_return": ep_return,
+                "ep_length": steps_in_episode,
                 "frames": frames,
-                "env_seed": (seed + episode),
+                # "env_seed": ep_seed,
                 "transitions": transitions,
                 "agent_seed": seed,
-                "episode_index": episode
+                "episode_index": episode_idx
             }
             all_metrics.append(metrics)
 
-            self.call_back({"total_reward": metrics["total_reward"]},
-                           f"total_reward/run_{n_run}", 
-                           episode)
-            self.call_back({"num_steps": metrics["steps"]},
-                           f"num_steps/run_{n_run}", 
-                           episode)
+            self.call_back({"ep_return": metrics["ep_return"]},
+                           f"ep_return/run_{run_idx}", 
+                           episode_idx)
+            self.call_back({"ep_length": metrics["ep_length"]},
+                           f"ep_length/run_{run_idx}", 
+                           episode_idx)
             
             # Show some info in the progress bar
             pbar.set_postfix({
-                "Episode": episode,
-                "Reward": metrics["total_reward"], 
+                "Episode": episode_idx,
+                "Return": metrics["ep_return"], 
                 "TotalSteps": steps_so_far
             })
             
             # Checkpointing if desired
-            if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
-                self.agent.save(path)
+            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
+                agent.save(path)
         pbar.close()
         return all_metrics
 
@@ -220,7 +216,7 @@ class LoggerExperiment(BaseExperiment):
                   num_episodes=0, total_steps=0, 
                   seed_offset=None, 
                   dump_metrics=True, checkpoint_freq=None, 
-                  dump_transitions=False):
+                  dump_transitions=False, num_workers=1, tuning_hp=None):
         """
         Run multiple experimental runs, log metrics, and save checkpoints.
         
@@ -239,6 +235,7 @@ class LoggerExperiment(BaseExperiment):
                                              num_episodes, total_steps,
                                              seed_offset, 
                                              dump_metrics, checkpoint_freq, 
-                                             dump_transitions)
+                                             dump_transitions, num_workers,
+                                             tuning_hp=tuning_hp)
         self.call_back.close()
         return all_runs_metrics

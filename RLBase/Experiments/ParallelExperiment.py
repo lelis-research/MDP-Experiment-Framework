@@ -20,7 +20,7 @@ class ParallelExperiment(BaseExperiment):
         
         Returns:
             A list of episode metrics (dicts) with keys like
-            {"total_reward", "steps", "seed"}.
+            {"ep_return", "ep_length", "seed"}.
         """
         # We assume gymnasium-like API for vector env:
         # obs.shape -> (num_envs, obs_space...)
@@ -53,16 +53,16 @@ class ParallelExperiment(BaseExperiment):
                 if (dones[i] or truncated[i]) and episode_counts < num_episodes:
                     # We finished an episode in env i
                     metrics = {
-                        "total_reward": episode_rewards[i],
-                        "steps": episode_steps[i],
+                        "ep_return": episode_rewards[i],
+                        "ep_length": episode_steps[i],
                         "seed": seed,
                     }
 
                     # Update the progress bar.
                     pbar.update(1)
                     pbar.set_postfix({
-                        "Reward": metrics['total_reward'], 
-                        "Steps": metrics['steps']
+                        "Return": metrics['ep_return'], 
+                        "Steps": metrics['ep_length']
                     })
                     
 

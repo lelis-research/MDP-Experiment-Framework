@@ -6,6 +6,7 @@ import shutil
 import importlib.util
 import yaml
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class BaseExperiment:
     """
@@ -19,9 +20,22 @@ class BaseExperiment:
             exp_dir (str, optional): Directory to save checkpoints and metrics.
             train (bool): Whether to train the agent.
         """
+         
+        self._env_is_factory   = callable(env)
+        self._agent_is_factory = callable(agent)
         
-        self.env = env
-        self.agent = agent
+        # Normalize both to factories under the hood
+        if self._env_is_factory:
+            self._make_env = env
+        else:
+            self._make_env = lambda: env
+
+        if self._agent_is_factory:
+            self._make_agent = agent
+        else:
+            self._make_agent = lambda env: agent
+            
+            
         if exp_dir is not None:
             # Copy config file
             os.makedirs(exp_dir, exist_ok=True)
@@ -38,47 +52,7 @@ class BaseExperiment:
         self._checkpoint_freq = None
         self._train = train
 
-    def run_episode(self, seed):
-        """
-        Run a single episode.
-        
-        Args:
-            seed: Seed for reproducibility.
-        
-        Returns:
-            dict: Metrics including total_reward, steps, frames, seeds, and transitions.
-        """
-        observation, info = self.env.reset(seed=seed)
-        total_reward = 0.0
-        steps = 0
-        terminated = False
-        truncated = False
-        transitions = []
-        while not (terminated or truncated):
-            action = self.agent.act(observation)
-            next_observation, reward, terminated, truncated, info = self.env.step(action)
-            
-            if self._dump_transitions:
-                transitions.append((observation, action, reward, terminated, truncated))
-            if self._train:
-                self.agent.update(next_observation, reward, terminated, truncated)
-            
-            total_reward += reward
-            steps += 1
-
-            # Move to next observation
-            observation = next_observation
-        
-        frames = self.env.render()
-        return {
-            "total_reward": total_reward,
-            "steps": steps,
-            "frames": frames,
-            "env_seed": seed,
-            "transitions": transitions
-        }
-
-    def _single_run_episodes(self, num_episodes, seed, n_run):
+    def _single_run_episodes(self, env, agent, num_episodes, seed, run_idx):
         """
         Run a specified number of episodes.
         
@@ -86,24 +60,55 @@ class BaseExperiment:
             list: Episode metrics for the run.
         """
         if self._train:
-            self.agent.reset(seed)
+            agent.reset(seed)
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
-        for episode in pbar:
-            metrics = self.run_episode(episode + seed)
+        for episode_idx in pbar:
+            # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
+            #                           (each episode is reproducible but maybe too specific)          
+            observation, info = env.reset() #seed=ep_seed
+            
+            ep_return = 0.0
+            steps = 0
+            terminated = False
+            truncated = False
+            transitions = []
+            
+            while not (terminated or truncated):
+                action = agent.act(observation)
+                next_observation, reward, terminated, truncated, info = env.step(action)
+                
+                if self._dump_transitions:
+                    transitions.append((observation, action, reward, terminated, truncated))
+                if self._train:
+                    agent.update(next_observation, reward, terminated, truncated)
+                
+                ep_return += reward
+                steps += 1
+                observation = next_observation
+            
+            frames = env.render()
+            metrics = {
+                "ep_return": ep_return,
+                "ep_length": steps,
+                "frames": frames,
+                # "env_seed": ep_seed,
+                "transitions": transitions
+            }
+            
             metrics["agent_seed"] = seed
-            metrics["episode_index"] = episode
+            metrics["episode_index"] = episode_idx
             all_metrics.append(metrics)
             pbar.set_postfix({
-                "Reward": metrics['total_reward'], 
-                "Steps": metrics['steps'],
+                "Return": metrics['ep_return'], 
+                "Steps": metrics['ep_length'],
             })
-            if self._checkpoint_freq is not None and episode % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode}")
-                self.agent.save(path)
+            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
+                agent.save(path)
         return all_metrics
     
-    def _single_run_steps(self, total_steps, seed, n_run):
+    def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
         """
         Run until we have executed 'total_steps' agent-environment interactions.
         If we reach total_steps in the middle of an episode, that episode is truncated 
@@ -112,7 +117,7 @@ class BaseExperiment:
         Args:
             total_steps (int): The total number of steps to run across one or more episodes.
             seed (int): Seed for reproducibility.
-            n_run (int): Index of the current run (used for checkpoint naming).
+            run_idx (int): Index of the current run (used for checkpoint naming).
             
         Returns:
             list of dict: 
@@ -120,7 +125,7 @@ class BaseExperiment:
                 by self.run_episode(...), plus extra info (agent_seed, etc.).
         """
         if self._train:
-            self.agent.reset(seed)
+            agent.reset(seed)
             
         all_metrics = []
         steps_so_far = 0
@@ -135,8 +140,10 @@ class BaseExperiment:
             episode_idx += 1
             
             # Initialize an episode
-            observation, info = self.env.reset(seed=(seed + episode_idx))
-            episode_reward = 0.0
+            # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
+            #                           (each episode is reproducible but maybe too specific)    
+            observation, info = env.reset() # seed=ep_seed
+            ep_return = 0.0
             steps_in_episode = 0
             transitions = []
             terminated = False
@@ -145,13 +152,13 @@ class BaseExperiment:
             # Step loop
             while not (terminated or truncated):
                 # Agent selects action
-                action = self.agent.act(observation)
+                action = agent.act(observation)
                 
                 # Environment steps
-                next_observation, reward, terminated, truncated, info = self.env.step(action)
+                next_observation, reward, terminated, truncated, info = env.step(action)
 
                 # Update reward/step counters
-                episode_reward += reward
+                ep_return += reward
                 steps_in_episode += 1
                 steps_so_far += 1
 
@@ -165,25 +172,23 @@ class BaseExperiment:
                 
                 # Train the agent if needed
                 if self._train:
-                    self.agent.update(next_observation, reward, terminated, truncated)
+                    agent.update(next_observation, reward, terminated, truncated)
                 
                 
                 pbar.update(1)
 
                 # Move to next observation
                 observation = next_observation
-                
-                
-            
+           
             # Collect frames from the environment if needed
-            frames = self.env.render()
+            frames = env.render()
             
             # Episode metrics
             metrics = {
-                "total_reward": episode_reward,
-                "steps": steps_in_episode,
+                "ep_return": ep_return,
+                "ep_length": steps_in_episode,
                 "frames": frames,
-                "env_seed": (seed + episode_idx),
+                # "env_seed": ep_seed,
                 "transitions": transitions,
                 "agent_seed": seed,
                 "episode_index": episode_idx
@@ -193,59 +198,115 @@ class BaseExperiment:
             # Show some info in the progress bar
             pbar.set_postfix({
                 "Episode": episode_idx,
-                "Reward": metrics["total_reward"], 
+                "Return": metrics["ep_return"], 
                 "TotalSteps": steps_so_far
             })
             
             # Checkpointing if desired
             if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{n_run}_E{episode_idx}")
-                self.agent.save(path)
+                path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
+                agent.save(path)
         pbar.close()
         return all_metrics
 
+    def _one_run(self, run_idx, case_num, num_episodes, total_steps, seed_offset, tuning_hp=None):
+        """
+        Helper for a single run: computes a seed and calls the
+        appropriate single-run method.
+        """
+        if seed_offset is None:
+            seed = random.randint(0, 2**32 - 1)
+        else:
+            if case_num == 1:
+                seed = (run_idx - 1) * num_episodes + seed_offset
+            else:
+                seed = (run_idx - 1) * total_steps + seed_offset
+
+        # build fresh env & agent each run
+        env   = self._make_env()
+        agent = self._make_agent(env)
+        
+        self.env, self.agent = env, agent
+        if tuning_hp is not None:
+            agent.set_hp(tuning_hp)
+
+        if case_num == 1:
+            return self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
+        else:
+            return self._single_run_steps(env, agent, total_steps, seed, run_idx)
+        
     def multi_run(self, num_runs, 
                   num_episodes=0, total_steps=0,
                   seed_offset=None, 
                   dump_metrics=True, checkpoint_freq=None, 
-                  dump_transitions=False):
+                  dump_transitions=False, num_workers=1, tuning_hp=None):
         """
         Run multiple independent runs.
         
         Returns:
             list: A list of runs, each containing a list of episode metrics.
         """
-        if num_episodes > 0 and total_steps == 0:
-            # we run for fix num of episodes
-            case_num = 1
-        elif num_episodes ==0 and total_steps > 0:
-            # we run for fix num of steps
-            case_num = 2
-        else:
-            raise ValueError("Both num episode and total steps are either 0 or not 0")
-
+        if (num_episodes > 0) == (total_steps > 0):
+            raise ValueError("Exactly one of num_episodes or total_steps must be non-zero")
+        case_num = 1 if num_episodes > 0 else 2
+        
+        if not (self._env_is_factory and self._agent_is_factory):
+            if num_workers > 1:
+                print("⚠️  Fixed env/agent instances: falling back to num_workers=1")
+            num_workers = 1
+            
 
         self._checkpoint_freq = checkpoint_freq
         self._dump_transitions = dump_transitions
-
+        
         all_runs_metrics = []
+                
+        if num_workers > 1:
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                futures = {
+                    executor.submit(
+                        self._one_run,
+                        run_idx=run,
+                        case_num=case_num,
+                        num_episodes=num_episodes,
+                        total_steps=total_steps,
+                        seed_offset=seed_offset,
+                        tuning_hp=tuning_hp,
+                    ): run
+                    for run in range(1, num_runs + 1)
+                }
+                for fut in as_completed(futures):
+                    run_idx     = futures[fut]
+                    run_metrics = fut.result()
+                    all_runs_metrics.append(run_metrics)
+                    if dump_metrics:
+                        path = os.path.join(self.exp_dir, f"metrics_run{run_idx}.pkl")
+                        with open(path, "wb") as f:
+                            pickle.dump(run_metrics, f)
 
-        for run in range(1, num_runs + 1):
-            print(f"Starting Run {run}")
-            if case_num == 1:
-                seed = random.randint(0, 2**32 - 1) if seed_offset is None else (run - 1) * num_episodes + seed_offset
-                run_metrics = self._single_run_episodes(num_episodes, seed, run)
-            elif case_num == 2:
-                seed = random.randint(0, 2**32 - 1) if seed_offset is None else (run - 1) * total_steps + seed_offset
-                run_metrics = self._single_run_steps(total_steps, seed, run)
+        # Serial execution
+        else:
+            for run in range(1, num_runs + 1):
+                print(f"Starting Run {run}")
+                run_metrics = self._one_run(
+                    run_idx=run,
+                    case_num=case_num,
+                    num_episodes=num_episodes,
+                    total_steps=total_steps,
+                    seed_offset=seed_offset,
+                    tuning_hp=tuning_hp
+                )
+                all_runs_metrics.append(run_metrics)
+                if dump_metrics:
+                    path = os.path.join(self.exp_dir, f"metrics_run{run}.pkl")
+                    with open(path, "wb") as f:
+                        pickle.dump(run_metrics, f)
 
-            all_runs_metrics.append(run_metrics)
-            if dump_metrics:
-                file = os.path.join(self.exp_dir, "metrics.pkl")
-                with open(file, "wb") as f:
-                    pickle.dump(all_runs_metrics, f)
-                path = os.path.join(self.exp_dir, f"Run{run}_Last")
-                self.agent.save(path)
+        # Dump aggregated metrics
+        if dump_metrics:
+            agg_path = os.path.join(self.exp_dir, "all_metrics.pkl")
+            with open(agg_path, "wb") as f:
+                pickle.dump(all_runs_metrics, f)
                     
         return all_runs_metrics
     

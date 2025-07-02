@@ -29,6 +29,7 @@ if __name__ == "__main__":
         wrapping_params=config.wrapping_params,
     )
     agent = load_agent(os.path.join(train_path, "Run1_Last_agent.t"))
+    
     # policy = load_policy(os.path.join(train_path, "Run1_Last_policy.t"))
     # print(policy)
     # agent.hp.update(epsilon=0.0)
