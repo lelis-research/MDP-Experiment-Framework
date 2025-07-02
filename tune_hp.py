@@ -23,11 +23,11 @@ def parse():
     # Random seed for reproducibility
     parser.add_argument("--seed", type=int, default=1, help="Random seed for reproducibility")
     # Number of hyper-parameter configurations (trials)
-    parser.add_argument("--num_configs", type=int, default=None, help="number of Hyper-Params to try")
+    parser.add_argument("--num_trials", type=int, default=None, help="number of Hyper-Params to try")
     # Number of runs per configuration
     parser.add_argument("--num_runs", type=int, default=2, help="number of runs per each Hyper-Params")
     # Number of total environment steps per run
-    parser.add_argument("--total_steps", type=int, default=0, help="number of episodes in each run")
+    parser.add_argument("--total_steps", type=int, default=0, help="number of steps in each run")
     # Episodes per run
     parser.add_argument("--num_episodes", type=int, default=0, help="number of episode in each run")
     # Maximum steps per episode
@@ -45,7 +45,11 @@ def make_grid(low, high, n):
     # For floats: n values including both endpoints
     return list(np.linspace(low, high, num=n))
 
-def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir, exp_class, exhaustive=True, ratio=0.5, n_trials=20, num_runs=3, num_episodes=0, total_steps=0, seed_offset=1, args=None):
+def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir, exp_class, 
+                         exhaustive=True, ratio=0.5, n_trials=20, 
+                         num_runs=3, num_episodes=0, total_steps=0, 
+                         seed_offset=1, study_name=None, storage=None,
+                         args=None):
     """
     Tune hyperparameters using Optuna.
     
@@ -113,24 +117,33 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         analyzer = SingleExpAnalyzer(metrics=metrics)
         analyzer.save_seeds(save_dir=trial_dir)
 
-        # Compute average reward over the last fraction of episodes across runs.
-        rewards = np.array([[episode.get("ep_return") for episode in run] for run in metrics])
-        avg_reward_over_runs = np.mean(rewards, axis=0)
-        ind = int(len(avg_reward_over_runs) * ratio) - 1
-        avg_reward = np.mean(np.mean(rewards, axis=0)[ind:])
+        # Compute average reward over the last fraction of episodes, per run
+        run_avgs = []
+        for run in metrics:
+            returns = [ep["ep_return"] for ep in run]
+            n = len(returns)
+            # start index for the last `ratio` fraction
+            idx = int(n * ratio)
+            # guard in case ratio is very small or runs empty
+            idx = max(0, min(idx, n - 1))
+            run_avg = np.mean(returns[idx:]) if n > 0 else 0.0
+            run_avgs.append(run_avg)
+        # overall average across runs
+        avg_reward = float(np.mean(run_avgs))
         
         # Return negative reward for minimization.
         return -avg_reward
 
     # Create and run the Optuna study.
     if exhaustive:
-        n_trials = math.prod(len(v) for v in hp_search_space.values()) # for the grid sampler it will exhaust all combinations
+        # for the grid sampler it will exhaust all combinations
+        n_trials = 1 # For compute canada jobs
+        # n_trials = math.prod(len(v) for v in hp_search_space.values()) # For single job
         sampler = GridSampler(hp_search_space)
     else:
         sampler = TPESampler()
-        
-    study = optuna.create_study(direction="minimize", sampler=sampler)
-    study.optimize(objective, n_trials=n_trials, n_jobs=8) 
+    study = optuna.create_study(direction="minimize", sampler=sampler, study_name=study_name, load_if_exists=True, storage=storage)
+    study.optimize(objective, n_trials=n_trials, n_jobs=1) 
 
     # Build the best hyper-parameters object from the best trial.
     best_params = study.best_trial.params
@@ -140,8 +153,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
 def main(hp_search_space):
     args = parse()
     runs_dir = f"Runs/Tune/"
-    if not os.path.exists(runs_dir):
-        os.makedirs(runs_dir)
+    os.makedirs(runs_dir, exist_ok=True)
 
     env_fn = partial(
         get_env,
@@ -162,8 +174,15 @@ def main(hp_search_space):
     else:
         experiment_class = ParallelExperiment
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    # exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    
+    params_str = "_".join(f"{k}{v}" for k, v in env_params.items())
+    exp_name   = f"{args.env}_{params_str}_{args.agent}_seed{args.seed}"# _{timestamp}"
     exp_dir = os.path.join(runs_dir, exp_name)
+    
+    os.makedirs(exp_dir, exist_ok=True) # Although experiment will automatically create this directory but for the db to work we need to create the directory before the start of the experiment
+    db_path = os.path.join(exp_dir, "optuna_study.db")
+    storage_url = f"sqlite:///{db_path}"
 
     # Run hyperparameter tuning.
     best_hp, study = tune_hyperparameters(
@@ -175,25 +194,27 @@ def main(hp_search_space):
         exp_class=experiment_class,
         exhaustive=args.exhaustive,
         ratio=args.metric_ratio,
-        n_trials=args.num_configs,
+        n_trials=args.num_trials,
         num_runs=args.num_runs,
         num_episodes=args.num_episodes,
         total_steps=args.total_steps,
         seed_offset=args.seed,
+        study_name=exp_name,
+        storage=storage_url,
         args=args,
     )
 
-    print("Best hyperparameters found:")
+    print("Best hyperparameters found:") 
     print(best_hp)
     print(f"Study logs saved at: {runs_dir}")
 
 if __name__ == "__main__":
     # Define the search ranges for hyperparameters.
-    n = 5
+    n = 2
     hp_search_space = {
         "actor_step_size":  make_grid(0.001, 0.5, n),
         "critic_step_size": make_grid(0.001, 0.5, n),
         "epsilon":          make_grid(0.01,  0.5, n),
-        "rollout_steps":    list(range(1, 7)),
+        "rollout_steps":    list(range(1, 4)),
     }
     main(hp_search_space)

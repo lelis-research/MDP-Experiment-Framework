@@ -44,8 +44,7 @@ def parse():
 def main():
     args = parse()
     runs_dir = "Runs/Train/"
-    if not os.path.exists(runs_dir):
-        os.makedirs(runs_dir)  # Create directory if it doesn't exist
+    os.makedirs(runs_dir, exist_ok=True)  
     
     env_fn = partial(
         get_env,
