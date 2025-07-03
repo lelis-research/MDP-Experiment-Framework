@@ -5,8 +5,9 @@ matplotlib==3.10.0
 minigrid==3.0.0
 minihack==1.0.0
 nevergrad==1.0.8
-numpy==2.1.3
 optuna==4.2.0
 PyYAML==6.0.2
 torch==2.6.0
 tqdm==4.67.1
+numpy==2.1.1
+
