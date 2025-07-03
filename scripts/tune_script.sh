@@ -13,12 +13,11 @@
 set -euo pipefail
 
 # Move into repo
-# cd ~/scratch/neurips-2025-paper-neural-decomposition
+cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
-# module load StdEnv/2020 gcc flexiblas python/3.10 mujoco/2.3.6
-# source /home/aghakasi/ENV/bin/activate
-source ~/MDP-Experiment-Framework/venvs/rl_v1/bin/activate
+module python/3.10
+source ~/MDP-Experiment-Framework/ENV/bin/activate
 
 # Pin BLAS/OpenMP
 export OMP_NUM_THREADS=1

@@ -20,6 +20,8 @@ def parse():
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
     # Environment name
     parser.add_argument("--env", type=str, default="MiniGrid-Empty-5x5-v0", choices=ENV_LST, help="which environment")
+    # Add a name tag
+    parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
     # Random seed for reproducibility
     parser.add_argument("--seed", type=int, default=1, help="Random seed for reproducibility")
     # Number of hyper-parameter configurations (trials)
@@ -173,14 +175,11 @@ def main(hp_search_space):
         experiment_class = BaseExperiment
     else:
         experiment_class = ParallelExperiment
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    # exp_name = f"{args.env}_{env_params}_{args.agent}_seed[{args.seed}]_{timestamp}"
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")    
+    exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params}", args.agent, exp_name)
+    os.makedirs(exp_dir, exist_ok=True)
     
-    params_str = "_".join(f"{k}{v}" for k, v in env_params.items())
-    exp_name   = f"{args.env}_{params_str}_{args.agent}_seed{args.seed}"# _{timestamp}"
-    exp_dir = os.path.join(runs_dir, exp_name)
-    
-    os.makedirs(exp_dir, exist_ok=True) # Although experiment will automatically create this directory but for the db to work we need to create the directory before the start of the experiment
     db_path = os.path.join(exp_dir, "optuna_study.db")
     storage_url = f"sqlite:///{db_path}"
 
