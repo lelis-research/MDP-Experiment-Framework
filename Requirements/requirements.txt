@@ -10,4 +10,6 @@ PyYAML==6.0.2
 torch==2.6.0
 tqdm==4.67.1
 numpy==2.1.1
+tensorboard==2.18.0
 
+#export PIP_CONFIG_FILE="$VIRTUAL_ENV/pip.conf"
