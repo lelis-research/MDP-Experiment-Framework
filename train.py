@@ -63,7 +63,8 @@ def main():
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
-    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params}", args.agent, exp_name)
+    env_str = "_".join(f"{k}-{v}" for k, v in env_params.items())  # env param dictionary to str
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
 
     # Choose experiment type based on number of environments

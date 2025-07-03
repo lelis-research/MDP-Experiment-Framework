@@ -144,6 +144,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         sampler = GridSampler(hp_search_space)
     else:
         sampler = TPESampler()
+   
     study = optuna.create_study(direction="minimize", sampler=sampler, study_name=study_name, load_if_exists=True, storage=storage)
     study.optimize(objective, n_trials=n_trials, n_jobs=1) 
 
@@ -175,9 +176,11 @@ def main(hp_search_space):
         experiment_class = BaseExperiment
     else:
         experiment_class = ParallelExperiment
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")    
-    exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
-    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params}", args.agent, exp_name)
+        
+    # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")    
+    exp_name = f"{args.name_tag}_seed[{args.seed}]" #_{timestamp}
+    env_str = "_".join(f"{k}-{v}" for k, v in env_params.items())  # env param dictionary to str
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
     
     db_path = os.path.join(exp_dir, "optuna_study.db")
@@ -217,11 +220,11 @@ if __name__ == "__main__":
         "rollout_steps":    list(range(1, 4)),
     }
     
-    hp_search_space = { #example for the non-exhaustive case
-        "actor_step_size":  (0.001, 0.5),
-        "critic_step_size": (0.001, 0.5),
-        "epsilon":          (0.01,  0.5),
-        "rollout_steps":    (1, 4),
-    }
+    # hp_search_space = { #example for the non-exhaustive case
+    #     "actor_step_size":  (0.001, 0.5),
+    #     "critic_step_size": (0.001, 0.5),
+    #     "epsilon":          (0.01,  0.5),
+    #     "rollout_steps":    (1, 4),
+    # }
     
     main(hp_search_space)
