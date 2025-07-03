@@ -211,10 +211,18 @@ def main(hp_search_space):
 if __name__ == "__main__":
     # Define the search ranges for hyperparameters.
     n = 2
-    hp_search_space = {
+    hp_search_space = { #example for the exhaustive case
         "actor_step_size":  make_grid(0.001, 0.5, n),
         "critic_step_size": make_grid(0.001, 0.5, n),
         "epsilon":          make_grid(0.01,  0.5, n),
         "rollout_steps":    list(range(1, 4)),
     }
+    
+    hp_search_space = { #example for the non-exhaustive case
+        "actor_step_size":  (0.001, 0.5),
+        "critic_step_size": (0.001, 0.5),
+        "epsilon":          (0.01,  0.5),
+        "rollout_steps":    (1, 4),
+    }
+    
     main(hp_search_space)
