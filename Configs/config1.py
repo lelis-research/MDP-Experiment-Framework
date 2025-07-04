@@ -1,4 +1,4 @@
-from base_config import *
+from Configs.base_config import *
 
 
 
@@ -14,7 +14,7 @@ env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed"]
 wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 2000}]
 env_params = {}
 
-device="cpu" # cpu, mps, cuda#
+device="cpu" # cpu, mps, cuda
 
 AGENT_DICT = {
        A2CAgent.name: lambda env: A2CAgent(
