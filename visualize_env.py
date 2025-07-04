@@ -24,6 +24,9 @@ def main():
     config_path = os.path.join("Configs", f"{args.config}.py")
     config = load_config(config_path)
     
+    runs_dir = "Runs/Figures/"
+    os.makedirs(runs_dir, exist_ok=True)  
+    
     env = get_env(env_name=args.env, 
                   render_mode="rgb_array",
                   env_params   = config.env_params,
@@ -33,7 +36,8 @@ def main():
     env.reset()
     frame = env.render()
     img = Image.fromarray(frame)
-    img.save(f"Figures/{args.env}_{args.name_tag}.png")
+    path = os.path.join(runs_dir, f"{args.env}_{args.name_tag}.png")
+    img.save(path)
 
 if __name__ == "__main__":
     main()
