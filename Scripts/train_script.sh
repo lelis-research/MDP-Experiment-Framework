@@ -16,7 +16,7 @@ set -euo pipefail
 cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
-module python/3.10
+# module python/3.10
 source ~/MDP-Experiment-Framework/ENV/bin/activate
 
 # Pin BLAS/OpenMP

@@ -32,6 +32,7 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 CONFIG="config1"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
+
 NAME_TAG="grid_search"
 SEED=1
 

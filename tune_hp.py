@@ -158,7 +158,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
             study_name=study_name,
             storage=storage
         )
-    except optuna.exceptions.DuplicatedStudyError:
+    except optuna.exceptions.OptunaError:
         study = optuna.load_study(
             study_name=study_name,
             storage=storage
@@ -203,8 +203,8 @@ def main(hp_search_space):
     os.makedirs(exp_dir, exist_ok=True)
     
     db_path = os.path.join(exp_dir, "optuna_study.db")
-    storage_url = f"sqlite:///{db_path}"
-
+    storage_url = f"sqlite:///{db_path}?timeout=60"
+    
     # Run hyperparameter tuning.
     best_hp, study = tune_hyperparameters(
         env_fn,
