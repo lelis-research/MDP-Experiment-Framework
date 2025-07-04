@@ -1,6 +1,7 @@
 import argparse
 import argcomplete
 import os
+from PIL import Image
 
 
 from RLBase.Environments import get_env, ENV_LST
@@ -24,13 +25,15 @@ def main():
     config = load_config(config_path)
     
     env = get_env(env_name=args.env, 
-                  render_mode="rgb_array_list",
+                  render_mode="rgb_array",
                   env_params   = config.env_params,
                   wrapping_lst = config.env_wrapping,
                   wrapping_params = config.wrapping_params,
                   )
-    image = env.render()
-    print(image)
-    
+    env.reset()
+    frame = env.render()
+    img = Image.fromarray(frame)
+    img.save(f"Figures/{args.env}_{args.name_tag}.png")
+
 if __name__ == "__main__":
     main()
