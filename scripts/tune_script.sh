@@ -29,6 +29,7 @@ export FLEXIBLAS=imkl
 # Compute array‐task index
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
+CONFIG="config1"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 NAME_TAG="grid_search"
@@ -54,6 +55,7 @@ else
 fi
 
 python tune_hp.py \
+  --config      "$CONFIG" \
   --agent       "$AGENT" \
   --env         "$ENV" \
   --name_tag    "$NAME_TAG" \

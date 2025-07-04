@@ -29,6 +29,7 @@ export FLEXIBLAS=imkl
 # Compute array‐task index
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
+CONFIG="config1"
 AGENT="Random"
 ENV="MiniGrid-Empty-5x5-v0"
 NAME_TAG="test"
@@ -66,6 +67,7 @@ else
 fi
 
 python $SCRIPT_NAME \
+  --config            "$CONFIG" \
   --agent             "$AGENT" \
   --env               "$ENV" \
   --seed              "$SEED" \
