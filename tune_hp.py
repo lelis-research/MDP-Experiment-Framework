@@ -12,10 +12,13 @@ from RLBase.Agents.Utils import HyperParameters  # For handling hyper-parameter 
 from RLBase.Experiments import BaseExperiment, ParallelExperiment
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
-from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
+from Configs.base_config import AGENT_DICT
+from Configs.loader import load_config
 
 def parse():
     parser = argparse.ArgumentParser()
+    # Config file name
+    parser.add_argument("--config", type=str, default="base_config", help="path to the experiment config file")
     # Agent type to run
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
     # Environment name
@@ -26,6 +29,8 @@ def parse():
     parser.add_argument("--seed", type=int, default=1, help="Random seed for reproducibility")
     # Number of hyper-parameter configurations (trials)
     parser.add_argument("--num_trials", type=int, default=None, help="number of Hyper-Params to try")
+    # Number of workers to run parallel for each trial
+    parser.add_argument("--num_workers_each_trial", type=int, default=None, help="number of workers per trial (useful for multiple runs for each trial)")
     # Number of runs per configuration
     parser.add_argument("--num_runs", type=int, default=2, help="number of runs per each Hyper-Params")
     # Number of total environment steps per run
@@ -48,7 +53,7 @@ def make_grid(low, high, n):
     return list(np.linspace(low, high, num=n))
 
 def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir, exp_class, 
-                         exhaustive=True, ratio=0.5, n_trials=20, 
+                         exhaustive=True, ratio=0.5, n_trials=20, num_workers_each_trial=1,
                          num_runs=3, num_episodes=0, total_steps=0, 
                          seed_offset=1, study_name=None, storage=None,
                          args=None):
@@ -109,7 +114,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         
         # Run the experiment for the current trial.
         metrics = experiment.multi_run(num_episodes=num_episodes, num_runs=num_runs,
-                                       total_steps=total_steps,
+                                       total_steps=total_steps, num_workers=num_workers_each_trial,
                                        seed_offset=seed_offset, dump_metrics=True, 
                                        tuning_hp=tuning_hp)
         with open(f"{trial_dir}/agent.txt", "w") as file:
@@ -144,8 +149,20 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         sampler = GridSampler(hp_search_space)
     else:
         sampler = TPESampler()
-   
-    study = optuna.create_study(direction="minimize", sampler=sampler, study_name=study_name, load_if_exists=True, storage=storage)
+    
+    # study = optuna.create_study(direction="minimize", sampler=sampler, study_name=study_name, load_if_exists=True, storage=storage)
+    try:
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=sampler,
+            study_name=study_name,
+            storage=storage
+        )
+    except optuna.exceptions.DuplicatedStudyError:
+        study = optuna.load_study(
+            study_name=study_name,
+            storage=storage
+        )
     study.optimize(objective, n_trials=n_trials, n_jobs=1) 
 
     # Build the best hyper-parameters object from the best trial.
@@ -155,6 +172,8 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
 
 def main(hp_search_space):
     args = parse()
+    config_path = os.path.join("Configs", f"{args.config}.py")
+    config = load_config(config_path)
     runs_dir = f"Runs/Tune/"
     os.makedirs(runs_dir, exist_ok=True)
 
@@ -163,12 +182,12 @@ def main(hp_search_space):
         env_name     = args.env,
         num_envs     = args.num_envs,
         max_steps    = args.episode_max_steps,
-        env_params   = env_params,
-        wrapping_lst = env_wrapping,
-        wrapping_params = wrapping_params,
+        env_params   = config.env_params,
+        wrapping_lst = config.env_wrapping,
+        wrapping_params = config.wrapping_params,
         )
     # Instantiate agent using factory
-    agent_fn = lambda env: AGENT_DICT[args.agent](env)
+    agent_fn = lambda env: config.AGENT_DICT[args.agent](env)
     default_hp = agent_fn(env_fn()).hp
        
     # Select the experiment class based on the number of environments.
@@ -179,7 +198,7 @@ def main(hp_search_space):
         
     # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")    
     exp_name = f"{args.name_tag}_seed[{args.seed}]" #_{timestamp}
-    env_str = "_".join(f"{k}-{v}" for k, v in env_params.items())  # env param dictionary to str
+    env_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
     exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
     
@@ -197,6 +216,7 @@ def main(hp_search_space):
         exhaustive=args.exhaustive,
         ratio=args.metric_ratio,
         n_trials=args.num_trials,
+        num_workers_each_trial=args.num_workers_each_trial,
         num_runs=args.num_runs,
         num_episodes=args.num_episodes,
         total_steps=args.total_steps,

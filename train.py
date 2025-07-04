@@ -7,10 +7,13 @@ from functools import partial
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
 from RLBase.Environments import get_env, ENV_LST
-from config import AGENT_DICT, env_wrapping, wrapping_params, env_params
+from Configs.base_config import AGENT_DICT
+from Configs.loader import load_config
 
 def parse():
     parser = argparse.ArgumentParser()
+    # Config file name
+    parser.add_argument("--config", type=str, default="base_config", help="path to the experiment config file")
     # Agent type to run
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
     # Environment name
@@ -43,6 +46,8 @@ def parse():
 
 def main():
     args = parse()
+    config_path = os.path.join("Configs", f"{args.config}.py")
+    config = load_config(config_path)
     runs_dir = "Runs/Train/"
     os.makedirs(runs_dir, exist_ok=True)  
     
@@ -52,9 +57,9 @@ def main():
         num_envs     = args.num_envs,
         max_steps    = args.episode_max_steps,
         render_mode  = args.render_mode,
-        env_params   = env_params,
-        wrapping_lst = env_wrapping,
-        wrapping_params = wrapping_params,
+        env_params   = config.env_params,
+        wrapping_lst = config.env_wrapping,
+        wrapping_params = config.wrapping_params,
         )
     # Instantiate agent using factory
     agent_fn = lambda env: AGENT_DICT[args.agent](env)
@@ -63,13 +68,13 @@ def main():
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
-    env_str = "_".join(f"{k}-{v}" for k, v in env_params.items())  # env param dictionary to str
+    env_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
     exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
 
     # Choose experiment type based on number of environments
     if args.num_envs == 1:
-        experiment = LoggerExperiment(env_fn, agent_fn, exp_dir, config="config.py", args=args)
+        experiment = LoggerExperiment(env_fn, agent_fn, exp_dir, config=config_path, args=args)
     else:
         experiment = ParallelExperiment(env_fn, agent_fn, exp_dir)
     
