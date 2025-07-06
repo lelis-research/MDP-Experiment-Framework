@@ -2,7 +2,7 @@ import os
 import optuna
 
 # 1) Point to your DB file
-db_path = os.path.expanduser("Runs/Tune/MiniGrid-SimpleCrossingS9N1-v0_/A2C/grid_search_seed[1]/optuna_study.db")
+db_path = os.path.expanduser("Runs/Tune/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)/A2C/grid_search_seed[1]/optuna_study.db")
 storage_url = f"sqlite:///{db_path}"
 
 # 2) Load the study (use the same name_tag & seed you used when creating it)

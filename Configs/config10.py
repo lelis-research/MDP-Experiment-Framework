@@ -11,7 +11,7 @@ fc_network_1 = [
 
 
 env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed"]
-wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 1000}]
+wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 10000}]
 env_params = {}
 
 device="cpu" # cpu, mps, cuda

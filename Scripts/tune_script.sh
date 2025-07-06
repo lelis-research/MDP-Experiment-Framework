@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp
+#SBATCH --job-name=exp10
 #SBATCH --cpus-per-task=3   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=1G        # memory per node
-#SBATCH --time=0-02:30      # time (DD-HH:MM)
+#SBATCH --time=0-03:30      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=rrg-lelis
-#SBATCH --mail-user=aghakasi@ualberta.ca
-#SBATCH --mail-type=ALL
 #SBATCH --array=1-750
 
 set -euo pipefail
@@ -29,7 +27,7 @@ export FLEXIBLAS=imkl
 # Compute array‐task index
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
-CONFIG="config1"
+CONFIG="config10"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 

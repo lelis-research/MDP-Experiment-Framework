@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp
+#SBATCH --job-name=exp1
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=1G        # memory per node
-#SBATCH --time=0-10:00      # time (DD-HH:MM)
+#SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=rrg-lelis
 #SBATCH --mail-user=aghakasi@ualberta.ca
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-1
+#SBATCH --array=0-30
 
 set -euo pipefail
 
@@ -30,17 +30,17 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config1"
-AGENT="Random"
-ENV="MiniGrid-Empty-5x5-v0"
-NAME_TAG="test"
+AGENT="A2C"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
+NAME_TAG="$IDX"
 SEED=1
 NUM_WORKERS=1
 
-NUM_EPISODES=10
-NUM_RUNS=2
-TOTAL_STEPS=0
+NUM_EPISODES=0
+NUM_RUNS=1
+TOTAL_STEPS=1000000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=200
+EPISODE_MAX_STEPS=300
 
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false

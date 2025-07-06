@@ -13,7 +13,7 @@ from RLBase.Experiments import BaseExperiment, ParallelExperiment
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from Configs.base_config import AGENT_DICT
-from Configs.loader import load_config
+from Configs.loader import load_config, fmt_wrap
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -158,7 +158,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
             study_name=study_name,
             storage=storage
         )
-    except optuna.exceptions.OptunaError:
+    except:
         study = optuna.load_study(
             study_name=study_name,
             storage=storage
@@ -198,8 +198,9 @@ def main(hp_search_space):
         
     # timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")    
     exp_name = f"{args.name_tag}_seed[{args.seed}]" #_{timestamp}
-    env_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
-    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
+    env_params_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
+    wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(config.env_wrapping, config.wrapping_params))
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params_str}", wrappers_str, args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
     
     db_path = os.path.join(exp_dir, "optuna_study.db")
@@ -236,7 +237,6 @@ if __name__ == "__main__":
     hp_search_space = { #example for the exhaustive case
         "actor_step_size":  make_grid(0.001, 0.5, n),
         "critic_step_size": make_grid(0.001, 0.5, n),
-        "epsilon":          make_grid(0.01,  0.5, n),
         "rollout_steps":    list(range(1, 7)),
     }
     

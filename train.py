@@ -8,7 +8,7 @@ from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Experiments import LoggerExperiment, BaseExperiment, ParallelExperiment
 from RLBase.Environments import get_env, ENV_LST
 from Configs.base_config import AGENT_DICT
-from Configs.loader import load_config
+from Configs.loader import load_config, fmt_wrap
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -68,8 +68,9 @@ def main():
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
-    env_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
-    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_str}", args.agent, exp_name)
+    env_params_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
+    wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(config.env_wrapping, config.wrapping_params))
+    exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params_str}", wrappers_str, args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
 
     # Choose experiment type based on number of environments
