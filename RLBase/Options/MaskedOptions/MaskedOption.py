@@ -44,9 +44,20 @@ class LevinLossMaskedOptionLearner():
             self.masked_layers = self.maskable_layers
         
         self.mask_dict_size = self._get_mask_dict_size()
+    
+    def learn_transfer(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
+        pass
         
-        
-    def learn(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
+    def learn_decwhole(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
+        pass
+    
+    def learn_finetune(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
+        pass
+    
+    def learn_mask_grad(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
+        pass
+    
+    def learn_mask_bo(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
         self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
         
         # Compute total number of parameters for the list of mask_dicts
