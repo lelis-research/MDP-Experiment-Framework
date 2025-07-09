@@ -35,7 +35,7 @@ def parse():
     # Flag to store transitions during the experiment
     parser.add_argument("--store_transitions", action='store_true', help="store the transitions during the experiment")
     # Frequency of checking saving checkpoints
-    parser.add_argument("--checkpoint_freq", type=int, default=None, help="frequency of saving checkpoints")
+    parser.add_argument("--checkpoint_freq", type=int, default=0, help="frequency of saving checkpoints")
     # Add a name tag
     parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
     # Number of parallel workers
@@ -67,7 +67,7 @@ def main():
 
     # Define experiment name and directory with a timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_name = f"{args.name_tag}_seed[{args.seed}]_{timestamp}"
+    exp_name = f"{args.name_tag}_seed[{args.seed}]" # _{timestamp}"
     env_params_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
     wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(config.env_wrapping, config.wrapping_params))
     exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params_str}", wrappers_str, args.agent, exp_name)

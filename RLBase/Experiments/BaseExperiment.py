@@ -41,7 +41,7 @@ class BaseExperiment:
             os.makedirs(exp_dir, exist_ok=True)
             self.exp_dir = exp_dir
             if config is not None:
-                shutil.copy(config, exp_dir)
+                shutil.copy(config, os.path.join(exp_dir, "config.py"))
         
             # Save args
             file = os.path.join(self.exp_dir, "args.yaml")
@@ -103,7 +103,7 @@ class BaseExperiment:
                 "Return": metrics['ep_return'], 
                 "Steps": metrics['ep_length'],
             })
-            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         return all_metrics
@@ -203,7 +203,7 @@ class BaseExperiment:
             })
             
             # Checkpointing if desired
-            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         pbar.close()
@@ -231,9 +231,16 @@ class BaseExperiment:
             agent.set_hp(tuning_hp)
 
         if case_num == 1:
-            return self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
+            result = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
         else:
-            return self._single_run_steps(env, agent, total_steps, seed, run_idx)
+            result = self._single_run_steps(env, agent, total_steps, seed, run_idx)
+        
+        # Save agent
+        if self._checkpoint_freq is not None:
+            path = os.path.join(self.exp_dir, f"Run{run_idx}_Last")
+            agent.save(path)
+        
+        return result
         
     def multi_run(self, num_runs, 
                   num_episodes=0, total_steps=0,

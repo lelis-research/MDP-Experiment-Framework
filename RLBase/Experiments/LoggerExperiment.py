@@ -100,7 +100,7 @@ class LoggerExperiment(BaseExperiment):
                 "Return": metrics['ep_return'], 
                 "Steps": metrics['ep_length'],
             })
-            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         return all_metrics
@@ -206,7 +206,7 @@ class LoggerExperiment(BaseExperiment):
             })
             
             # Checkpointing if desired
-            if self._checkpoint_freq is not None and episode_idx % self._checkpoint_freq == 0:
+            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         pbar.close()
