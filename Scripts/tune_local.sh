@@ -36,7 +36,8 @@ NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
 METRIC_RATIO=0.5
-EXHAUSTIVE=false
+EXHAUSTIVE=true
+JUST_CREATE_STUDY=false
 
 #— Build CLI flags
 if [ "$EXHAUSTIVE" = true ]; then
@@ -45,7 +46,11 @@ else
   EXH_FLAG=""
 fi
 
-
+if [ "$JUST_CREATE_STUDY" = true ]; then
+  STD_FLAG="--just_create_study"
+else
+  STD_FLAG=""
+fi
 
 #— Finally, launch your experiment
 python tune_hp.py \
@@ -62,4 +67,5 @@ python tune_hp.py \
   --episode_max_steps "$EPISODE_MAX_STEPS" \
   --num_envs          "$NUM_ENVS" \
   --metric_ratio "$METRIC_RATIO" \
-  $EXH_FLAG
+  $EXH_FLAG \
+  $STD_FLAG

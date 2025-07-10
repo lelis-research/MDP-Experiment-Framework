@@ -219,9 +219,10 @@ def main(hp_search_space):
     db_path = os.path.join(exp_dir, "optuna_study.db")
     storage_url = f"sqlite:///{db_path}?timeout=60"
     
-    create_study(hp_search_space, exhaustive=args.exhaustive, 
-                 study_name=exp_name, storage=storage_url)
+    
     if args.just_create_study:
+        create_study(hp_search_space, exhaustive=args.exhaustive, 
+                 study_name=exp_name, storage=storage_url)
         print("Study successfully created.")
         exit(0)
     
