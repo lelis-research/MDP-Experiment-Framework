@@ -45,6 +45,9 @@ def parse():
     parser.add_argument("--metric_ratio", type=float, default=0.5, help="Ratio of the last episode to consider")
     # Exhaustive grid search instead of baysian optimization
     parser.add_argument("--exhaustive", action="store_true", help="If set, run an exhaustive grid search instead of TPE-based tuning")
+    # Just create the optuna study 
+    parser.add_argument("--just_create_study", action="store_true", help="Just create the optuna study")
+
     argcomplete.autocomplete(parser)
     return parser.parse_args()
 
@@ -141,7 +144,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         # Return negative reward for minimization.
         return -avg_reward
 
-    # Create and run the Optuna study.
+    
     if exhaustive:
         # for the grid sampler it will exhaust all combinations
         n_trials = 1 # For compute canada jobs
@@ -149,20 +152,15 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
         sampler = GridSampler(hp_search_space)
     else:
         sampler = TPESampler()
-    
-    # study = optuna.create_study(direction="minimize", sampler=sampler, study_name=study_name, load_if_exists=True, storage=storage)
-    try:
-        study = optuna.create_study(
+        
+    study = optuna.create_study(
             direction="minimize",
             sampler=sampler,
             study_name=study_name,
-            storage=storage
+            storage=storage,
+            load_if_exists=True,
         )
-    except:
-        study = optuna.load_study(
-            study_name=study_name,
-            storage=storage
-        )
+    
     study.optimize(objective, n_trials=n_trials, n_jobs=1) 
 
     # Build the best hyper-parameters object from the best trial.
@@ -170,6 +168,21 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
     best_hp = HyperParameters(**best_params)
     return best_hp, study
 
+def create_study(hp_search_space, exhaustive=True, study_name=None, storage=None):
+    # Create and run the Optuna study.
+    if exhaustive:
+        sampler = GridSampler(hp_search_space)
+    else:
+        sampler = TPESampler()
+        
+    study = optuna.create_study(
+            direction="minimize",
+            sampler=sampler,
+            study_name=study_name,
+            storage=storage,
+        )
+    return study
+    
 def main(hp_search_space):
     args = parse()
     config_path = os.path.join("Configs", f"{args.config}.py")
@@ -205,6 +218,12 @@ def main(hp_search_space):
     
     db_path = os.path.join(exp_dir, "optuna_study.db")
     storage_url = f"sqlite:///{db_path}?timeout=60"
+    
+    create_study(hp_search_space, exhaustive=args.exhaustive, 
+                 study_name=exp_name, storage=storage_url)
+    if args.just_create_study:
+        print("Study successfully created.")
+        exit(0)
     
     # Run hyperparameter tuning.
     best_hp, study = tune_hyperparameters(
@@ -248,10 +267,10 @@ if __name__ == "__main__":
     #     "rollout_steps":    (1, 4),
     # }
     
-    hp_search_space = { #example for the exhaustive case
-        "actor_step_size": (0.0001, 0.01),
-        "critic_step_size": (0.0001, 0.01),
-        "rollout_steps":    (1, 9),
+    hp_search_space = { 
+        "actor_step_size": [0.0001, 0.001, 0.01],
+        "critic_step_size": [0.0001, 0.001, 0.01],
+        "rollout_steps":    [1, 3, 5, 7, 9],
     }
     
     main(hp_search_space)

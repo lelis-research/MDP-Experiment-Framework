@@ -17,7 +17,7 @@ cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
 # module python/3.10
-source ENV/bin/activate
+source ~/ENV/bin/activate
 
 # Pin BLAS/OpenMP
 export OMP_NUM_THREADS=1
