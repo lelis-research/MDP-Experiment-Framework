@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp1
-#SBATCH --cpus-per-task=3   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=1G        # memory per node
-#SBATCH --time=0-01:00      # time (DD-HH:MM)
+#SBATCH --job-name=exp10
+#SBATCH --cpus-per-task=32   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
+#SBATCH --mem=32G        # memory per node
+#SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=def-lelis
-#SBATCH --array=1-45
+#SBATCH --array=1-1
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ export FLEXIBLAS=imkl
 # Compute array‐task index
 # IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
-CONFIG="config1"
+CONFIG="config10"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
@@ -42,10 +42,11 @@ NUM_WORKERS_EACH_TRIALS=3
 TOTAL_STEPS=200000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
+NUM_JOBS=45
 
 METRIC_RATIO=0.5
 EXHAUSTIVE=true
-JUST_CREATE_STUDY=true
+JUST_CREATE_STUDY=false
 # ------------------------------
 
 if [ "$EXHAUSTIVE" = true ]; then

@@ -7,6 +7,7 @@ import argcomplete
 import math
 from optuna.samplers import GridSampler, TPESampler
 from functools import partial
+from optuna.storages import RDBStorage
 
 from RLBase.Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from RLBase.Experiments import BaseExperiment, ParallelExperiment
@@ -31,6 +32,8 @@ def parse():
     parser.add_argument("--num_trials", type=int, default=None, help="number of Hyper-Params to try")
     # Number of workers to run parallel for each trial
     parser.add_argument("--num_workers_each_trial", type=int, default=None, help="number of workers per trial (useful for multiple runs for each trial)")
+    # Number of parallel jobs
+    parser.add_argument("--num_jobs", type=int, default=None, help="number of parallel jobs on optuna")
     # Number of runs per configuration
     parser.add_argument("--num_runs", type=int, default=2, help="number of runs per each Hyper-Params")
     # Number of total environment steps per run
@@ -57,7 +60,7 @@ def make_grid(low, high, n):
 
 def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir, exp_class, 
                          exhaustive=True, ratio=0.5, n_trials=20, num_workers_each_trial=1,
-                         num_runs=3, num_episodes=0, total_steps=0, 
+                         num_runs=3, num_episodes=0, total_steps=0, n_jobs=1,
                          seed_offset=1, study_name=None, storage=None,
                          args=None):
     """
@@ -161,7 +164,7 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
             load_if_exists=True,
         )
     
-    study.optimize(objective, n_trials=n_trials, n_jobs=1) 
+    study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs) 
 
     # Build the best hyper-parameters object from the best trial.
     best_params = study.best_trial.params
@@ -218,11 +221,14 @@ def main(hp_search_space):
     
     db_path = os.path.join(exp_dir, "optuna_study.db")
     storage_url = f"sqlite:///{db_path}?timeout=60"
-    
+    storage = RDBStorage(
+        url=storage_url,
+        engine_kwargs={"connect_args": {"timeout": 60}},
+    )
     
     if args.just_create_study:
         create_study(hp_search_space, exhaustive=args.exhaustive, 
-                 study_name=exp_name, storage=storage_url)
+                 study_name=exp_name, storage=storage)
         print("Study successfully created.")
         exit(0)
     
@@ -241,9 +247,10 @@ def main(hp_search_space):
         num_runs=args.num_runs,
         num_episodes=args.num_episodes,
         total_steps=args.total_steps,
+        n_jobs=args.num_jobs,
         seed_offset=args.seed,
         study_name=exp_name,
-        storage=storage_url,
+        storage=storage,
         args=args,
     )
 
