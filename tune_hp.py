@@ -150,8 +150,8 @@ def tune_hyperparameters(env_fn, agent_fn, default_hp, hp_search_space, exp_dir,
     
     if exhaustive:
         # for the grid sampler it will exhaust all combinations
-        n_trials = 1 # For compute canada jobs
-        # n_trials = math.prod(len(v) for v in hp_search_space.values()) # For single job
+        # n_trials = 1 # For compute canada jobs
+        n_trials = math.prod(len(v) for v in hp_search_space.values()) # For single job
         sampler = GridSampler(hp_search_space)
     else:
         sampler = TPESampler()
