@@ -70,6 +70,7 @@ python tune_hp.py \
   --num_trials  "$NUM_TRIALS" \
   --num_episodes "$NUM_EPISODES" \
   --num_runs    "$NUM_RUNS" \
+  --num_jobs "$NUM_JOBS" \
   --num_workers_each_trial "$NUM_WORKERS_EACH_TRIALS" \
   --total_steps "$TOTAL_STEPS" \
   --num_envs    "$NUM_ENVS" \
