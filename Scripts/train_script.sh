@@ -2,13 +2,13 @@
 #SBATCH --job-name=exp10
 #SBATCH --cpus-per-task=30   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=30G        # memory per node
-#SBATCH --time=0-05:00      # time (DD-HH:MM)
+#SBATCH --time=0-07:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=def-lelis
 #SBATCH --mail-user=aghakasi@ualberta.ca
 #SBATCH --mail-type=ALL
-#SBATCH --array=0-1
+#SBATCH --array=0
 
 set -euo pipefail
 

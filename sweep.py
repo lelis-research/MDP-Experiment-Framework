@@ -112,7 +112,7 @@ def main(hp_search_space):
     analyzer = SingleExpAnalyzer(metrics=metrics)
     analyzer.save_seeds(save_dir=trial_dir)
 
-    print(f"Done trial {args.idx+1}/{total}: {full_params}")
+    print(f"Done trial {args.idx+1}/{total}: {base_dict}")
     
 
 
