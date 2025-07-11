@@ -2,7 +2,7 @@
 #SBATCH --job-name=exp10
 #SBATCH --cpus-per-task=30   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=30G        # memory per node
-#SBATCH --time=0-03:00      # time (DD-HH:MM)
+#SBATCH --time=0-05:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=def-lelis
@@ -38,13 +38,13 @@ NUM_WORKERS=30
 
 NUM_EPISODES=0
 NUM_RUNS=30
-TOTAL_STEPS=1000000
+TOTAL_STEPS=500000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false
-CHECKPOINT_FREQ=         # integer (e.g. 1000), or leave empty for no checkpoints
+CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 
 # ------------------------------
 

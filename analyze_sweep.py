@@ -1,25 +1,24 @@
 """
 
-After running the grid sweep, this script reads each trial’s
-- metrics.pkl (pickled list of runs with episode dicts)
-- agent.txt   (string representation of the agent and its HyperParameters)
+After running the sweep.py, this script provides utilities to:
+  1) Report any trials that have not finished (missing METRICS_FILE or AGENT_FILE).
+  2) Find and display the best hyperparameter combination (overall and per-run averages).
 
-It computes the average reward over the last `metric_ratio` fraction of episodes
-for each run, then across runs, and reports the best hyperparameter set.
-
-Usage:
-    python analyze_sweep.py --runs-dir Runs/Sweep --metric_ratio 0.5
 """
 import os
-import argparse
 import pickle
 import numpy as np
 
 SYMLINK_PREFIX = 'trial_'  # prefix for trial directories
+METRICS_FILE = 'all_metrics.pkl'
+AGENT_FILE = 'agent.txt'
 
 
-
-def compute_avg_reward(metrics, ratio):
+def compute_run_avgs(metrics, ratio):
+    """
+    Compute average reward for each run over the last `ratio` fraction of episodes.
+    Returns a list of per-run averages.
+    """
     run_avgs = []
     for run in metrics:
         returns = [ep.get('ep_return', 0.0) for ep in run]
@@ -29,59 +28,97 @@ def compute_avg_reward(metrics, ratio):
             continue
         idx = int(n * ratio)
         idx = max(0, min(idx, n - 1))
-        run_avgs.append(np.mean(returns[idx:]))
+        run_avgs.append(float(np.mean(returns[idx:])))
+    return run_avgs
+
+
+def compute_avg_reward(metrics, ratio):
+    """
+    Compute overall average reward across runs using run-level averages.
+    """
+    run_avgs = compute_run_avgs(metrics, ratio)
     return float(np.mean(run_avgs)) if run_avgs else 0.0
 
 
-def main(exp_dir, ratio):
+def find_trials(exp_dir):
+    """
+    Return a sorted list of trial directory names under exp_dir.
+    """
+    return sorted(d for d in os.listdir(exp_dir) if d.startswith(SYMLINK_PREFIX))
 
-    # Find all trial directories
-    trials = sorted(d for d in os.listdir(exp_dir) if d.startswith(SYMLINK_PREFIX))
-    if not trials:
-        print(f"No trials found under {exp_dir}")
-        return
 
-    results = []  # list of (avg_reward, agent_str, trial_name)
-    for trial in trials:
+def check_incomplete_runs(exp_dir):
+    """
+    Identify trials missing metrics.pkl or agent.txt.
+    Returns a list of trial names that are incomplete.
+    """
+    incomplete = []
+    for trial in find_trials(exp_dir):
         trial_dir = os.path.join(exp_dir, trial)
-        metrics_file = os.path.join(trial_dir, 'metrics.pkl')
-        agent_file   = os.path.join(trial_dir, 'agent.txt')
+        files_ok = os.path.isfile(os.path.join(trial_dir, METRICS_FILE)) and \
+                   os.path.isfile(os.path.join(trial_dir, AGENT_FILE))
+        if not files_ok:
+            incomplete.append(trial)
+    return incomplete
 
-        if not os.path.isfile(metrics_file):
-            print(f"Warning: missing metrics.pkl in {trial_dir}")
-            continue
-        if not os.path.isfile(agent_file):
-            print(f"Warning: missing agent.txt in {trial_dir}")
-            continue
 
-        # Load metrics and agent string
-        with open(metrics_file, 'rb') as f:
+def find_best_hyperparameters(exp_dir, ratio):
+    """
+    Scan completed trials, compute run-level and overall average rewards,
+    and return (trial_name, agent_str, overall_avg, run_avgs).
+    """
+    results = []  # (overall_avg, run_avgs, agent_str, trial)
+    for trial in find_trials(exp_dir):
+        trial_dir = os.path.join(exp_dir, trial)
+        metrics_path = os.path.join(trial_dir, METRICS_FILE)
+        agent_path   = os.path.join(trial_dir, AGENT_FILE)
+        if not os.path.isfile(metrics_path) or not os.path.isfile(agent_path):
+            continue
+        with open(metrics_path, 'rb') as f:
             metrics = pickle.load(f)
-        with open(agent_file, 'r') as f:
+        with open(agent_path, 'r') as f:
             agent_str = f.read().strip()
-
-        # Compute average reward
-        avg_reward = compute_avg_reward(metrics, ratio)
-        results.append((avg_reward, agent_str, trial))
+        run_avgs = compute_run_avgs(metrics, ratio)
+        overall_avg = float(np.mean(run_avgs)) if run_avgs else 0.0
+        results.append((overall_avg, run_avgs, agent_str, trial))
 
     if not results:
-        print("No valid results to analyze.")
+        return None
+    return max(results, key=lambda x: x[0])
+
+
+def main(exp_dir, ratio):
+    # 1) Check incomplete trials
+    incomplete = check_incomplete_runs(exp_dir)
+    if incomplete:
+        print("Incomplete trials (missing files):")
+        for t in incomplete:
+            print(f"  {t}")
+    else:
+        print("All trials have metrics and agent info.")
+
+    # 2) Find best hyperparameters among completed
+    best = find_best_hyperparameters(exp_dir, ratio)
+    if best is None:
+        print("No completed trials found to analyze.")
         return
+    overall_avg, run_avgs, agent_str, trial_name = best
 
-    # Get best by max average reward
-    best_reward, best_agent, best_trial = max(results, key=lambda x: x[0])
+    print("\nBest hyperparameter combination:")
+    print(f"  Trial:          {trial_name}")
+    print(f"  Agent details:  {agent_str}")
+    print(f"  Overall avg:    {overall_avg:.6f}\n")
 
-    print("Best hyperparameter combination:")
-    print(f"  Trial:          {best_trial}")
-    print(f"  Agent details:  {best_agent}")
-    print(f"  Avg. reward:    {best_reward:.6f}\n")
+    # 3) Per-run averages
+    print("Per-run average rewards:")
+    for i, r in enumerate(run_avgs, 1):
+        print(f"  Run {i}: {r:.6f}")
 
-    # Optionally show sorted results
-    print("All trials sorted by avg reward (desc):")
-    for avg, agent, trial in sorted(results, key=lambda x: x[0], reverse=True):
-        print(f"  {trial}: reward={avg:.6f} -> {agent}")
 
 if __name__ == '__main__':
-    ratio = 0.5
-    exp_dir = ""
-    main(exp_dir=exp_dir, ratio=ratio)
+    # --- Configuration ---
+    exp_dir = "Runs/Sweep/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-4000)/A2C/GridSearch_seed[1]"
+    ratio   = 0.5
+    # ---------------------
+
+    main(exp_dir, ratio)
