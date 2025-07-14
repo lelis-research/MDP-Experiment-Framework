@@ -328,7 +328,7 @@ class BaseExperiment:
         Returns:
             list: A list of transitions collected across episodes and runs.
         """
-        metrics_file = os.path.join(exp_dir, "metrics.pkl")
+        metrics_file = os.path.join(exp_dir, "all_metrics.pkl")
         if not os.path.exists(metrics_file):
             raise FileNotFoundError(f"No metrics file found in {exp_dir}")
         with open(metrics_file, "rb") as f:
