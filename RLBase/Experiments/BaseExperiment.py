@@ -75,7 +75,7 @@ class BaseExperiment:
             transitions = []
             
             while not (terminated or truncated):
-                action = agent.act(observation)
+                action = agent.act(observation, greedy=not self._train)
                 next_observation, reward, terminated, truncated, info = env.step(action)
                 
                 if self._dump_transitions:
@@ -152,7 +152,7 @@ class BaseExperiment:
             # Step loop
             while not (terminated or truncated):
                 # Agent selects action
-                action = agent.act(observation)
+                action = agent.act(observation, greedy=not self._train)
                 
                 # Environment steps
                 next_observation, reward, terminated, truncated, info = env.step(action)

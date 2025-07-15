@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class NetworkMasker(nn.Module):
-    def __init__(self, original_net: nn.Module): #, mask_dict: nn.ParameterDict):
+    def __init__(self, original_net: nn.Module, mask_dict: dict):
         """
         Wraps an existing network so that, during the forward pass,
         the outputs of specified activation layers are masked.
@@ -13,82 +13,89 @@ class NetworkMasker(nn.Module):
         """
         super(NetworkMasker, self).__init__()
         self.network = original_net.network # Assuming original_net has one sequential module called network
+        assert self.is_mask_valid(mask_dict), "Mask layers are not in the network"
+        self.mask_dict = mask_dict
 
+    def is_mask_valid(self, mask_dict):
+        layers_names = []
+        for name, module in self.network.named_children():
+            layers_names.append(name)
+        for layer in mask_dict:
+            if layer not in layers_names+['input']:
+                return False
+        return True
 
-    def forward(self, x, mask_dict):
+    def forward(self, x):
         '''
         1: active
         -1: deactive
         0: part of the program
         '''
         # Assume the network is a Sequential.
-        if 'input' in mask_dict:
+        
+        if 'input' in self.mask_dict:
             # mask the input 
-            mask = mask_dict['input'].to(x.device) # (3, ...)
-                
-            probs = torch.softmax(mask, dim=0) # (3, ...)
-            idxs = probs.argmax(dim=0, keepdim=True)             # (1, ...)
-            hard = torch.zeros_like(probs).scatter_(0, idxs, 1)  # (3, ...)
+            mask = self.mask_dict['input']
             
-            # differentiable trick
-            m = hard.detach() - probs.detach() + probs # (3, ...)
-            p_act, p_deact, p_prog = m.unbind(0) # each (..., )
+            if not isinstance(mask, torch.Tensor):
+                mask_tensor = torch.tensor(mask, dtype=x.dtype, device=x.device)
+            else:
+                mask_tensor = mask.to(x.device)
             
-            # linear input (batch, features)
-            # image input (batch, channels, H, W)
-            shape = [1, -1] + [1] * (x.dim() - 2)
-            p_act   = p_act.view(*shape).expand_as(x)
-            p_deact = p_deact.view(*shape).expand_as(x)
-            p_prog  = p_prog.view(*shape).expand_as(x)
-            
-            active     = torch.ones_like(x)       # force 1
-            deactivate = torch.zeros_like(x)      # force 0
-            program    = x                        # leave as-is
-
-            x = p_act * active + p_deact * deactivate + p_prog * program
-            
+            if mask_tensor.dim() == 1:
+                if x.dim() == 2:
+                    # linear input (batch, features)
+                    mask_tensor = mask_tensor.unsqueeze(0).expand(x.size(0), -1)
+                elif x.dim() >2:
+                    # image input (batch, channels, H, W)
+                    mask_tensor = mask_tensor.view(1, -1, 1, 1).expand(x.size(0), -1, x.size(2), x.size(3))
+                else:
+                    raise ValueError("layer dimension for the mask is unknown")
+                    
+            x[mask_tensor == 1] = 1 #input 1 is active
+            x[mask_tensor == -1] = 0 #input 0 is inactive
+       
         for name, module in self.network.named_children():
             output = module(x)
-            if name in mask_dict:
+            if name in self.mask_dict:
                 # get masking with the correct dimensions
-                mask = mask_dict[name].to(x.device)
+                mask = self.mask_dict[name]
+                if not isinstance(mask, torch.Tensor):
+                    mask_tensor = torch.tensor(mask, dtype=x.dtype, device=x.device)
+                else:
+                    mask_tensor = mask.to(x.device)
                 
-                probs = torch.softmax(mask, dim=0) # (3, ...)
-                idxs = probs.argmax(dim=0, keepdim=True)             # (1, ...)
-                hard = torch.zeros_like(probs).scatter_(0, idxs, 1)  # (3, ...)
-                
-                # differentiable trick
-                m = hard.detach() - probs.detach() + probs # (3, ...)
-                p_act, p_deact, p_prog = m.unbind(0) # each (..., )
-                
-                # linear input (batch, features)
-                # image input (batch, channels, H, W)
-                shape = [1, -1] + [1] * (output.dim() - 2)
-                p_act   = p_act.view(*shape).expand_as(output)
-                p_deact = p_deact.view(*shape).expand_as(output)
-                p_prog  = p_prog.view(*shape).expand_as(output)
+                # Adjust mask shape based on output dimensions.
+                if mask_tensor.dim() == 1:
+                    if output.dim() == 2:
+                        # For linear layers: (batch, features) -> assume mask is per feature
+                        # Reshape mask to (1, features) and expand to (batch, features)
+                        mask_tensor = mask_tensor.unsqueeze(0).expand(output.size(0), -1)
+                    elif output.dim() > 2:
+                        # For conv layers: (batch, channels, H, W) -> assume mask is per channel.
+                        # Reshape mask to (1, channels, 1, 1) and expand to (batch, channels, H, W)
+                        mask_tensor = mask_tensor.view(1, -1, 1, 1).expand(output.size(0), -1, output.size(2), output.size(3))
+                    else:
+                        raise ValueError("layer dimension for the mask is unknown")
                 
 
                 # Depending on the activation type, adjust the output.
                 if isinstance(module, nn.ReLU) or isinstance(module, nn.LeakyReLU): # ReLU and LeakyReLU Masking
-                    active     = x
-                    deactivate = torch.zeros_like(output)
-                    program    = output
-        
+                    output = output.clone()
+                    output[mask_tensor == 1] = x[mask_tensor == 1]
+                    output[mask_tensor == -1] = 0.0
+                
                 elif isinstance(module, nn.Sigmoid): # Sigmoid Masking
-                    active     = torch.ones_like(output)   # force 1
-                    deactivate = torch.zeros_like(output)  # force 0
-                    program    = output                    # normal sigmoid
+                    output = output.clone()
+                    output[mask_tensor == 1] = 1.0
+                    output[mask_tensor == -1] = 0.0
                 
                 elif isinstance(module, nn.Tanh): # Tanh Masking
-                    active     = torch.ones_like(output)    # force +1
-                    deactivate = -torch.ones_like(output)   # force -1
-                    program    = output                     # normal tanh
+                    output = output.clone()
+                    output[mask_tensor == 1] = 1.0
+                    output[mask_tensor == -1] = -1.0
                 else:
                     raise ValueError("The layer is not a known activation layer")
-
-                output = p_act * active + p_deact * deactivate + p_prog * program
-
             x = output
         return x
     

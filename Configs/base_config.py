@@ -11,13 +11,13 @@ from RLBase.Agents.TabularAgent import (
     NStepQLearningAgent,
     SarsaAgent,
     DoubleQLearningAgent,
-    MaskedQLearningAgent
+    # MaskedQLearningAgent
 )
 from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
     DoubleDQNAgent,
     NStepDQNAgent,
-    MaskedDQNAgent,
+    # MaskedDQNAgent,
 )
 from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceAgent,
@@ -110,14 +110,14 @@ AGENT_DICT = {
         TabularFeature,
     ),
     
-    MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
-        get_num_envs(env),
-        TabularFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),        
-    ),
+    # MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
+    #     get_env_action_space(env), 
+    #     get_env_observation_space(env),
+    #     HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
+    #     get_num_envs(env),
+    #     TabularFeature,
+    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),        
+    # ),
     
     # Deep Agents
     DQNAgent.name: lambda env: DQNAgent(
@@ -132,19 +132,19 @@ AGENT_DICT = {
         FLattenFeature,
         device=device,
     ),
-    MaskedDQNAgent.name: lambda env: MaskedDQNAgent(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=10000, batch_size=128,
-                        target_update_freq=20,
-                        value_network=fc_network_1,
-                        ),
-        get_num_envs(env),
-        FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),
-        device=device
-    ),
+    # MaskedDQNAgent.name: lambda env: MaskedDQNAgent(
+    #     get_env_action_space(env), 
+    #     get_env_observation_space(env),
+    #     HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
+    #                     replay_buffer_cap=10000, batch_size=128,
+    #                     target_update_freq=20,
+    #                     value_network=fc_network_1,
+    #                     ),
+    #     get_num_envs(env),
+    #     FLattenFeature,
+    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),
+    #     device=device
+    # ),
 
     DoubleDQNAgent.name: lambda env: DoubleDQNAgent(
         get_env_action_space(env), 

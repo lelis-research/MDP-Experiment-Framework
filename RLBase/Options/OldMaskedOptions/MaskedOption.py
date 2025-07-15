@@ -12,20 +12,23 @@ import copy
 import nevergrad as ng
 
 class LevinLossMaskedOptionLearner():
-    def __init__(self, action_space, observation_space, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None):
+    "MaskedOptionLearner"
+    def __init__(self, action_space, observation_space, agent_lst=None, trajectories_lst=None, num_options=None, masked_layers=None):
         self.action_space = action_space
         self.observation_space = observation_space
         self.policy = None
         
-        self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
+        self.set_params(agent_lst, trajectories_lst, num_options, masked_layers)
         
 
-    def set_params(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None):
-        if policy is not None:
-            self.policy = copy.deepcopy(policy)
-            if not (hasattr(self.policy, 'select_action_masked') and callable(getattr(self.policy, 'select_action_masked'))):
-                self.policy.__class__ = POLICY_TO_MASKER[self.policy.__class__]  # Injects select_action_masked into the policy.
-            self.maskable_layers = self.policy.maskable_layers
+    def set_params(self, agent_lst=None, trajectories_lst=None, num_options=None, masked_layers=None):
+        if agent_lst is not None:
+            self.agent_lst = copy.deepcopy(agent_lst)
+            self.maskable_layers = []
+            for agent in self.agent_lst:
+                if not (hasattr(agent.policy, 'select_action_masked') and callable(getattr(agent.policy, 'select_action_masked'))):
+                    agent.__class__ = POLICY_TO_MASKER[agent.policy.__class__]  # Injects select_action_masked into the policy.
+                self.maskable_layers.append(agent.maskable_layers)
 
         if trajectories is not None:
             self.trajectories = trajectories
@@ -37,16 +40,13 @@ class LevinLossMaskedOptionLearner():
         if masked_layers is not None:
             self.masked_layers = masked_layers 
         
-        if feature_extractor is not None:
-            self.feature_extractor = copy.deepcopy(feature_extractor)
-        
-        if not hasattr(self, "masked_layers") and hasattr(self, "policy"):
+        if not hasattr(self, "masked_layers") and hasattr(self, "agent_lst"):
             self.masked_layers = self.maskable_layers
         
         self.mask_dict_size = self._get_mask_dict_size()
     
-    def learn_transfer(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
-        pass
+    def learn_transfer(self, policy=None, trajectories=None, num_options=None, verbose=True):
+        self.set_params(policy, trajectories, feature_extractor, num_options, masked_layers)
         
     def learn_decwhole(self, policy=None, trajectories=None, feature_extractor=None, num_options=None, masked_layers=None, search_budget=10, verbose=True):
         pass

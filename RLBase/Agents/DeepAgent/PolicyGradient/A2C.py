@@ -65,7 +65,7 @@ class A2CPolicyDiscrete(BasePolicy):
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
        
-    def select_action(self, state):
+    def select_action(self, state, greedy=False):
         """
         Sample an action from the actor's policy.
         
@@ -78,7 +78,10 @@ class A2CPolicyDiscrete(BasePolicy):
         state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
         logits = self.actor(state_t)
         dist = Categorical(logits=logits)
-        action_t = dist.sample()
+        if greedy:
+            action_t = torch.argmax(logits, dim=-1)
+        else:
+            action_t = dist.sample()
         return action_t.item()
 
     def update(self, states, actions, rewards, next_states, dones, call_back=None):
@@ -211,7 +214,7 @@ class A2CAgent(BaseAgent):
         # Rollout buffer stores transitions: (state, log_prob, reward, next_state, done)
         self.rollout_buffer = BasicBuffer(np.inf)
 
-    def act(self, observation):
+    def act(self, observation, greedy=False):
         """
         Select an action and store log_prob for later update.
         
@@ -222,7 +225,7 @@ class A2CAgent(BaseAgent):
             int: Chosen action.
         """
         state = self.feature_extractor(observation)
-        action = self.policy.select_action(state)
+        action = self.policy.select_action(state, greedy=greedy)
 
         self.last_state = state
         self.last_action = action

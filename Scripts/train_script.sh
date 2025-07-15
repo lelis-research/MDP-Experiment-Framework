@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=exp10
-#SBATCH --cpus-per-task=30   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=30G        # memory per node
-#SBATCH --time=0-07:00      # time (DD-HH:MM)
+#SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
+#SBATCH --mem=2G        # memory per node
+#SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
-#SBATCH --account=def-lelis
-#SBATCH --mail-user=aghakasi@ualberta.ca
-#SBATCH --mail-type=ALL
-#SBATCH --array=0
+#SBATCH --account=aip-lelis
+#SBATCH --array=0-29
 
 set -euo pipefail
 
@@ -33,11 +31,11 @@ CONFIG="config10"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 NAME_TAG="$IDX"
-SEED=1
-NUM_WORKERS=30
+SEED=$IDX
+NUM_WORKERS=1
 
 NUM_EPISODES=0
-NUM_RUNS=30
+NUM_RUNS=1
 TOTAL_STEPS=500000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300

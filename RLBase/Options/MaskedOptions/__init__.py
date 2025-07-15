@@ -1,4 +1,2 @@
+from .OptionLearner import MaskedOptionLearner
 from .NetworkMasker import NetworkMasker
-from .MaskedOption import LevinLossMaskedOptions, LevinLossMaskedOptionLearner
-from .PolicyMaskers import POLICY_TO_MASKER
-from .LevinLoss import levin_loss_on_trajectory

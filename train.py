@@ -62,7 +62,7 @@ def main():
         wrapping_params = config.wrapping_params,
         )
     # Instantiate agent using factory
-    agent_fn = lambda env: AGENT_DICT[args.agent](env)
+    agent_fn = lambda env: config.AGENT_DICT[args.agent](env)
 
 
     # Define experiment name and directory with a timestamp

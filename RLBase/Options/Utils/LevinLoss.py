@@ -1,6 +1,6 @@
 import math
 
-def levin_loss_on_trajectory(trajectory, options, num_actions):
+def discrete_levin_loss_on_trajectory(trajectory, options_lst, num_actions):
     """
     Calculates the Levin Loss for a given trajectory and a list of agents.
     
@@ -12,10 +12,10 @@ def levin_loss_on_trajectory(trajectory, options, num_actions):
     Returns:
         float: The computed Levin Loss.
     """
-    if options is None:
+    if options_lst is None:
         num_options = 0
     else:
-        num_options = options.n
+        num_options = len(options_lst)
 
     T = len(trajectory)
 
@@ -33,8 +33,8 @@ def levin_loss_on_trajectory(trajectory, options, num_actions):
             segment_length = 0
             while j + segment_length < T:
                 observation, true_action = trajectory[j + segment_length]
-                predicted_action = options.select_action(observation, index)
-                if predicted_action != true_action or options.is_terminated(observation):
+                predicted_action = options_lst[index].select_action(observation)
+                if predicted_action != true_action or options_lst[index].is_terminated(observation):
                     break
                 segment_length += 1
             # If the agent can cover at least one transition:
