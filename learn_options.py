@@ -1,9 +1,14 @@
  
 import os
 import argparse
+import torch
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 from RLBase import load_option, load_agent, load_policy
+from RLBase.Options.Utils import save_options_list, load_options_list
 from Configs.loader import load_config
+
+
 
 def parse():
     parser = argparse.ArgumentParser(description="Parser for mask search variables")
@@ -20,6 +25,20 @@ def parse():
     # Random seed for reproducibility
     parser.add_argument("--seed", type=int, default=123123, help="Random seed for reproducibility")
     
+    # Experiment paths (one or more)
+    parser.add_argument("--exp_path_lst", type=str, nargs='+', required=True, help="List of experiment directory paths")
+    
+    # Corresponding run indices (one or more)
+    parser.add_argument("--run_ind_lst", type=int, nargs='+', required=True, help="List of run indices for each experiment path")
+    
+    #Number of workers
+    parser.add_argument("--num_workers", type=int, default=1, help="Number of workers for parallelization")
+    
+    args = parser.parse_args()
+    if len(args.exp_path_lst) != len(args.run_ind_lst):
+        parser.error("--exp_path_lst and --run_ind_lst must have the same number of elements")
+    return args
+    
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -32,20 +51,6 @@ if __name__ == "__main__":
     exp_dir = os.path.join(runs_dir, args.option_type, args.name_tag)
     os.makedirs(exp_dir, exist_ok=True)
 
-    
-    exp_path_lst = ["Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/0_seed[0]",
-                     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/A2C/0_seed[0]",
-                     ]
-    run_ind_lst = [1, 1]
-    option_learner = config.OPTION_DICT[args.option_type](exp_path_lst, run_ind_lst)
-    options = option_learner.learn(verbose=True, seed=args.seed) 
-    exit(0)
+    option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst)
+    options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
 
-
-    #Store Options
-    option_path = os.path.join(exp_dir, "options.t") 
-    options.save(option_path)
-
-    #Load Options
-    options = load_option(f"{option_path}_options.t")
-    print("Number of Loaded Options:",  options.n)

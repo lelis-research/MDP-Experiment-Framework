@@ -3,7 +3,8 @@ import numpy as np
 from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
 from minigrid.core.constants import IDX_TO_OBJECT
-
+from minigrid.core.constants import COLOR_NAMES
+from minigrid.core.world_object import Ball, Box, Wall
 # RewardWrapper that adds a constant step reward to the environment's reward.
 class StepRewardWrapper(RewardWrapper):
     def __init__(self, env, step_reward=0):
@@ -72,7 +73,43 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
         new_obs = np.concatenate((one_hot, one_hot_dir))
         return new_obs
 
-    
+
+# A Wrapper that randomly adds distractions (in this case balls) to the environment
+# The seed will fix the position of these distractions across different resets
+class FixedRandomDistractorWrapper(gym.Wrapper):
+    def __init__(self, env, num_distractors=50, seed=42):
+        super().__init__(env)
+        self.num_distractors = num_distractors
+        # pre-sample the distractor positions + colors once
+        rng = np.random.RandomState(seed)
+        base = self.env.unwrapped
+        W, H = base.width, base.height
+
+        self._distractors = []
+        placed = 0
+        attempts = 0
+        while placed < num_distractors and attempts < 1000:
+            x, y = rng.randint(1, W-1), rng.randint(1, H-1)
+            if base.grid.get(x, y) is None:
+                color = rng.choice(COLOR_NAMES)
+                self._distractors.append((x, y, color))
+                placed += 1
+            attempts += 1
+
+        if placed < num_distractors:
+            print(f"[Warning] Only sampled {placed}/{num_distractors} distractor spots")
+
+    def reset(self, **kwargs):
+        obs = self.env.reset(**kwargs)
+
+        # apply the *same* distractors back onto the new grid
+        base = self.env.unwrapped
+        for x, y, color in self._distractors:
+            # only place if still empty (should be)
+            if base.grid.get(x, y) is None:
+                base.put_obj(Ball(color), x, y)
+
+        return obs
 
     
 # Dictionary mapping string keys to corresponding wrapper classes.
@@ -83,4 +120,5 @@ WRAPPING_TO_WRAPPER = {
     "CompactAction": CompactActionWrapper,
     "FlattenOnehotObj": FlatOnehotObjectObsWrapper,
     "FixedSeed": FixedSeedWrapper,
+    "FixedRandomDistractor": FixedRandomDistractorWrapper,
 }

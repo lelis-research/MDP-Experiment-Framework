@@ -1,6 +1,7 @@
 from ..Utils import BaseOption
 from ..Utils import discrete_levin_loss_on_trajectory
 from ...registry import register_option
+from ..Utils import save_options_list, load_options_list
 
 import random
 import torch
@@ -10,6 +11,7 @@ import copy
 from multiprocessing import Pool
 import torch.nn as nn
 import torch.optim as optim
+import os
 
 class FineTuneOptionLearner():
     name="FineTuneOptionLearner"
@@ -29,14 +31,52 @@ class FineTuneOptionLearner():
         if hyper_params is not None:
             self.hyper_params = hyper_params
     
-    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None):
+    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None, num_workers=1, exp_dir=None):
+        self.num_workers = num_workers
+        self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
-        sub_trajectory_lst = self._get_all_sub_trajectories()
-        self.options_lst = self._get_all_options(sub_trajectory_lst, verbose)
-        self.selected_options_lst, best_loss = self._select_options_hc(seed=seed)
+        
+        if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, "sub_trajectories.t")):
+            print("Loading sub-trajectories")
+            sub_trajectory_lst = torch.load(os.path.join(self.exp_dir, "sub_trajectories.t"), weights_only=False)
+            print(f"Number of loaded sub-trajectories: {len(sub_trajectory_lst)}")
+        else:
+            print("Extracting sub-trajectories")
+            sub_trajectory_lst = self._get_all_sub_trajectories()
+            torch.save(sub_trajectory_lst, os.path.join(self.exp_dir, "sub_trajectories.t"))
+            print(f"Number of extracted sub-trajectories: {len(sub_trajectory_lst)}")
+
+
+        
+        if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, "all_options.t")):
+            print("Loading all options")
+            self.options_lst = load_options_list(os.path.join(self.exp_dir, "all_options.t"))
+            print(f"Number of loaded options: {len(self.options_lst)}")
+        else:
+            print("Training all options")
+            self.options_lst = self._get_all_options(sub_trajectory_lst, verbose)
+            save_options_list(self.options_lst, os.path.join(self.exp_dir, "all_options.t"))
+            print(f"Number of trained options: {len(self.options_lst)}")
+
+
+        
+        if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t")):
+            print("Loading selected options")
+            self.selected_options_lst = load_options_list(os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t"))
+            print(f"Number of loaded selected options: {len(self.selected_options_lst)}")
+        else:
+            print("Selecting from all options")
+            self.selected_options_lst, best_loss = self._select_options_hc(seed=seed)
+            save_options_list(self.selected_options_lst, os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t"))
+            print(f"Number of selected options: {len(self.selected_options_lst)}")
+
+
+        print(" ******** ")
         if verbose:
             print(f"Total options after selected: {len(self.selected_options_lst)}")
+            best_loss = sum([discrete_levin_loss_on_trajectory(trajectory, self.selected_options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
             print(f"Selected Levin Loss: {best_loss}")
+        return self.selected_options_lst
         
     def _get_all_sub_trajectories(self):
         sub_trajectory_lst = []
@@ -78,7 +118,7 @@ class FineTuneOptionLearner():
                 return None
         return FineTuneOption(feature_extractor, policy, len(traj))
     
-    def _get_all_options(self, sub_trajectory_lst, verbose, num_workers=4):
+    def _get_all_options(self, sub_trajectory_lst, verbose):
         options_lst = []
         num_useless_finetunes = 0
         
@@ -96,7 +136,7 @@ class FineTuneOptionLearner():
                     tasks.append((policy, feature_extractor, traj))
         
         # parallel map
-        with Pool(processes=num_workers) as pool:
+        with Pool(processes=self.num_workers) as pool:
             for opt in tqdm(
                 pool.imap_unordered(self._one_fine_tune, tasks),
                 total=len(tasks),
@@ -154,7 +194,7 @@ class FineTuneOptionLearner():
 
         return best_subset, best_loss
     
-    def _select_options_hc(self, seed, num_workers=4):
+    def _select_options_hc(self, seed):
         """
         Parallelized over restarts.
         """
@@ -163,7 +203,7 @@ class FineTuneOptionLearner():
 
         best_subset, best_loss = [], float('inf')
 
-        with Pool(processes=num_workers) as pool:
+        with Pool(processes=self.num_workers) as pool:
             for subset_r, loss_r in tqdm(
                 pool.imap_unordered(self._one_restart, tasks),
                 total=self.hyper_params.n_restarts,

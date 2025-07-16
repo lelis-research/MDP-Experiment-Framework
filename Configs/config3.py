@@ -10,8 +10,8 @@ fc_network_1 = [
 ]
 
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed"]
-wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 3000}]
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed", "FixedRandomDistractor"]
+wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 3000}, {"num_distractors": 10, "seed": 64}]
 env_params = {}
 
 device="cpu" # cpu, mps, cuda

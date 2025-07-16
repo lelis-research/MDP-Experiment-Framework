@@ -46,3 +46,6 @@ def load_feature_extractor(file_path, checkpoint=None):
     if feature_extractor_cls is None:
         raise ValueError(f"Unknown feature extractor class: {feature_extractor_class_name}")
     return feature_extractor_cls.load_from_file(file_path, checkpoint=checkpoint)
+
+
+

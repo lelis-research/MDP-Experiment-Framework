@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp10
-#SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=2G        # memory per node
+#SBATCH --job-name=FineTune
+#SBATCH --cpus-per-task=12   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
+#SBATCH --mem=64G        # memory per node
 #SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
@@ -28,16 +28,31 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_options"
-OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="$IDX"
+OPTION_TYPE="FineTuneOptionLearner"
+NAME_TAG="MaxOptionLen_20_$IDX"
 SEED=$IDX
+EXP_PATH_LIST=(
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-3000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-4000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-6000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-7000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-8000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-9000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)/A2C/${IDX}_seed[${IDX}]"
+)
+RUN_IND_LIST=(1 1 1 1 1 1 1 1 1 1)
+NUM_WORKERS=8
+# ----------------------------------
 
-# ------------------------------
-
-
-
+# Invoke Python script with all arguments
 python learn_options.py \
   --config            "$CONFIG" \
-  --option_type       "$OPTION_TYPE"\
+  --option_type       "$OPTION_TYPE" \
   --seed              "$SEED" \
   --name_tag          "$NAME_TAG" \
+  --exp_path_lst      "${EXP_PATH_LIST[@]}" \
+  --run_ind_lst       "${RUN_IND_LIST[@]}" \
+  --num_workers        "$NUM_WORKERS"

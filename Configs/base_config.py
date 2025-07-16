@@ -57,8 +57,8 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed"]
-wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 1000}]
+env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed", "FixedRandomDistractor"]
+wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 1000}, {"num_distractors": 10, "seed": 100}]
 env_params = {}#{"chain_length": 40}
 
 device="cpu" # cpu, mps, cuda#

@@ -7,7 +7,7 @@ from RLBase import load_policy, load_agent
 
 
 if __name__ == "__main__":
-    exp_name = "MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/0_seed[1]/"
+    exp_name = "MiniGrid-Empty-5x5-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/_seed[123123]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 

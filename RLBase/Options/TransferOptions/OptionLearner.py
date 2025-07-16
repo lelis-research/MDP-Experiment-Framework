@@ -1,16 +1,16 @@
 from ..Utils import BaseOption
 from ..Utils import discrete_levin_loss_on_trajectory
 from ...registry import register_option
+from ..Utils import save_options_list, load_options_list
 
 import random
 import torch
 import copy
-
+import os
 class TransferOptionLearner():
     name="TransferOptionLearner"
     def __init__(self, agent_lst=None, trajectories_lst=None, hyper_params=None):
         self.set_params(agent_lst, trajectories_lst, hyper_params)
-        
 
     def set_params(self, agent_lst=None, trajectories_lst=None, hyper_params=None):
         if agent_lst is not None:
@@ -25,10 +25,21 @@ class TransferOptionLearner():
             self.hyper_params = hyper_params
         
       
-    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None):
+    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None, num_workers=1, exp_dir=None):
+        self.num_workers = num_workers
+        self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
-        self.options_lst = self._get_all_options(verbose)
         
+        if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, "all_options.t")):
+            print("Loading all options")
+            self.options_lst = load_options_list(os.path.join(self.exp_dir, "all_options.t"))
+            print(f"Number of loaded options: {len(self.options_lst)}")
+        else:
+            print("Training all options")
+            self.options_lst = self._get_all_options(verbose)
+            save_options_list(self.options_lst, os.path.join(self.exp_dir, "all_options.t"))
+            
+                    
         return self.options_lst
     
     def _get_all_options(self, verbose):
@@ -37,10 +48,10 @@ class TransferOptionLearner():
             print(f"Original Levin Loss: {self.org_loss}")
             
         for agent in self.agent_lst:
-            for option_len in range(1, self.hyper_params.max_option_len):
-                option = DecWholeOption(agent.feature_extractor, agent.policy, option_len)
+            for option_len in range(1, self.hyper_params.max_option_len + 1):
+                option = TransferOption(agent.feature_extractor, agent.policy, option_len)
                 options_lst.append(option)
-                
+
         new_loss = sum([discrete_levin_loss_on_trajectory(trajectory, options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
         if verbose:
             print(f"Total options before selection: {len(options_lst)}")
