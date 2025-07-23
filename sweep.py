@@ -4,13 +4,14 @@ import os
 import numpy as np
 from functools import partial
 import pickle
+import json
 
 from RLBase.Agents.Utils import HyperParameters
 from RLBase.Experiments import BaseExperiment, ParallelExperiment
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from Configs.loader import load_config, fmt_wrap
-from Configs.base_config import AGENT_DICT
+from Configs.config_agents_base import AGENT_DICT
 
 
 def parse_args():
@@ -18,11 +19,17 @@ def parse_args():
     parser.add_argument('--idx', type=int, required=True,
                    help='SLURM_ARRAY_TASK_ID')
      # Config file name
-    parser.add_argument("--config", type=str, default="base_config", help="path to the experiment config file")
+    parser.add_argument("--config", type=str, default="config_agents_base", help="path to the experiment config file")
     # Agent type to run
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
     # Environment name
     parser.add_argument("--env", type=str, default="MiniGrid-Empty-5x5-v0", choices=ENV_LST, help="which environment")
+    # List of wrappers for the environment
+    parser.add_argument("--env_wrapping",   type=json.loads, default="[]", help="list of wrappers")
+    # A list of dictionary of the parameters for each wrapper
+    parser.add_argument("--wrapping_params", type=json.loads, default="[]", help="list of dictionary represeting the parameters for each wrapper")
+    # A dictionary of the environment parameters
+    parser.add_argument("--env_params",     type=json.loads, default="{}", help="dictionary of the env parameters")
     # Add a name tag
     parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
     # seed for reproducibility
@@ -39,6 +46,8 @@ def parse_args():
     parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
     # Number of workers to run parallel for each trial
     parser.add_argument('--num_workers',  type=int, default=1)
+    # Info for agent specification
+    parser.add_argument("--info", type=json.loads, help='JSON dict, e.g. \'{"lr":0.001,"epochs":10}\'')
     return parser.parse_args()
 
 
@@ -68,11 +77,11 @@ def main(hp_search_space):
         env_name     = args.env,
         num_envs     = args.num_envs,
         max_steps    = args.episode_max_steps,
-        env_params   = config.env_params,
-        wrapping_lst = config.env_wrapping,
-        wrapping_params = config.wrapping_params,
+        env_params   = args.env_params,
+        wrapping_lst = args.env_wrapping,
+        wrapping_params = args.wrapping_params,
     )
-    agent_fn = lambda env: config.AGENT_DICT[args.agent](env)
+    agent_fn = lambda env: config.AGENT_DICT[args.agent](env, args.info)
     
     # get the default params and the tuning
     default_hp = agent_fn(env_fn()).hp
@@ -84,8 +93,8 @@ def main(hp_search_space):
     exp_class = BaseExperiment if args.num_envs == 1 else ParallelExperiment
     
     exp_name = f"{args.name_tag}_seed[{args.seed}]" #_{timestamp}
-    env_params_str = "_".join(f"{k}-{v}" for k, v in config.env_params.items())  # env param dictionary to str
-    wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(config.env_wrapping, config.wrapping_params))
+    env_params_str = "_".join(f"{k}-{v}" for k, v in args.env_params.items())  # env param dictionary to str
+    wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(args.env_wrapping, args.wrapping_params))
     exp_dir = os.path.join(runs_dir, f"{args.env}_{env_params_str}", wrappers_str, args.agent, exp_name)
     os.makedirs(exp_dir, exist_ok=True)
 
@@ -117,10 +126,16 @@ def main(hp_search_space):
 
 
 if __name__ == '__main__':
+    # hp_search_space = {
+    #     'step_size':   [0.0001, 0.001, 0.01],
+    #     'epsilon':  [0.1, 0.01, 0.001],
+    #     'batch_size':     [128, 256],
+    #     'target_update_freq': [20, 200]
+    # }
     hp_search_space = {
         'actor_step_size':   [0.0001, 0.001, 0.01],
         'critic_step_size':  [0.0001, 0.001, 0.01],
-        'rollout_steps':     [1, 3, 5, 7, 9],
+        'rollout_steps':     [5, 10, 20],
     }
     
     main(hp_search_space)

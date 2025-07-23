@@ -8,22 +8,28 @@ import math
 from optuna.samplers import GridSampler, TPESampler
 from functools import partial
 from optuna.storages import RDBStorage
-
+import json
 from RLBase.Agents.Utils import HyperParameters  # For handling hyper-parameter objects
 from RLBase.Experiments import BaseExperiment, ParallelExperiment
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
-from Configs.base_config import AGENT_DICT
+from Configs.config_agents_base import AGENT_DICT
 from Configs.loader import load_config, fmt_wrap
 
 def parse():
     parser = argparse.ArgumentParser()
     # Config file name
-    parser.add_argument("--config", type=str, default="base_config", help="path to the experiment config file")
+    parser.add_argument("--config", type=str, default="config_agents_base", help="path to the experiment config file")
     # Agent type to run
     parser.add_argument("--agent", type=str, default="Random", choices=list(AGENT_DICT.keys()), help="Which agent to run")
     # Environment name
     parser.add_argument("--env", type=str, default="MiniGrid-Empty-5x5-v0", choices=ENV_LST, help="which environment")
+    # List of wrappers for the environment
+    parser.add_argument("--env_wrapping",   type=json.loads, default="[]", help="list of wrappers")
+    # A list of dictionary of the parameters for each wrapper
+    parser.add_argument("--wrapping_params", type=json.loads, default="[]", help="list of dictionary represeting the parameters for each wrapper")
+    # A dictionary of the environment parameters
+    parser.add_argument("--env_params",     type=json.loads, default="{}", help="dictionary of the env parameters")
     # Add a name tag
     parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
     # Random seed for reproducibility
@@ -50,6 +56,8 @@ def parse():
     parser.add_argument("--exhaustive", action="store_true", help="If set, run an exhaustive grid search instead of TPE-based tuning")
     # Just create the optuna study 
     parser.add_argument("--just_create_study", action="store_true", help="Just create the optuna study")
+    # Info for agent specification
+    parser.add_argument("--info", type=json.loads, help='JSON dict, e.g. \'{"lr":0.001,"epochs":10}\'')
 
     argcomplete.autocomplete(parser)
     return parser.parse_args()
@@ -198,12 +206,12 @@ def main(hp_search_space):
         env_name     = args.env,
         num_envs     = args.num_envs,
         max_steps    = args.episode_max_steps,
-        env_params   = config.env_params,
-        wrapping_lst = config.env_wrapping,
-        wrapping_params = config.wrapping_params,
+        env_params   = args.env_params,
+        wrapping_lst = args.env_wrapping,
+        wrapping_params = args.wrapping_params,
         )
     # Instantiate agent using factory
-    agent_fn = lambda env: config.AGENT_DICT[args.agent](env)
+    agent_fn = lambda env, info: config.AGENT_DICT[args.agent](env, args.info)
     default_hp = agent_fn(env_fn()).hp
        
     # Select the experiment class based on the number of environments.

@@ -35,8 +35,10 @@ class DQNPolicy(BasePolicy):
     def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
+        self.action_dim = int(action_space.n) #Only for discrete actions
+
          
-    def select_action(self, state):
+    def select_action(self, state, greedy=False):
         """
         Select an action using epsilon-greedy policy.
         
@@ -45,8 +47,8 @@ class DQNPolicy(BasePolicy):
         
         Returns:
             int: Selected action.
-        """
-        if random.random() < self.hp.epsilon:
+        """            
+        if random.random() < self.hp.epsilon and not greedy:
             return self.action_space.sample()
         else:
             state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
@@ -131,7 +133,6 @@ class DQNPolicy(BasePolicy):
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
             
-            'action_dim': self.action_dim,            
             'policy_class': self.__class__.__name__,
         }
         if file_path is not None:
@@ -193,7 +194,7 @@ class DQNAgent(BaseAgent):
             device=device
         )
         
-    def act(self, observation):
+    def act(self, observation, greedy=False):
         """
         Select an action based on the current observation.
         
@@ -204,7 +205,7 @@ class DQNAgent(BaseAgent):
             int: Selected action.
         """
         state = self.feature_extractor(observation)
-        action = self.policy.select_action(state)
+        action = self.policy.select_action(state, greedy=greedy)
         self.last_state = state
         self.last_action = action
         return action

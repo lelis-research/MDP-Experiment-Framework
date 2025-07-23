@@ -23,9 +23,9 @@ if __name__ == "__main__":
         num_envs=args.num_envs,
         max_steps=args.episode_max_steps,
         render_mode="rgb_array_list", #args.render_mode,
-        env_params=config.env_params,
-        wrapping_lst=config.env_wrapping,
-        wrapping_params=config.wrapping_params,
+        env_params=args.env_params,
+        wrapping_lst=args.env_wrapping,
+        wrapping_params=args.wrapping_params,
     )
     agent = load_agent(os.path.join(train_path, "Run1_Last_agent.t"))
     

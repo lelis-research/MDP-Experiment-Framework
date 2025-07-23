@@ -12,7 +12,7 @@ import copy
 from multiprocessing import Pool
 import os
 
-class DecWholeOptionsLearner():
+class DecWholeOptionLearner():
     name="DecWholeOptionLearner"
     def __init__(self, agent_lst=None, trajectories_lst=None, hyper_params=None):
         self.set_params(agent_lst, trajectories_lst, hyper_params)

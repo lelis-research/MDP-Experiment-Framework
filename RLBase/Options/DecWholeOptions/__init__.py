@@ -1,1 +1,1 @@
-from .OptionLearner import DecWholeOptionsLearner
+from .OptionLearner import DecWholeOptionLearner

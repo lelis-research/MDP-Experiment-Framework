@@ -5,7 +5,7 @@ from RLBase.Agents.Utils import (
     HyperParameters,
 )
 from RLBase.Options.TransferOptions import TransferOptionLearner
-from RLBase.Options.DecWholeOptions import DecWholeOptionsLearner
+from RLBase.Options.DecWholeOptions import DecWholeOptionLearner
 from RLBase.Options.FineTuneOptions import FineTuneOptionLearner
 from RLBase.Options.MaskedOptions import MaskedOptionLearner
 from RLBase.Experiments import BaseExperiment
@@ -28,9 +28,9 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
             num_envs=args.num_envs,
             max_steps=args.episode_max_steps,
             render_mode="rgb_array_list", #args.render_mode,
-            env_params=config.env_params,
-            wrapping_lst=config.env_wrapping,
-            wrapping_params=config.wrapping_params,
+            env_params=args.env_params,
+            wrapping_lst=args.env_wrapping,
+            wrapping_params=args.wrapping_params,
         )
         
         experiment = BaseExperiment(env, agent, config=config, args=args, train=False)
@@ -53,30 +53,30 @@ device = "cpu" #cpu, mps, cuda
 
 
 OPTION_DICT = {
-    TransferOptionLearner.name: lambda exp_path_lst, run_ind_lst: TransferOptionLearner(
+    TransferOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: TransferOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
         hyper_params = HyperParameters(max_option_len=1)),
     
-    DecWholeOptionsLearner.name: lambda exp_path_lst, run_ind_lst: DecWholeOptionsLearner(
+    DecWholeOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: DecWholeOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
         hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
                                        n_neighbours=50, n_restarts=300, n_iteration=200)),
     
-    FineTuneOptionLearner.name: lambda exp_path_lst, run_ind_lst: FineTuneOptionLearner(
+    FineTuneOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: FineTuneOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
         hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
                                        n_neighbours=50, n_restarts=300, n_iteration=200,
                                        n_epochs=300, actor_lr=5e-4)),
     
-    MaskedOptionLearner.name: lambda exp_path_lst, run_ind_lst: MaskedOptionLearner(
+    MaskedOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: MaskedOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
         hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
                                        n_neighbours=50, n_restarts=300, n_iteration=200,
                                        n_epochs=300, mask_lr=5e-4, 
-                                       masked_layers=['input', '1'])),
+                                       masked_layers=info["masked_layers"])),
 }
    

@@ -2,6 +2,7 @@
 import os
 import argparse
 import torch
+import json
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 from RLBase import load_option, load_agent, load_policy
@@ -17,7 +18,7 @@ def parse():
     parser.add_argument("--option_type", type=str, default="MaskedOptionLearner", help="type of options")
     
     # Config file name
-    parser.add_argument("--config", type=str, default="config_options", help="path to the experiment config file")
+    parser.add_argument("--config", type=str, default="config_options_base", help="path to the experiment config file")
     
     # Add a name tag
     parser.add_argument("--name_tag", type=str, default="", help="name tag for experiment folder")
@@ -33,6 +34,9 @@ def parse():
     
     #Number of workers
     parser.add_argument("--num_workers", type=int, default=1, help="Number of workers for parallelization")
+    
+    # Info for agent specification
+    parser.add_argument("--info", type=json.loads, help='JSON dict, e.g. \'{"masked_layers":["input","1"]}\'')
     
     args = parser.parse_args()
     if len(args.exp_path_lst) != len(args.run_ind_lst):
@@ -51,6 +55,6 @@ if __name__ == "__main__":
     exp_dir = os.path.join(runs_dir, args.option_type, args.name_tag)
     os.makedirs(exp_dir, exist_ok=True)
 
-    option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst)
+    option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
     options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
 

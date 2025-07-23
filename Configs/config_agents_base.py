@@ -17,7 +17,7 @@ from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
     DoubleDQNAgent,
     NStepDQNAgent,
-    # MaskedDQNAgent,
+    OptionDQNAgent,
 )
 from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceAgent,
@@ -25,7 +25,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     A2CAgent,
     PPOAgent,
 )
-from RLBase import load_option
+from RLBase.Options.Utils import load_options_list
 
 
 def get_env_action_space(env):
@@ -57,23 +57,19 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
-env_wrapping= ["ViewSize", "FlattenOnehotObj", "FixedSeed", "FixedRandomDistractor"]
-wrapping_params = [{"agent_view_size": 9}, {}, {"seed": 1000}, {"num_distractors": 10, "seed": 100}]
-env_params = {}#{"chain_length": 40}
-
 device="cpu" # cpu, mps, cuda#
 
 AGENT_DICT = {
-    HumanAgent.name: lambda env: HumanAgent(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
-        get_num_envs(env),
-        FLattenFeature,
-        initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['input']_S100_options.t"),
-        device=device
-    ),
-    RandomAgent.name: lambda env: RandomAgent(
+    # HumanAgent.name: lambda env: HumanAgent(
+    #     get_env_action_space(env), 
+    #     get_env_observation_space(env),
+    #     HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
+    #     get_num_envs(env),
+    #     FLattenFeature,
+    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['input']_S100_options.t"),
+    #     device=device
+    # ),
+    RandomAgent.name: lambda env, info: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(),
@@ -81,28 +77,28 @@ AGENT_DICT = {
     ),
 
     #Tabular Agents
-    QLearningAgent.name: lambda env: QLearningAgent(
+    QLearningAgent.name: lambda env, info: QLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
         get_num_envs(env),
         TabularFeature,
     ),
-    SarsaAgent.name: lambda env: SarsaAgent(
+    SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
         get_num_envs(env),
         TabularFeature,
     ),
-    DoubleQLearningAgent.name: lambda env: DoubleQLearningAgent(
+    DoubleQLearningAgent.name: lambda env, info: DoubleQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1),
         get_num_envs(env),
         TabularFeature,
     ),
-    NStepQLearningAgent.name: lambda env: NStepQLearningAgent(
+    NStepQLearningAgent.name: lambda env, info: NStepQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.01, n_steps=1),
@@ -120,7 +116,7 @@ AGENT_DICT = {
     # ),
     
     # Deep Agents
-    DQNAgent.name: lambda env: DQNAgent(
+    DQNAgent.name: lambda env, info: DQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
@@ -132,21 +128,22 @@ AGENT_DICT = {
         FLattenFeature,
         device=device,
     ),
-    # MaskedDQNAgent.name: lambda env: MaskedDQNAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-    #                     replay_buffer_cap=10000, batch_size=128,
-    #                     target_update_freq=20,
-    #                     value_network=fc_network_1,
-    #                     ),
-    #     get_num_envs(env),
-    #     FLattenFeature,
-    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),
-    #     device=device
-    # ),
-
-    DoubleDQNAgent.name: lambda env: DoubleDQNAgent(
+    
+    OptionDQNAgent.name: lambda env, info: OptionDQNAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
+                        replay_buffer_cap=100000, batch_size=128,
+                        target_update_freq=20,
+                        value_network=fc_network_1,
+                        ),
+        get_num_envs(env),
+        FLattenFeature,
+        options_lst=load_options_list(info["option_path"]),
+        device=device
+    ),
+    
+    DoubleDQNAgent.name: lambda env, info: DoubleDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
@@ -158,7 +155,7 @@ AGENT_DICT = {
         FLattenFeature,
         device=device
     ),
-    NStepDQNAgent.name: lambda env: NStepDQNAgent(
+    NStepDQNAgent.name: lambda env, info: NStepDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
@@ -171,7 +168,7 @@ AGENT_DICT = {
         device=device
     ),
     
-    ReinforceAgent.name: lambda env: ReinforceAgent(
+    ReinforceAgent.name: lambda env, info: ReinforceAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1,
@@ -181,7 +178,7 @@ AGENT_DICT = {
         FLattenFeature,
         device=device
     ),
-    ReinforceWithBaselineAgent.name: lambda env: ReinforceWithBaselineAgent(
+    ReinforceWithBaselineAgent.name: lambda env, info: ReinforceWithBaselineAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, epsilon=0.1,
@@ -194,7 +191,7 @@ AGENT_DICT = {
         FLattenFeature,
         device=device
     ),
-    A2CAgent.name: lambda env: A2CAgent(
+    A2CAgent.name: lambda env, info: A2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=9,
@@ -207,7 +204,7 @@ AGENT_DICT = {
         FLattenFeature,
         device=device
     ),
-    PPOAgent.name: lambda env: PPOAgent(
+    PPOAgent.name: lambda env, info: PPOAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, clip_range=0.2,

@@ -13,13 +13,14 @@ from ...Utils import (
 from .DQN import DQNAgent, DQNPolicy
 from ....registry import register_agent, register_policy
 from ....loaders import load_option
+from ....Options.Utils import load_options_list, save_options_list
 
 @register_policy
-class MaskedDQNPolicy(DQNPolicy):
+class OptionDQNPolicy(DQNPolicy):
     pass
 
 @register_agent
-class MaskedDQNAgent(DQNAgent):
+class OptionDQNAgent(DQNAgent):
     """
     Deep Q-Network (DQN) agent that uses experience replay and target networks.
     
@@ -30,20 +31,20 @@ class MaskedDQNAgent(DQNAgent):
         num_envs (int): Number of parallel environments.
         feature_extractor_class: Class to extract features from observations.
     """
-    name = "MaskedDQN"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, initial_options, device="cpu"):
+    name = "OptionDQN"
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, options_lst, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.atomic_action_space = action_space
-        self.options = initial_options
-        print(f"Number of options: {self.options.n}")
+        self.options_lst = options_lst
+        print(f"Number of options: {len(options_lst)}")
         # action space includes actions and options
-        self.action_space = Discrete(self.atomic_action_space.n + self.options.n) 
+        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
 
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
 
         # Create DQNPolicy using the feature extractor's feature dimension.
-        self.policy = MaskedDQNPolicy(
+        self.policy = OptionDQNPolicy(
             self.action_space, 
             self.feature_extractor.features_dim, 
             hyper_params,
@@ -58,7 +59,7 @@ class MaskedDQNAgent(DQNAgent):
         # Running discount multiplier.
         self.option_multiplier = None
         
-    def act(self, observation):
+    def act(self, observation, greedy=False):
         """
         Select an action based on the current observation.
         
@@ -70,29 +71,31 @@ class MaskedDQNAgent(DQNAgent):
         """
         state = self.feature_extractor(observation)
         
-        # Check if the option should terminate.
-        if self.options.is_terminated(observation):
-            self.running_option_index = None
-
+        # If an options is running currently
         if self.running_option_index is not None:
-            # Continue executing the currently running option.
-            action = self.options.select_action(observation, self.running_option_index)
-        else:
+            # Check if the option should terminate.
+            if self.options_lst[self.running_option_index].is_terminated(observation):
+                self.running_option_index = None
+            else:
+                # Continue executing the currently running option.
+                action = self.options_lst[self.running_option_index].select_action(observation)
+        
+        if self.running_option_index is None:
             # No option is running; select a new action (or option) from the policy.
-            action = self.policy.select_action(state)
+            action = self.policy.select_action(state, greedy=greedy)
             if action >= self.atomic_action_space.n:
                 # An option was selected. Record its initiation state and initialize accumulators.
                 self.running_option_index = action - self.atomic_action_space.n
                 self.option_start_state = state
                 self.option_cumulative_reward = 0.0
                 self.option_multiplier = 1.0
-                action = self.options.select_action(observation, self.running_option_index)
+                action = self.options_lst[self.running_option_index].select_action(observation)
 
         self.last_state = state
         self.last_action = action
         return action
     
-    def update(self, observation, reward, terminated, truncated, call_back):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Store the transition and, if enough samples are available, perform a learning step.
         
@@ -111,7 +114,7 @@ class MaskedDQNAgent(DQNAgent):
             self.option_multiplier *= self.hp.gamma  # Use discount factor from hyper-parameters
             
             # Check if the option terminates due to environment termination, truncation, or internal option termination.
-            if terminated or truncated or self.options.is_terminated(observation):
+            if terminated or truncated or self.options_lst[self.running_option_index].is_terminated(observation):
                 # Create a single transition representing the entire option execution.
                 transition = (
                     self.option_start_state, 
@@ -151,9 +154,9 @@ class MaskedDQNAgent(DQNAgent):
 
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)
-        options_checkpoint = self.options.save(file_path=None)
+        options_checkpoint = save_options_list(self.options_lst, file_path=None)
 
-        checkpoint['options'] = options_checkpoint
+        checkpoint['options_lst'] = options_checkpoint
         checkpoint['atomic_action_space'] = self.atomic_action_space
 
         if file_path is not None:
@@ -164,11 +167,11 @@ class MaskedDQNAgent(DQNAgent):
     def load_from_file(cls, file_path, seed=0, checkpoint=None):
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
-        options = load_option(file_path=None, checkpoint=checkpoint['options'])
+        options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
 
         instance = cls(checkpoint['atomic_action_space'], checkpoint['observation_space'], 
                        checkpoint['hyper_params'], checkpoint['num_envs'],
-                       checkpoint['feature_extractor_class'], options)
+                       checkpoint['feature_extractor_class'], options_lst)
         instance.reset(seed)
 
         instance.feature_extractor.load_from_checkpoint(checkpoint['feature_extractor'])

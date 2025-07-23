@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp10
+#SBATCH --job-name=exp1
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=2G        # memory per node
 #SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-29
+#SBATCH --array=0-50
 
 set -euo pipefail
 
@@ -27,12 +27,16 @@ export FLEXIBLAS=imkl
 # Compute array‐task index
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
-CONFIG="config10"
+CONFIG="config_agents_base"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":10000}, {"num_distractors": 10, "seed": 100}]'
+ENV_PARAMS='{}'
 NAME_TAG="$IDX"
 SEED=$IDX
 NUM_WORKERS=1
+
 
 NUM_EPISODES=0
 NUM_RUNS=1
@@ -43,7 +47,7 @@ EPISODE_MAX_STEPS=300
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
-
+INFO='{}' #'{"option_path":"Runs/Options/DecWholeOptionLearner/MaxOptionLen_20_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t"}'
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then
@@ -78,4 +82,8 @@ python train.py \
   $STORE_FLAG \
   $CP_FLAG \
   --name_tag          "$NAME_TAG" \
-  --num_workers       "$NUM_WORKERS"
+  --num_workers       "$NUM_WORKERS" \
+  --info              "$INFO" \
+  --env_params        "$ENV_PARAMS" \
+  --env_wrapping      "$ENV_WRAPPING" \
+  --wrapping_params   "$WRAPPING_PARAMS"\

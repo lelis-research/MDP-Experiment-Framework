@@ -2,6 +2,7 @@ from ..Utils import BaseOption
 from ..Utils import discrete_levin_loss_on_trajectory
 from ..Utils import save_options_list, load_options_list
 from ...registry import register_option
+from ...loaders import load_policy, load_feature_extractor
 from .PolicyMaskers import POLICY_TO_MASKER
 
 import random
@@ -33,7 +34,7 @@ class MaskedOptionLearner():
 
         if trajectories_lst is not None:
             self.trajectories_lst = trajectories_lst
-            self.org_loss = sum([discrete_levin_loss_on_trajectory(trajectory, None, self.action_space.n) for trajectory in trajectories_lst]) / len(trajectories_lst)
+            self.org_loss = sum([discrete_levin_loss_on_trajectory(trajectory, None, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
         
         if hyper_params is not None:
             self.hyper_params = hyper_params
@@ -71,10 +72,12 @@ class MaskedOptionLearner():
             print("Selecting from all options")
             self.selected_options_lst, best_loss = self._select_options_hc(seed=seed)
             save_options_list(self.selected_options_lst, os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t"))
+            print(f"Number of selected options: {len(self.selected_options_lst)}")
+
             
         if verbose:
             print(f"Total options after selected: {len(self.selected_options_lst)}")
-            best_loss = sum([discrete_levin_loss_on_trajectory(trajectory, self.selected_options_lst, self.action_space.n) for trajectory in trajectories_lst]) / len(trajectories_lst)
+            best_loss = sum([discrete_levin_loss_on_trajectory(trajectory, self.selected_options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
             print(f"Selected Levin Loss: {best_loss}")
         return self.selected_options_lst
         

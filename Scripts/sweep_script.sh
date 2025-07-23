@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep_config10
-#SBATCH --cpus-per-task=5
-#SBATCH --mem=2G          # memory per node
+#SBATCH --job-name=sweep_distractors
+#SBATCH --cpus-per-task=3
+#SBATCH --mem=32G          # memory per node
 #SBATCH --time=0-03:00    # time (DD-HH:MM)
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
-#SBATCH --account=def-lelis
-#SBATCH --array=0-44      # 3*3*5 - 1 = 44 combos
+#SBATCH --account=aip-lelis
+#SBATCH --array=0-26      # 3*3*5 - 1 = 44 combos
 
 set -euo pipefail
 
@@ -26,17 +26,24 @@ export PYTHONUNBUFFERED=1
 IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
-CONFIG="config10"
+CONFIG="config_agents_base"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":1000},{"num_distractors": 10, "seed": 100}]'
+ENV_PARAMS='{}'
 SEED=1
-NUM_RUNS=5
+
+NUM_RUNS=3
 NUM_EPISODES=0
 TOTAL_STEPS=300000
 EPISODE_MAX_STEPS=300
 NUM_ENVS=1
-NUM_WORKERS=5
-NAME_TAG=GridSearch
+
+NUM_WORKERS=3
+NAME_TAG=""
+INFO='{}' #'{"option_path":"Runs/Options/DecWholeOptionLearner/MaxOptionLen_20_'"$SLURM_ARRAY_TASK_ID"'"/selected_options_10.t"}'
+
 # ---------------------------------------------------------
 
 python sweep.py \
@@ -51,4 +58,8 @@ python sweep.py \
   --total_steps        "$TOTAL_STEPS" \
   --episode_max_steps  "$EPISODE_MAX_STEPS" \
   --num_envs           "$NUM_ENVS" \
-  --num_workers        "$NUM_WORKERS"
+  --num_workers        "$NUM_WORKERS" \
+  --info               "$INFO" \
+  --env_params        "$ENV_PARAMS" \
+  --env_wrapping      "$ENV_WRAPPING" \
+  --wrapping_params   "$WRAPPING_PARAMS"\
