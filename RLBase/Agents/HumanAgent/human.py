@@ -34,7 +34,7 @@ class HumanAgent(BaseAgent):
 
         self.running_option_index = None
         
-    def act(self, observation):
+    def act(self, observation, greedy=False):
         """
         Select an action based on the current observation.
         

@@ -60,13 +60,13 @@ linear_network_1 = [
 device="cpu" # cpu, mps, cuda#
 
 AGENT_DICT = {
-    HumanAgent.name: lambda env: HumanAgent(
+    HumanAgent.name: lambda env, info: HumanAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         FLattenFeature,
-        initial_options=load_options_list(""),
+        options_lst=load_options_list("Runs/Options/TransferOptionLearner/Distractor_MaxLen-1_0/all_options.t"),
         device=device
     ),
     RandomAgent.name: lambda env, info: RandomAgent(
