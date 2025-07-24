@@ -47,16 +47,16 @@ class HumanAgent(BaseAgent):
         
 
         state = self.feature_extractor(observation)
+         # If an options is running currently
         if self.running_option_index is not None:
+            # Check if the option should terminate.
             if self.options_lst[self.running_option_index].is_terminated(observation):
                 self.running_option_index = None
             else:
+                # Continue executing the currently running option.
                 action = self.options_lst[self.running_option_index].select_action(observation)
-        
-        if self.running_option_index is not None:
-            action = self.options_lst[self.running_option_index].select_action(observation)
-            print(action, end=",")
-        else:
+                print(action, end=",")
+        if self.running_option_index is None:
             self.print_action_menu()
             action = int(input("Action:"))
             if action >= self.atomic_action_space.n:

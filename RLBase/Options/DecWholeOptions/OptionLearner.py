@@ -157,7 +157,7 @@ class DecWholeOption(BaseOption):
         return action
 
     def is_terminated(self, observation):
-        if self.step_counter > self.option_len:
+        if self.step_counter >= self.option_len:
             self.step_counter = 0
             return True
         return False
