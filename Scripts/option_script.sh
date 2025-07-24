@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=Mask
+#SBATCH --job-name=Option
 #SBATCH --cpus-per-task=32   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=256G        # memory per node
 #SBATCH --time=0-03:00      # time (DD-HH:MM)

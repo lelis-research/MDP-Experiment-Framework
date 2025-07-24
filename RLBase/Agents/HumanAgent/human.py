@@ -22,14 +22,14 @@ class HumanAgent(BaseAgent):
         feature_extractor_class: Class to extract features from observations.
     """
     name = "Human"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, initial_options, device="cpu"):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, options_lst, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.atomic_action_space = action_space
-        self.options = initial_options
+        self.options_lst = options_lst
 
-        print(f"Number of options: {self.options.n}")
+        print(f"Number of options: {len(self.options_lst)}")
         # action space includes actions and options
-        self.action_space = Discrete(self.atomic_action_space.n + self.options.n) 
+        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
 
 
         self.running_option_index = None
@@ -47,18 +47,21 @@ class HumanAgent(BaseAgent):
         
 
         state = self.feature_extractor(observation)
-        if self.options.is_terminated(observation):
-            self.running_option_index = None
+        if self.running_option_index is not None:
+            if self.options_lst[self.running_option_index].is_terminated(observation):
+                self.running_option_index = None
+            else:
+                action = self.options_lst[self.running_option_index].select_action(observation)
         
         if self.running_option_index is not None:
-            action = self.options.select_action(observation, self.running_option_index)
+            action = self.options_lst[self.running_option_index].select_action(observation)
             print(action, end=",")
         else:
             self.print_action_menu()
             action = int(input("Action:"))
             if action >= self.atomic_action_space.n:
                 self.running_option_index = action - self.atomic_action_space.n
-                action = self.options.select_action(observation, self.running_option_index)
+                action = self.options_lst[self.running_option_index].select_action(observation)
                 print(action, end=",")
 
         self.last_state = state
@@ -95,7 +98,7 @@ class HumanAgent(BaseAgent):
         print("")
         print("****** Available Actions ******")
         print("Atomic actions:", [i for i in self.hp.actions_enum])
-        print("Options:", list(range(self.atomic_action_space.n, self.atomic_action_space.n+self.options.n)))
+        print("Options:", list(range(self.atomic_action_space.n, self.atomic_action_space.n+len(self.options_lst))))
 
     def save(self, file_path=None):
         pass

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=exp1
+#SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=2G        # memory per node
 #SBATCH --time=0-03:00      # time (DD-HH:MM)
@@ -28,12 +28,12 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":10000}, {"num_distractors": 10, "seed": 100}]'
+AGENT="OptionRandom"
+ENV="MiniGrid-FourRooms-v0"
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 30, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="$IDX"
+NAME_TAG="Mask-l1_WithDistractor_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
@@ -47,7 +47,13 @@ EPISODE_MAX_STEPS=300
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
-INFO='{}' #'{"option_path":"Runs/Options/DecWholeOptionLearner/MaxOptionLen_20_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t"}'
+INFO='{
+  "option_path": "Runs/Options/MaskedOptionLearner/Distractor_MaxLen-20_Mask-l1_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
+  "step_size": 0.0001,
+  "epsilon": 0.1,
+  "batch_size": 128,
+  "target_update_freq": 200
+}'
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then

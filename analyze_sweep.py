@@ -117,7 +117,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/_seed[1]/"
+    exp_dir = "Runs/Sweep/MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)_FixedRandomDistractor(num_distractors-30_seed-100)/OptionDQN/Transfer_NoDistractor_seed[1]"
     ratio   = 0.5
     # ---------------------
 

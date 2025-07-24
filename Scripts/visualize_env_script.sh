@@ -6,7 +6,7 @@
 #SBATCH --output=logs/vis_%A_%a.out
 #SBATCH --error=logs/vis_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=1-10
+#SBATCH --array=1-1
 
 set -euo pipefail
 
@@ -29,11 +29,11 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1000))
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV="MiniGrid-FourRooms-v0"
 ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":'"$seed"'}, {"num_distractors": 10, "seed": 100}]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="$seed"
+NAME_TAG="main-40" #"$seed"
 # ------------------------------
 
 python visualize_env.py \

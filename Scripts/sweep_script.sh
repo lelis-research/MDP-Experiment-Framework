@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep_distractors
+#SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=3
 #SBATCH --mem=32G          # memory per node
 #SBATCH --time=0-03:00    # time (DD-HH:MM)
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-26      # 3*3*5 - 1 = 44 combos
+#SBATCH --array=0-35      # 3*3*5 - 1 = 44 combos
 
 set -euo pipefail
 
@@ -27,10 +27,10 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":1000},{"num_distractors": 10, "seed": 100}]'
+AGENT="DQN"
+ENV="MiniGrid-FourRooms-v0"
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]' #,"FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]' #,{"num_distractors": 30, "seed": 100}]'
 ENV_PARAMS='{}'
 SEED=1
 
@@ -42,7 +42,7 @@ NUM_ENVS=1
 
 NUM_WORKERS=3
 NAME_TAG=""
-INFO='{}' #'{"option_path":"Runs/Options/DecWholeOptionLearner/MaxOptionLen_20_'"$SLURM_ARRAY_TASK_ID"'"/selected_options_10.t"}'
+INFO='{}' #'{"option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t"}' 
 
 # ---------------------------------------------------------
 

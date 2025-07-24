@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
-def plot_experiments(agent_dict, save_dir, name=""):
+def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=False):
     '''
     Example:
         agents_dict = {
@@ -30,7 +30,7 @@ def plot_experiments(agent_dict, save_dir, name=""):
             analyzer = SingleExpAnalyzer(metrics=agent_dict[exp])
         else:
             raise ValueError(f"Unknown param type: {type(agent_dict[exp])}")
-        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, show_legend=(i==len(agent_dict)-1)) # show legend only for the last which combines all of them
+        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, show_legend=(i==len(agent_dict)-1), window_size=window_size, plot_each=plot_each) # show legend only for the last which combines all of them
         generated_name += f"{exp}_"
 
     name = generated_name if name == "" else name

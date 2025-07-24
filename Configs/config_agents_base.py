@@ -5,7 +5,7 @@ from RLBase.Agents.Utils import (
     HyperParameters,
 )
 from RLBase.Agents.HumanAgent import HumanAgent
-from RLBase.Agents.RandomAgent import RandomAgent
+from RLBase.Agents.RandomAgent import RandomAgent, OptionRandomAgent
 from RLBase.Agents.TabularAgent import (
     QLearningAgent,
     NStepQLearningAgent,
@@ -60,20 +60,27 @@ linear_network_1 = [
 device="cpu" # cpu, mps, cuda#
 
 AGENT_DICT = {
-    # HumanAgent.name: lambda env: HumanAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
-    #     get_num_envs(env),
-    #     FLattenFeature,
-    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['input']_S100_options.t"),
-    #     device=device
-    # ),
+    HumanAgent.name: lambda env: HumanAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
+        get_num_envs(env),
+        FLattenFeature,
+        initial_options=load_options_list(""),
+        device=device
+    ),
     RandomAgent.name: lambda env, info: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(),
         get_num_envs(env),
+    ),
+    OptionRandomAgent.name: lambda env, info: OptionRandomAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(),
+        get_num_envs(env),
+        options_lst=load_options_list(info["option_path"]),
     ),
 
     #Tabular Agents
@@ -119,7 +126,7 @@ AGENT_DICT = {
     DQNAgent.name: lambda env, info: DQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
+        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.01, 
                         replay_buffer_cap=10000, batch_size=128,
                         target_update_freq=20,
                         value_network=fc_network_1,
@@ -132,9 +139,9 @@ AGENT_DICT = {
     OptionDQNAgent.name: lambda env, info: OptionDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=100000, batch_size=128,
-                        target_update_freq=20,
+        HyperParameters(step_size=info['step_size'], gamma=0.99, epsilon=info['epsilon'], 
+                        replay_buffer_cap=100000, batch_size=info['batch_size'],
+                        target_update_freq=info['target_update_freq'],
                         value_network=fc_network_1,
                         ),
         get_num_envs(env),

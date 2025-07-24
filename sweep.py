@@ -126,17 +126,17 @@ def main(hp_search_space):
 
 
 if __name__ == '__main__':
-    # hp_search_space = {
-    #     'step_size':   [0.0001, 0.001, 0.01],
-    #     'epsilon':  [0.1, 0.01, 0.001],
-    #     'batch_size':     [128, 256],
-    #     'target_update_freq': [20, 200]
-    # }
     hp_search_space = {
-        'actor_step_size':   [0.0001, 0.001, 0.01],
-        'critic_step_size':  [0.0001, 0.001, 0.01],
-        'rollout_steps':     [5, 10, 20],
+        'step_size':   [0.0001, 0.001, 0.01],
+        'epsilon':  [0.1, 0.01, 0.001],
+        'batch_size':     [128, 256],
+        'target_update_freq': [20, 200]
     }
+    # hp_search_space = {
+    #     'actor_step_size':   [0.0001, 0.001, 0.01],
+    #     'critic_step_size':  [0.0001, 0.001, 0.01],
+    #     'rollout_steps':     [5, 10, 20],
+    # }
     
     main(hp_search_space)
 

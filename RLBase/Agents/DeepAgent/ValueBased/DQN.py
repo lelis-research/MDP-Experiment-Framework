@@ -210,7 +210,7 @@ class DQNAgent(BaseAgent):
         self.last_action = action
         return action
     
-    def update(self, observation, reward, terminated, truncated, call_back):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Store the transition and, if enough samples are available, perform a learning step.
         
