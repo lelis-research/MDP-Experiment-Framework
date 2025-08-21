@@ -151,6 +151,11 @@ class OptionDQNAgent(DQNAgent):
         super().reset(seed)
         self.feature_extractor.reset(seed)
         self.replay_buffer.reset()
+        # Clear any running option state
+        self.running_option_index = None
+        self.option_start_state = None
+        self.option_cumulative_reward = None
+        self.option_multiplier = None
 
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)
@@ -169,9 +174,14 @@ class OptionDQNAgent(DQNAgent):
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
 
-        instance = cls(checkpoint['atomic_action_space'], checkpoint['observation_space'], 
-                       checkpoint['hyper_params'], checkpoint['num_envs'],
-                       checkpoint['feature_extractor_class'], options_lst)
+        instance = cls(
+            checkpoint['atomic_action_space'], 
+            checkpoint['observation_space'], 
+            checkpoint['hyper_params'], 
+            checkpoint['num_envs'],
+            checkpoint['feature_extractor_class'], 
+            options_lst
+        )
         instance.reset(seed)
 
         instance.feature_extractor.load_from_checkpoint(checkpoint['feature_extractor'])

@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=2G        # memory per node
 #SBATCH --time=0-03:00      # time (DD-HH:MM)
-#SBATCH --output=logs/exp_%A_%a.out
-#SBATCH --error=logs/exp_%A_%a.err
+#SBATCH --output=logs/train_%A_%a.out
+#SBATCH --error=logs/train_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-50
 
@@ -28,12 +28,12 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="OptionRandom"
+AGENT="A2C"
 ENV="MiniGrid-FourRooms-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 30, "seed": 100}]'
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]' #,"FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]' #,{"num_distractors": 30, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="Mask-l1_WithDistractor_$IDX"
+NAME_TAG="$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
@@ -48,12 +48,11 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  "option_path": "Runs/Options/MaskedOptionLearner/Distractor_MaxLen-20_Mask-l1_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
-  "step_size": 0.0001,
-  "epsilon": 0.1,
-  "batch_size": 128,
-  "target_update_freq": 200
+  "actor_step_size": 0.001,
+  "critic_step_size": 0.0001,
+  "rollout_steps": 20
 }'
+# "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then

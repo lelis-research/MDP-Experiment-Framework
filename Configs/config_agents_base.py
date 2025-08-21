@@ -24,6 +24,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     ReinforceWithBaselineAgent,
     A2CAgent,
     PPOAgent,
+    OptionA2CAgent,
 )
 from RLBase.Options.Utils import load_options_list
 
@@ -201,14 +202,28 @@ AGENT_DICT = {
     A2CAgent.name: lambda env, info: A2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=9,
+        HyperParameters(gamma=1.0, lamda=0.95, rollout_steps=info['rollout_steps'],
                         actor_network=fc_network_1,
-                        actor_step_size=0.0001,
+                        actor_step_size=info['actor_step_size'],
                         critic_network=fc_network_1,
-                        critic_step_size=0.0001,
+                        critic_step_size=info['critic_step_size'],
                         ),
         get_num_envs(env),
         FLattenFeature,
+        device=device
+    ),
+    OptionA2CAgent.name: lambda env, info: OptionA2CAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(gamma=1.0, lamda=0.95, rollout_steps=info['rollout_steps'],
+                        actor_network=fc_network_1,
+                        actor_step_size=info['actor_step_size'],
+                        critic_network=fc_network_1,
+                        critic_step_size=info['critic_step_size'],
+                        ),
+        get_num_envs(env),
+        FLattenFeature,
+        options_lst=load_options_list(info["option_path"]),
         device=device
     ),
     PPOAgent.name: lambda env, info: PPOAgent(

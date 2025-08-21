@@ -58,7 +58,7 @@ class SingleExpAnalyzer:
         print(f"  Average Episode Return: {avg_return:.2f} ± {std_return:.2f}")
         print(f"  Average Episode Length:  {avg_steps:.2f} ± {std_steps:.2f}")
     
-    def _plot_reward_per_episode(self, ax, num_episodes, color, label, window_size, plot_each):
+    def _plot_reward_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci):
         ep_return = np.array([run[:num_episodes] for run in self.ep_returns])
         episodes = np.arange(1, num_episodes + 1)
         if plot_each:
@@ -70,13 +70,25 @@ class SingleExpAnalyzer:
         smooth_returns = self._smooth(mean_returns, window_size)
         ax.plot(episodes, smooth_returns, color=color, label=label)
         
+        # Optional confidence interval
+        if show_ci and ep_return.shape[0] >= 2:
+            lower_q = (1.0 - 0.7) / 2.0 * 100.0
+            upper_q = (1.0 + 0.7) / 2.0 * 100.0
+            lower = np.percentile(ep_return, lower_q, axis=0)
+            upper = np.percentile(ep_return, upper_q, axis=0)
+
+            lower_s = self._smooth(lower, window_size)
+            upper_s = self._smooth(upper, window_size)
+
+            ax.fill_between(episodes, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
+            
         ax.set_title("Sum Reward per Episode")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Sum Reward")
         # ax.legend()
         ax.grid(True)
 
-    def _plot_steps_per_episode(self, ax, num_episodes, color, label, window_size, plot_each):
+    def _plot_steps_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci):
         steps = np.array([run[:num_episodes] for run in self.ep_lengths])
         episodes = np.arange(1, num_episodes + 1)
 
@@ -95,7 +107,7 @@ class SingleExpAnalyzer:
         # ax.legend()
         ax.grid(True)
     
-    def _plot_reward_per_steps(self, ax, num_steps, color, label, window_size, plot_each):
+    def _plot_reward_per_steps(self, ax, num_steps, color, label, window_size, plot_each, show_ci):
         ep_returns = self.ep_returns
         steps = self.ep_lengths          
         x_common = np.linspace(0, num_steps, 200)      
@@ -123,13 +135,26 @@ class SingleExpAnalyzer:
         smooth_returns = self._smooth(mean_returns, window_size)
         ax.plot(x_common, smooth_returns, color=color, label=label)
         
+        # Optional confidence interval (quantile-based)
+        if show_ci and returns_interpolation.shape[0] >= 2:
+            lower_q = (1.0 - 0.7) / 2.0 * 100.0
+            upper_q = (1.0 + 0.7) / 2.0 * 100.0
+            lower = np.percentile(returns_interpolation, lower_q, axis=0)
+            upper = np.percentile(returns_interpolation, upper_q, axis=0)
+
+            # (Optional) re-smooth the band edges for aesthetics
+            lower_s = self._smooth(lower, window_size)
+            upper_s = self._smooth(upper, window_size)
+
+            ax.fill_between(x_common, lower_s, upper_s, alpha=0.15, linewidth=0, color=color)
+        
         ax.set_title("Sum Rewards per Steps")
         ax.set_xlabel("Steps")
         ax.set_ylabel("Episode Reward")
         # ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True, window_size=1, plot_each=True):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True, window_size=1, plot_each=True, show_ci=True):
         """
         Plot total rewards and steps per episode and per steps.
         
@@ -148,9 +173,9 @@ class SingleExpAnalyzer:
         num_episodes = min([len(run) for run in self.ep_returns])
         num_steps = min([sum(steps) for steps in self.ep_lengths])
 
-        self._plot_reward_per_episode(axs[0], num_episodes, color, label, window_size, plot_each)
-        self._plot_reward_per_steps(axs[1], num_steps, color, label, window_size, plot_each)
-        self._plot_steps_per_episode(axs[2], num_episodes, color, label, window_size, plot_each)
+        self._plot_reward_per_episode(axs[0], num_episodes, color, label, window_size, plot_each, show_ci)
+        self._plot_reward_per_steps(axs[1], num_steps, color, label, window_size, plot_each, show_ci)
+        self._plot_steps_per_episode(axs[2], num_episodes, color, label, window_size, plot_each, show_ci)
 
         if show_legend:
             # Retrieve handles and labels from one of the subplots.

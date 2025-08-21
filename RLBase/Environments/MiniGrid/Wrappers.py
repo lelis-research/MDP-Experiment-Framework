@@ -2,8 +2,7 @@ import gymnasium as gym
 import numpy as np
 from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
-from minigrid.core.constants import IDX_TO_OBJECT
-from minigrid.core.constants import COLOR_NAMES
+from minigrid.core.constants import COLOR_NAMES, COLOR_TO_IDX, OBJECT_TO_IDX, IDX_TO_OBJECT
 from minigrid.core.world_object import Ball, Box, Wall
 # RewardWrapper that adds a constant step reward to the environment's reward.
 class StepRewardWrapper(RewardWrapper):
@@ -76,40 +75,104 @@ class FlatOnehotObjectObsWrapper(ObservationWrapper):
 
 # A Wrapper that randomly adds distractions (in this case balls) to the environment
 # The seed will fix the position of these distractions across different resets
-class FixedRandomDistractorWrapper(gym.Wrapper):
+class FixedRandomDistractorWrapper(ObservationWrapper):
     def __init__(self, env, num_distractors=50, seed=42):
         super().__init__(env)
         self.num_distractors = num_distractors
-        # pre-sample the distractor positions + colors once
+
+        # Sample fixed distractor (x,y,color) in WORLD coordinates
         rng = np.random.RandomState(seed)
         base = self.env.unwrapped
         W, H = base.width, base.height
 
         self._distractors = []
-        placed = 0
-        attempts = 0
-        while placed < num_distractors and attempts < 1000:
-            x, y = rng.randint(1, W-1), rng.randint(1, H-1)
+        placed, attempts = 0, 0
+        while placed < num_distractors and attempts < 5000:
+            x, y = rng.randint(0, W), rng.randint(0, H)
+            # Only allow on empty cells in the *initial* layout (for consistency)
             if base.grid.get(x, y) is None:
                 color = rng.choice(COLOR_NAMES)
-                self._distractors.append((x, y, color))
+                self._distractors.append((int(x), int(y), str(color)))
                 placed += 1
             attempts += 1
 
         if placed < num_distractors:
-            print(f"[Warning] Only sampled {placed}/{num_distractors} distractor spots")
+            print(f"[VisualDistractors] Only sampled {placed}/{num_distractors} distractors")
 
-    def reset(self, **kwargs):
-        obs = self.env.reset(**kwargs)
+        # Cache encoding for balls per color
+        self._ball_enc_by_color = {
+            c: np.array([OBJECT_TO_IDX["ball"], COLOR_TO_IDX[c], 0], dtype=np.uint8)
+            for c in COLOR_NAMES
+        }
 
-        # apply the *same* distractors back onto the new grid
+    def observation(self, obs):
+        """
+        obs: Dict with 'image' key (MiniGrid symbolic encoding).
+        We overlay 'ball' encodings at distractor spots that fall within the current obs.
+        """
+        if not isinstance(obs, dict) or "image" not in obs:
+            # If you're using a custom obs wrapper, adapt here
+            return obs
+
+        img = obs["image"].copy()  # (H, W, 3) in symbolic form: [type, color, state]
+
+        # Distinguish between fully observed vs agent-centric view
         base = self.env.unwrapped
-        for x, y, color in self._distractors:
-            # only place if still empty (should be)
-            if base.grid.get(x, y) is None:
-                base.put_obj(Ball(color), x, y)
+        H, W, C = img.shape
+        is_full = (W == base.width) and (H == base.height)
 
-        return obs
+        if is_full:
+            # Fully observed: world coords map 1:1 to obs coords
+            for x, y, color in self._distractors:
+                if 0 <= x < W and 0 <= y < H:
+                    img[y, x] = self._ball_enc_by_color[color]
+        else:
+            # Partially observed (agent-centric). Map world -> view coords.
+            # MiniGrid agent_dir: 0:right, 1:down, 2:left, 3:up
+            ax, ay = base.agent_pos
+            ad = base.agent_dir
+
+            # We assume view is a square of size H x W (e.g., 7x7), centered in front of the agent.
+            # Compute top-left (tlx,tly) of the view window in WORLD coords for each direction.
+            vs = H  # assume square
+            half = vs // 2
+
+            def in_view(wx, wy):
+                """Return (vx, vy) if in view; else None"""
+                # Compute top-left of the view window and mapping formula by agent_dir
+                if ad == 0:  # facing right (+x)
+                    tlx, tly = ax, ay - half
+                    vx, vy = wx - tlx, wy - tly
+                elif ad == 1:  # facing down (+y)
+                    tlx, tly = ax - half, ay
+                    # rotate 90 deg: world (wx,wy) maps to view (vx,vy)
+                    # When facing down, +y is "forward". View x increases to the left in world.
+                    vx, vy = (ax + half) - wx, wy - tly
+                elif ad == 2:  # facing left (-x)
+                    tlx, tly = ax - (vs - 1), ay - half
+                    vx, vy = tlx + (vs - 1) - wx, (tly + (vs - 1)) - (wy + (vs - 1) - (tly))
+                    # Simplify: vx = (ax - (vs-1)) + (vs-1) - wx = ax - wx
+                    vx, vy = ax - wx, (ay + half) - wy
+                else:  # ad == 3, facing up (-y)
+                    tlx, tly = ax - half, ay - (vs - 1)
+                    # rotate -90 deg
+                    vx, vy = wx - tlx, (ay + half) - wy
+
+                if 0 <= vx < W and 0 <= vy < H:
+                    return int(vx), int(vy)
+                return None
+
+            for x, y, color in self._distractors:
+                mapped = in_view(x, y)
+                if mapped is not None:
+                    vx, vy = mapped
+                    img[vy, vx] = self._ball_enc_by_color[color]
+
+        new_obs = dict(obs)
+        new_obs["image"] = img
+        return new_obs
+
+  
 
     
 # Dictionary mapping string keys to corresponding wrapper classes.

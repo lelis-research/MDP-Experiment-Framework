@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
-def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=False):
+def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=False, show_ci=False):
     '''
     Example:
         agents_dict = {
@@ -30,7 +30,7 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
             analyzer = SingleExpAnalyzer(metrics=agent_dict[exp])
         else:
             raise ValueError(f"Unknown param type: {type(agent_dict[exp])}")
-        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, show_legend=(i==len(agent_dict)-1), window_size=window_size, plot_each=plot_each) # show legend only for the last which combines all of them
+        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, show_legend=(i==len(agent_dict)-1), window_size=window_size, plot_each=plot_each, show_ci=show_ci) # show legend only for the last which combines all of them
         generated_name += f"{exp}_"
 
     name = generated_name if name == "" else name
@@ -46,6 +46,7 @@ def gather_experiments(exp_dir, name_string_conditions=[], name_string_anti_cond
     run_counter = 0
     file_counter = 0
     metrics_lst = []
+    no_metrics_file_lst= []
     for exp in os.listdir(exp_dir):
         satisfy_conditions = True
         for string in name_string_conditions:
@@ -66,13 +67,22 @@ def gather_experiments(exp_dir, name_string_conditions=[], name_string_anti_cond
 
         if satisfy_conditions and satisfy_anti_conditions:
             exp_path = os.path.join(exp_dir, exp)
-            analyzer = SingleExpAnalyzer(exp_path=exp_path)
-            metrics_lst += analyzer.metrics
-
-            run_counter += len(analyzer.metrics)
-            file_counter += 1
+            try:
+                analyzer = SingleExpAnalyzer(exp_path=exp_path)
+                metrics_lst += analyzer.metrics
+                run_counter += len(analyzer.metrics)
+                file_counter += 1
+                
+            except FileNotFoundError:
+                # The metrics file doesn't exists
+                no_metrics_file_lst.append(exp_path)
+                
+    print("***")
     if file_counter == 0:
         raise FileNotFoundError(f"No files find with {name_string_conditions} conditions")
+    elif len(no_metrics_file_lst) > 0:
+        print("The following files satisfies the naming but doesn't have a metrics file in them:")
+        print(*no_metrics_file_lst, sep="\n")
     
     print(f"Found {run_counter} runs from total {file_counter} files")
     return metrics_lst

@@ -6,7 +6,7 @@
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-35      # 3*3*5 - 1 = 44 combos
+#SBATCH --array=0-26      # check sweep.py to calculate arrays
 
 set -euo pipefail
 
@@ -27,7 +27,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="DQN"
+AGENT="OptionA2C"
 ENV="MiniGrid-FourRooms-v0"
 ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]' #,"FixedRandomDistractor"]'
 WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]' #,{"num_distractors": 30, "seed": 100}]'
@@ -41,8 +41,13 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG=""
-INFO='{}' #'{"option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t"}' 
+NAME_TAG="Transfer_NoDiscounting"
+INFO='{
+  "option_path":"Runs/Options/TransferOptionLearner/MaxLen-1_0/all_options.t",
+  "actor_step_size": 0.001,
+  "critic_step_size": 0.01,
+  "rollout_steps": 20
+}'  
 
 # ---------------------------------------------------------
 
