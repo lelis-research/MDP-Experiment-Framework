@@ -27,10 +27,10 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionA2C"
+AGENT="A2C"
 ENV="MiniGrid-FourRooms-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]' #,"FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]' #,{"num_distractors": 30, "seed": 100}]'
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 ENV_PARAMS='{}'
 SEED=1
 
@@ -41,13 +41,13 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="Transfer_NoDiscounting"
+NAME_TAG=""
 INFO='{
-  "option_path":"Runs/Options/TransferOptionLearner/MaxLen-1_0/all_options.t",
   "actor_step_size": 0.001,
   "critic_step_size": 0.01,
   "rollout_steps": 20
 }'  
+  # "option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t",
 
 # ---------------------------------------------------------
 

@@ -107,7 +107,9 @@ class MaskedOptionLearner():
                 state_t = feature_extractor(observation)      # (1, State_Dim)
                 action_t = torch.from_numpy(np.array(action)).unsqueeze(0) # (1, )    
                 pred_a, pred_logits_t = policy.select_action_masked(state_t, mask_dict) # (1, num_actions)
-
+                # regularization_term = self._calculate_regularization(mask_dict)
+                # print(regularization_term)
+                # exit(0)
                 loss = loss_fn(pred_logits_t, action_t)
                 optimizer.zero_grad()
                 loss.backward()
@@ -125,6 +127,15 @@ class MaskedOptionLearner():
         for p in mask_dict.values():
             p.requires_grad_(False)
         return MaskedOption(feature_extractor, policy, len(traj), mask_dict)
+    
+    def _calculate_regularization(self, mask_dict):
+        reg = 0
+        for key in mask_dict:
+            mask = mask_dict[key]
+            probs = torch.softmax(mask, dim=0)
+            reg += probs[-1, :] ** 2
+        return reg
+            
     
     def _get_all_options(self, sub_trajectory_lst, verbose):
         options_lst = []

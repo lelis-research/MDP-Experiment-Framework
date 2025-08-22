@@ -17,9 +17,9 @@ class NetworkMasker(nn.Module):
 
     def forward(self, x, mask_dict):
         '''
-        1: active
-        -1: deactive
-        0: part of the program
+        0: active
+        1: deactive
+        2: part of the program
         '''
         # Assume the network is a Sequential.
         if 'input' in mask_dict:

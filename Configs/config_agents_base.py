@@ -202,7 +202,7 @@ AGENT_DICT = {
     A2CAgent.name: lambda env, info: A2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=1.0, lamda=0.95, rollout_steps=info['rollout_steps'],
+        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
                         actor_network=fc_network_1,
                         actor_step_size=info['actor_step_size'],
                         critic_network=fc_network_1,
@@ -215,7 +215,7 @@ AGENT_DICT = {
     OptionA2CAgent.name: lambda env, info: OptionA2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=1.0, lamda=0.95, rollout_steps=info['rollout_steps'],
+        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
                         actor_network=fc_network_1,
                         actor_step_size=info['actor_step_size'],
                         critic_network=fc_network_1,

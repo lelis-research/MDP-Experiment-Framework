@@ -70,4 +70,4 @@ python learn_options.py \
   --exp_path_lst      "${EXP_PATH_LIST[@]}" \
   --run_ind_lst       "${RUN_IND_LIST[@]}" \
   --num_workers       "$NUM_WORKERS" \
-  --info              "$INFO" \
+  --info              "$INFO"
