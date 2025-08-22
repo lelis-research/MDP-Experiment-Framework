@@ -76,7 +76,7 @@ OPTION_DICT = {
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
         hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
                                        n_neighbours=50, n_restarts=300, n_iteration=200,
-                                       n_epochs=300, mask_lr=5e-4, 
+                                       n_epochs=300, mask_lr=5e-4, reg_coef=0.01,
                                        masked_layers=info["masked_layers"])),
 }
    

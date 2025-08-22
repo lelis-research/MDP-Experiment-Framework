@@ -14,12 +14,14 @@ from multiprocessing import Pool
 import torch.nn as nn
 import torch.optim as optim
 import os
+from torch.utils.tensorboard import SummaryWriter 
 
 class MaskedOptionLearner():
     name="MaskedOptionLearner"
     def __init__(self, agent_lst=None, trajectories_lst=None, hyper_params=None):
         self.set_params(agent_lst, trajectories_lst, hyper_params)
         
+
 
     def set_params(self, agent_lst=None, trajectories_lst=None, hyper_params=None):
         if agent_lst is not None:
@@ -39,7 +41,9 @@ class MaskedOptionLearner():
         if hyper_params is not None:
             self.hyper_params = hyper_params
     
-    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None, num_workers=1, exp_dir=None):
+    def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None, num_workers=1, exp_dir=None, save_log=False):
+        if save_log:
+            self.writer = SummaryWriter(log_dir=exp_dir)
         self.num_workers = num_workers
         self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
@@ -105,12 +109,15 @@ class MaskedOptionLearner():
             total_loss = 0.0
             for observation, action in traj:
                 state_t = feature_extractor(observation)      # (1, State_Dim)
-                action_t = torch.from_numpy(np.array(action)).unsqueeze(0) # (1, )    
+                action_t = torch.from_numpy(np.array(action)).unsqueeze(0) # (1, )
+                regularization_term = self._calculate_regularization(mask_dict)
                 pred_a, pred_logits_t = policy.select_action_masked(state_t, mask_dict) # (1, num_actions)
-                # regularization_term = self._calculate_regularization(mask_dict)
-                # print(regularization_term)
-                # exit(0)
-                loss = loss_fn(pred_logits_t, action_t)
+                
+                loss = loss_fn(pred_logits_t, action_t) + self.hyper_params.reg_coef * regularization_term
+                # print("Loss: ", loss.item())
+                # print("Reg: ", regularization_term.item())
+                
+
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -133,7 +140,7 @@ class MaskedOptionLearner():
         for key in mask_dict:
             mask = mask_dict[key]
             probs = torch.softmax(mask, dim=0)
-            reg += probs[-1, :] ** 2
+            reg += probs[-1, :].mean() ** 2
         return reg
             
     
@@ -165,6 +172,7 @@ class MaskedOptionLearner():
                     options_lst.append(opt)
                 else:
                     num_useless_masks += 1
+        
           
         
         new_loss = sum([discrete_levin_loss_on_trajectory(trajectory, options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)       
@@ -232,6 +240,10 @@ class MaskedOptionLearner():
                 if loss_r < best_loss:
                     best_loss = loss_r
                     best_subset = subset_r
+                
+                if self.writer is not None:
+                    self.writer.add_scalar("Selection/LossRestart", loss_r)
+                    self.writer.add_scalar("Selection/BestLoss", best_loss)
 
         return best_subset, best_loss
     
