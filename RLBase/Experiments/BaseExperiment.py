@@ -356,7 +356,7 @@ class BaseExperiment:
         """
         args_file = os.path.join(exp_dir, "args.yaml")
         if not os.path.exists(args_file):
-            raise FileNotFoundError(f"No args file found in {exp_dir}")
+            raise FileNotFoundError(f"No args.yaml file found in {exp_dir}")
         with open(args_file, "r") as f:
             args_dict = yaml.safe_load(f)
         args = argparse.Namespace(**args_dict)

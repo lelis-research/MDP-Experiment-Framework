@@ -30,7 +30,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 # ---------------Configs--------- 
 CONFIG="config_options_base"
 OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="MaxLen-20_Mask-l1_Regularized-0.01_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+NAME_TAG="MaxLen-20_Mask-input-l1_Regularized-0.01_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
@@ -55,7 +55,7 @@ EXP_PATH_LIST=(
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-9000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/${IDX}_seed[${IDX}]"
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/${IDX}_seed[${IDX}]"
 )
-INFO='{"masked_layers":["1"]}' 
+INFO='{"masked_layers":["input","1"]}' 
 
 RUN_IND_LIST=(1 1 1 1 1 1 1 1 1 1)
 NUM_WORKERS=32

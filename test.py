@@ -40,7 +40,7 @@ from RLBase import load_policy, load_agent
 #     return parser.parse_args()
 
 if __name__ == "__main__":
-    exp_name = "MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/1_seed[1]"
+    exp_name = "MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)/OptionA2C/DecWhole_0_seed[0]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 

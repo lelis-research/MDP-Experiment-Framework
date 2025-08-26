@@ -31,9 +31,9 @@ CONFIG="config_agents_base"
 AGENT="OptionA2C"
 ENV="MiniGrid-FourRooms-v0"
 ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 20, "seed": 100}]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="FineTune_$IDX"
+NAME_TAG="Mask-input-l1-reg01_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
@@ -48,9 +48,9 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  "option_path": "Runs/Options/FineTuneOptionLearner/MaxLen-20_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
+  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
   "actor_step_size": 0.001,
-  "critic_step_size": 0.0001,
+  "critic_step_size": 0.01,
   "rollout_steps": 10
 }'
 # ------------------------------

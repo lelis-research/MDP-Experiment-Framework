@@ -58,9 +58,13 @@ class SingleExpAnalyzer:
         print(f"  Average Episode Return: {avg_return:.2f} ± {std_return:.2f}")
         print(f"  Average Episode Length:  {avg_steps:.2f} ± {std_steps:.2f}")
     
-    def _plot_reward_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci):
-        ep_return = np.array([run[:num_episodes] for run in self.ep_returns])
-        episodes = np.arange(1, num_episodes + 1)
+    def _plot_reward_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last=False):
+        if ignore_last: # sometimes the last episode is not complete
+            ep_return = np.array([run[:num_episodes - 1] for run in self.ep_returns])
+            episodes = np.arange(1, num_episodes)
+        else:
+            ep_return = np.array([run[:num_episodes] for run in self.ep_returns])
+            episodes = np.arange(1, num_episodes + 1)
         if plot_each:
             for each_return in ep_return:
                 smooth_return = self._smooth(each_return, window_size)
@@ -72,14 +76,18 @@ class SingleExpAnalyzer:
         
         # Optional confidence interval
         if show_ci and ep_return.shape[0] >= 2:
-            lower_q = (1.0 - 0.7) / 2.0 * 100.0
-            upper_q = (1.0 + 0.7) / 2.0 * 100.0
-            lower = np.percentile(ep_return, lower_q, axis=0)
-            upper = np.percentile(ep_return, upper_q, axis=0)
+            n = ep_return.shape[0]
 
+            # sample std with ddof=1 -> unbiased; then standard error
+            se = np.std(ep_return, axis=0, ddof=1) / np.sqrt(n)
+            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
+
+            lower = mean_returns - ci
+            upper = mean_returns + ci
+
+            # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
             upper_s = self._smooth(upper, window_size)
-
             ax.fill_between(episodes, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
             
         ax.set_title("Sum Reward per Episode")
@@ -88,37 +96,62 @@ class SingleExpAnalyzer:
         # ax.legend()
         ax.grid(True)
 
-    def _plot_steps_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci):
-        steps = np.array([run[:num_episodes] for run in self.ep_lengths])
-        episodes = np.arange(1, num_episodes + 1)
+    def _plot_steps_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last=False):
+        if ignore_last: # sometimes the last episode is not complete
+            steps = np.array([run[:num_episodes - 1] for run in self.ep_lengths])
+            episodes = np.arange(1, num_episodes)
+        else:
+            steps = np.array([run[:num_episodes] for run in self.ep_lengths])
+            episodes = np.arange(1, num_episodes + 1)
 
         if plot_each:
             for each_step in steps:
                 smooth_step = self._smooth(each_step, window_size)
                 ax.plot(episodes, smooth_step, color=color, alpha=min(1/(len(steps)), 0.15))
         
+        
+        
         mean_steps = np.mean(steps, axis=0)
         smooth_steps = self._smooth(mean_steps, window_size)
         ax.plot(episodes, smooth_steps, color=color, label=label)
-    
+                
+        if show_ci and steps.shape[0] >= 2:
+            n = steps.shape[0]
+            
+            # standard error with unbiased std (ddof=1)
+            se = np.std(steps, axis=0, ddof=1) / np.sqrt(n)
+            ci = 1.96 * se # ~95% normal approx; for small n consider Student-t
+
+            lower = mean_steps - ci
+            upper = mean_steps + ci
+
+            lower_s = self._smooth(lower, window_size)
+            upper_s = self._smooth(upper, window_size)
+
+            ax.fill_between(episodes, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
+            
         ax.set_title("Steps per Episode")
         ax.set_xlabel("Episode")
         ax.set_ylabel("Steps")
         # ax.legend()
         ax.grid(True)
     
-    def _plot_reward_per_steps(self, ax, num_steps, color, label, window_size, plot_each, show_ci):
+    def _plot_reward_per_steps(self, ax, num_steps, color, label, window_size, plot_each, show_ci, ignore_last=False):
         ep_returns = self.ep_returns
-        steps = self.ep_lengths          
-        x_common = np.linspace(0, num_steps, 200)      
+        steps = self.ep_lengths    
+        x_common = np.linspace(0, num_steps, 1000)      
         returns_interpolation = []
-
+        
         # Build arrays for each run
         for i in range(len(ep_returns)):
             # Convert to numeric arrays
-            run_returns = np.array(ep_returns[i], dtype=float)
-            run_steps = np.array(steps[i], dtype=float)
-        
+            if ignore_last: # sometimes the last episode is not complete
+                run_returns = np.array(ep_returns[i], dtype=float)[:-1]
+                run_steps = np.array(steps[i], dtype=float)[:-1]
+            else:
+                run_returns = np.array(ep_returns[i], dtype=float)
+                run_steps = np.array(steps[i], dtype=float)
+            
             # Get the cumulative steps
             cum_steps = np.cumsum(run_steps)
             
@@ -137,16 +170,19 @@ class SingleExpAnalyzer:
         
         # Optional confidence interval (quantile-based)
         if show_ci and returns_interpolation.shape[0] >= 2:
-            lower_q = (1.0 - 0.7) / 2.0 * 100.0
-            upper_q = (1.0 + 0.7) / 2.0 * 100.0
-            lower = np.percentile(returns_interpolation, lower_q, axis=0)
-            upper = np.percentile(returns_interpolation, upper_q, axis=0)
+            n = returns_interpolation.shape[0]
 
-            # (Optional) re-smooth the band edges for aesthetics
+            # sample std with ddof=1 -> unbiased; then standard error
+            se = np.std(returns_interpolation, axis=0, ddof=1) / np.sqrt(n)
+            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
+
+            lower = mean_returns - ci
+            upper = mean_returns + ci
+
+            # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
             upper_s = self._smooth(upper, window_size)
-
-            ax.fill_between(x_common, lower_s, upper_s, alpha=0.15, linewidth=0, color=color)
+            ax.fill_between(x_common, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
         
         ax.set_title("Sum Rewards per Steps")
         ax.set_xlabel("Steps")
@@ -154,7 +190,7 @@ class SingleExpAnalyzer:
         # ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True, window_size=1, plot_each=True, show_ci=True):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True, window_size=1, plot_each=True, show_ci=True, title="", ignore_last=False):
         """
         Plot total rewards and steps per episode and per steps.
         
@@ -173,19 +209,24 @@ class SingleExpAnalyzer:
         num_episodes = min([len(run) for run in self.ep_returns])
         num_steps = min([sum(steps) for steps in self.ep_lengths])
 
-        self._plot_reward_per_episode(axs[0], num_episodes, color, label, window_size, plot_each, show_ci)
-        self._plot_reward_per_steps(axs[1], num_steps, color, label, window_size, plot_each, show_ci)
-        self._plot_steps_per_episode(axs[2], num_episodes, color, label, window_size, plot_each, show_ci)
+        self._plot_reward_per_episode(axs[0], num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+        self._plot_reward_per_steps(axs[1], num_steps, color, label, window_size, plot_each, show_ci, ignore_last)
+        self._plot_steps_per_episode(axs[2], num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
 
+        if title:
+            fig.suptitle(title, fontsize=14)
+            
         if show_legend:
             # Retrieve handles and labels from one of the subplots.
             handles, labels = axs[0].get_legend_handles_labels()
             # Create one legend for the entire figure.
-            fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False)
-            fig.tight_layout(rect=[0, 0, 1, 0.95])
+            fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.96))
+            fig.tight_layout(rect=[0, 0, 1.0, 0.95])
         else:
             fig.tight_layout()
 
+        
+            
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
             fig.savefig(os.path.join(save_dir, "Combined.png"))

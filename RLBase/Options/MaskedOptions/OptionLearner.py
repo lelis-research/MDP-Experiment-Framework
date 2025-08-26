@@ -42,8 +42,6 @@ class MaskedOptionLearner():
             self.hyper_params = hyper_params
     
     def learn(self, agent_lst=None, trajectories_lst=None, hyper_params=None, verbose=True, seed=None, num_workers=1, exp_dir=None, save_log=False):
-        if save_log:
-            self.writer = SummaryWriter(log_dir=exp_dir)
         self.num_workers = num_workers
         self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
@@ -241,9 +239,6 @@ class MaskedOptionLearner():
                     best_loss = loss_r
                     best_subset = subset_r
                 
-                if self.writer is not None:
-                    self.writer.add_scalar("Selection/LossRestart", loss_r)
-                    self.writer.add_scalar("Selection/BestLoss", best_loss)
 
         return best_subset, best_loss
     
