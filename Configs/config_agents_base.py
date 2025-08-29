@@ -59,7 +59,7 @@ fc_network_2 = [
     {"type": "tanh"},
     {"type": "linear", "in_features": 64, "out_features":64},
     {"type": "tanh"},
-    {"type": "linear", "in_features": 64}
+    {"type": "linear", "in_features": 64, "std":0.01}
 ]
 
 linear_network_1 = [

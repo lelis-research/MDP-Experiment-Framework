@@ -1,6 +1,12 @@
 import torch
 import torch.nn as nn
 import math
+import numpy as np
+
+def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+    torch.nn.init.orthogonal_(layer.weight, gain=std)
+    torch.nn.init.constant_(layer.bias, bias_const)
+    return layer
 
 class NetworkGen(nn.Module):
     def __init__(self, layer_descriptions):
@@ -13,13 +19,15 @@ class NetworkGen(nn.Module):
             layer_type = config.get('type', '').lower()
             
             if layer_type == 'conv2d':
-                layers.append(nn.Conv2d(
+                l = nn.Conv2d(
                     in_channels=config['in_channels'],
                     out_channels=config['out_channels'],
                     kernel_size=config['kernel_size'],
                     stride=config.get('stride', 1),
                     padding=config.get('padding', 0)
-                ))
+                )
+                layers.append(layer_init(l, std=config.get('std', np.sqrt(2)), 
+                                         bias_const=config.get('bias_const', 0.0)))
             elif layer_type == 'maxpool2d':
                 layers.append(nn.MaxPool2d(
                     kernel_size=config['kernel_size'],
@@ -29,10 +37,12 @@ class NetworkGen(nn.Module):
             elif layer_type == 'flatten':
                 layers.append(nn.Flatten())
             elif layer_type == 'linear':
-                layers.append(nn.Linear(
+                l = nn.Linear(
                     in_features=config['in_features'],
                     out_features=config['out_features']
-                ))
+                    ) 
+                layers.append(layer_init(l, std=config.get('std', np.sqrt(2)), 
+                                         bias_const=config.get('bias_const', 0.0)))
             elif layer_type == 'batchnorm2d':
                 layers.append(nn.BatchNorm2d(config['num_features']))
             elif layer_type == 'relu':
