@@ -1,6 +1,12 @@
 from RLBase.Evaluate import plot_experiments, gather_experiments
 
 if __name__ == "__main__":
+    PPO_SimpleCrossing = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/PPO"
+    A2C_SimpleCrossing = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/A2C"
+    
+    PPO_Ant = "Runs/Train/Ant-v5_/PPO"
+    A2C_Ant = "Runs/Train/Ant-v5_/A2C" 
+    
     OptionDQN_NoDistraction = "Runs/Train/MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)/OptionDQN"
     OptionDQN_WithDistraction = "Runs/Train/MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)_FixedRandomDistractor(num_distractors-30_seed-100)/OptionDQN"
     
@@ -22,7 +28,11 @@ if __name__ == "__main__":
     A2C_40Distraction = "Runs/Train/MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)_FixedRandomDistractor(num_distractors-40_seed-100)/A2C"
     OptionA2C_40Distraction = "Runs/Train/MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)_FixedRandomDistractor(num_distractors-40_seed-100)/OptionA2C"
     
+    Ant_Test = "Runs/Train/Ant-v5_/A2C"
     agent_dict = {
+        "A2C": gather_experiments(A2C_Ant, name_string_conditions=[""], name_string_anti_conditions=[]),
+        "PPO": gather_experiments(PPO_Ant, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        
         # "DQN": gather_experiments(DQN_NoDistraction),
         # "DecWhole": gather_experiments(OptionDQN_NoDistraction, name_string_conditions=["DecWhole_NoDistractor"], name_string_anti_conditions=[]),
         # "FineTune": gather_experiments(OptionDQN_NoDistraction, name_string_conditions=["FineTune_NoDistractor"], name_string_anti_conditions=[]),
@@ -31,16 +41,16 @@ if __name__ == "__main__":
         # "Mask-L1": gather_experiments(OptionDQN_NoDistraction, name_string_conditions=["Mask-l1_NoDistractor"], name_string_anti_conditions=[]),
         # "Transfer": gather_experiments(OptionDQN_NoDistraction, name_string_conditions=["Transfer_NoDistractor"], name_string_anti_conditions=[]),
 
-        "A2C": gather_experiments(A2C_40Distraction),
-        "DecWhole": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
-        "FineTune": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=[]),
-        "Mask-Input": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
-        "Mask-Input-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
-        "Mask-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
-        "Mask-Input-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]),
-        "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
-        "Mask-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        "Transfer": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=[]),
+        # "A2C": gather_experiments(A2C_40Distraction),
+        # "DecWhole": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
+        # "FineTune": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=[]),
+        # "Mask-Input": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
+        # "Mask-Input-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
+        # "Mask-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
+        # "Mask-Input-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]),
+        # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Mask-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Transfer": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=[]),
 
         # "DecWhole_NoDistractions": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
         # "DecWhole_10Distractions": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
@@ -91,4 +101,4 @@ if __name__ == "__main__":
         
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name="FourRoom_40Distractions-Options_NoDistraction-A2C", window_size=1, show_ci=True, ignore_last=True)
+    plot_experiments(agent_dict, "Runs/Figures", name="PPO-A2C-Ant", window_size=1, show_ci=True, ignore_last=True)

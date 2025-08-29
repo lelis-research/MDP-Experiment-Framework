@@ -12,7 +12,7 @@ from ...Agents.DeepAgent.ValueBased import (
 from ...Agents.DeepAgent.PolicyGradient import (
     ReinforcePolicy,
     ReinforceWithBaselinePolicy,
-    PPOPolicy,
+    PPOPolicyDiscrete,
     A2CPolicyDiscrete,
 )
 from .NetworkMasker import NetworkMasker
@@ -115,7 +115,7 @@ class A2CPolicyDiscreteMasker(A2CPolicyDiscrete):
         return NetworkMasker.maskable_layers(self.actor) 
     
 @register_policy
-class PPOPolicyMasker(PPOPolicy):
+class PPOPolicyMasker(PPOPolicyDiscrete):
     def select_action_masked(self, state, mask_dict):
         masked_actor = NetworkMasker(self.actor, mask_dict)
 

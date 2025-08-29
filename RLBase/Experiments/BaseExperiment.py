@@ -83,11 +83,14 @@ class BaseExperiment:
                 if self._train:
                     agent.update(next_observation, reward, terminated, truncated)
                 
-                ep_return += reward
+                ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps += 1
                 observation = next_observation
-            
-            frames = env.render()
+            try:
+                frames = env.render()
+            except:
+                frames = []
+                
             metrics = {
                 "ep_return": ep_return,
                 "ep_length": steps,
@@ -158,7 +161,7 @@ class BaseExperiment:
                 next_observation, reward, terminated, truncated, info = env.step(action)
 
                 # Update reward/step counters
-                ep_return += reward
+                ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps_in_episode += 1
                 steps_so_far += 1
 
@@ -181,7 +184,10 @@ class BaseExperiment:
                 observation = next_observation
            
             # Collect frames from the environment if needed
-            frames = env.render()
+            try:
+                frames = env.render()
+            except:
+                frames = []
             
             # Episode metrics
             metrics = {

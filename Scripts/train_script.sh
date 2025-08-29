@@ -15,6 +15,8 @@ cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
 # module python/3.10
+module load mujoco
+export MUJOCO_GL=egl
 source ~/ENV/bin/activate
 
 # Pin BLAS/OpenMP
@@ -28,31 +30,41 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="OptionA2C"
-ENV="MiniGrid-FourRooms-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-ENV_PARAMS='{}'
-NAME_TAG="Mask-input-l1-reg01_$IDX"
+AGENT="PPO"
+ENV="Ant-v5"
+#'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+ENV_WRAPPING='["RecordReward", "NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]'
+#'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
+WRAPPING_PARAMS='[{}, {}, {}, {}, {}]' 
+ENV_PARAMS='{}' #'{"continuing_task":false}'
+NAME_TAG="Wrapped_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500000
+TOTAL_STEPS=1000000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=300
+EPISODE_MAX_STEPS=500
 
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
   "actor_step_size": 0.001,
   "critic_step_size": 0.01,
-  "rollout_steps": 10
+  "rollout_steps": 1024,
+  "mini_batch_size": 128
 }'
+# "actor_step_size": 0.001,
+# "critic_step_size": 0.01,
+# "rollout_steps": 1024,
+# "mini_batch_size": 128
+# "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
+# "actor_step_size": 0.0001,
+# "critic_step_size": 0.001,
+# "rollout_steps": 20
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then

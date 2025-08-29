@@ -12,7 +12,7 @@ from ...Agents.DeepAgent.ValueBased import (
 from ...Agents.DeepAgent.PolicyGradient import (
     ReinforcePolicy,
     ReinforceWithBaselinePolicy,
-    PPOPolicy,
+    PPOPolicyDiscrete,
     A2CPolicyDiscrete,
 )
 from .NetworkMasker import NetworkMasker

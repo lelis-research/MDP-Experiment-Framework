@@ -52,8 +52,16 @@ fc_network_1 = [
     {"type": "linear", "out_features": 64},
     {"type": "relu"},
     {"type": "linear", "in_features": 64},
-
 ]
+
+fc_network_2 = [
+    {"type": "linear", "out_features": 64},
+    {"type": "tanh"},
+    {"type": "linear", "in_features": 64, "out_features":64},
+    {"type": "tanh"},
+    {"type": "linear", "in_features": 64}
+]
+
 linear_network_1 = [
     {"type": "linear"}
 ]
@@ -203,10 +211,12 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
-                        actor_network=fc_network_1,
+                        actor_network=fc_network_2,
                         actor_step_size=info['actor_step_size'],
-                        critic_network=fc_network_1,
+                        critic_network=fc_network_2,
                         critic_step_size=info['critic_step_size'],
+                        norm_adv_flag=True,
+                        entropy_coef=0.0,
                         ),
         get_num_envs(env),
         FLattenFeature,
@@ -216,9 +226,9 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
-                        actor_network=fc_network_1,
+                        actor_network=fc_network_2,
                         actor_step_size=info['actor_step_size'],
-                        critic_network=fc_network_1,
+                        critic_network=fc_network_2,
                         critic_step_size=info['critic_step_size'],
                         ),
         get_num_envs(env),
@@ -229,16 +239,18 @@ AGENT_DICT = {
     PPOAgent.name: lambda env, info: PPOAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, clip_range=0.2,
-                        mini_batch_size=64, rollout_steps=2048, 
-                        entropy_coef=0.01, num_epochs=10,
-                        actor_network=conv_network_1,
-                        actor_step_size=3e-4,
-                        critic_network=conv_network_1,
-                        critic_step_size=1e-4, 
+        HyperParameters(gamma=0.99, lamda=0.95, 
+                        mini_batch_size=info['mini_batch_size'], rollout_steps=info['rollout_steps'], 
+                        num_epochs=10, clip_range=0.2,
+                        actor_network=fc_network_2,
+                        actor_step_size=info['actor_step_size'],
+                        critic_network=fc_network_2,
+                        critic_step_size=info['critic_step_size'], 
+                        norm_adv_flag=True, clip_critic_loss_flag=True,
+                        critic_coef=0.5, entropy_coef=0.0, max_grad_norm=0.5, 
                         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
         device=device
     )
 }

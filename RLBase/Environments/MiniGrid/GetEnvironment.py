@@ -102,7 +102,7 @@ def get_single_env(env_name, max_steps=500, render_mode=None, env_params={}, wra
         gym.Env: A wrapped Gymnasium environment.
     """
     assert env_name in MINIGRID_ENV_LST, f"Environment {env_name} not supported."
-    env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode, **env_params)
+    env = gym.make(env_name, max_episode_steps=max_steps, render_mode=render_mode, **env_params)
     # Apply each wrapper in the provided list with corresponding parameters.
     for i, wrapper_name in enumerate(wrapping_lst):
         env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])

@@ -15,6 +15,8 @@ cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
 # module python/3.10
+module load mujoco
+export MUJOCO_GL=egl
 source ~/ENV/bin/activate
 
 # Pin BLAS/OpenMP

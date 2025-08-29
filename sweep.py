@@ -135,7 +135,10 @@ if __name__ == '__main__':
     hp_search_space = {
         'actor_step_size':   [0.0001, 0.001, 0.01],
         'critic_step_size':  [0.0001, 0.001, 0.01],
-        'rollout_steps':     [5, 10, 20],
+        'rollout_steps':     [10, 20],
+        
+        # 'rollout_steps':     [1024, 2048],
+        # 'mini_batch_size':   [32, 64, 128]
     }
     
     main(hp_search_space)

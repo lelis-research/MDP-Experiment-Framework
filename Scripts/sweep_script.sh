@@ -6,7 +6,7 @@
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-26      # check sweep.py to calculate arrays
+#SBATCH --array=0-17      # check sweep.py to calculate arrays
 
 set -euo pipefail
 
@@ -14,6 +14,8 @@ cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
 # module python/3.10
+module load mujoco
+export MUJOCO_GL=egl
 source ~/ENV/bin/activate
 
 export OMP_NUM_THREADS=1
@@ -27,28 +29,32 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionA2C"
-ENV="MiniGrid-FourRooms-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-ENV_PARAMS='{}'
+AGENT="A2C"
+ENV="Ant-v5"
+#'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+ENV_WRAPPING='["RecordReward", "NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]'
+#'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
+WRAPPING_PARAMS='[{}, {}, {}, {}, {}]' 
+ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
 NUM_RUNS=3
 NUM_EPISODES=0
-TOTAL_STEPS=300000
-EPISODE_MAX_STEPS=300
+TOTAL_STEPS=500000
+EPISODE_MAX_STEPS=500
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="Mask-input-l1-Reg-0.01"
+NAME_TAG="Wrapped"
 INFO='{
-  "option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t",
   "actor_step_size": 0.001,
   "critic_step_size": 0.01,
-  "rollout_steps": 20
+  "rollout_steps": 20,
+  "mini_batch_size": 64
 }'  
   # "option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t",
+  # "rollout_steps": 20
+
 
 # ---------------------------------------------------------
 

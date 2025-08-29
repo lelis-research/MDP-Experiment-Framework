@@ -1,12 +1,14 @@
 import gymnasium as gym
-from gymnasium.wrappers import TimeLimit
-
+import gymnasium_robotics
 from .Wrappers import WRAPPING_TO_WRAPPER
+
+gym.register_envs(gymnasium_robotics)
 
 # List of supported Mujoco environments
 MUJOCO_ENV_LST = [
-    "Walker2d-v4",
-    "Ant-v4"
+    "Walker2d-v5",
+    "Ant-v5",
+    "AntMaze_UMaze-v5",
 ]
 
 def get_single_env(env_name, 
@@ -29,11 +31,10 @@ def get_single_env(env_name,
         gym.Env: A wrapped MiniHack environment.
     """
     assert env_name in MUJOCO_ENV_LST, f"Environment {env_name} not supported."
-    env = gym.make(env_name, render_mode=render_mode, **env_params)
+    env = gym.make(env_name, render_mode=render_mode, max_episode_steps=max_steps, **env_params)
     # Apply each wrapper in the provided list with corresponding parameters.
     for i, wrapper_name in enumerate(wrapping_lst):
         env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
-    env = TimeLimit(env, max_episode_steps=max_steps)
     return env
 
 

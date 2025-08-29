@@ -15,6 +15,8 @@ cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
 # module python/3.10
+module load mujoco
+export MUJOCO_GL=egl
 source ~/ENV/bin/activate
 
 # Pin BLAS/OpenMP
@@ -29,11 +31,11 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1000))
-ENV="MiniGrid-FourRooms-v0"
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]'
+ENV="AntMaze_UMaze-v5"
+ENV_WRAPPING='[]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
+WRAPPING_PARAMS='[]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="main-40" #"$seed"
+NAME_TAG="ant" #"$seed"
 # ------------------------------
 
 python visualize_env.py \

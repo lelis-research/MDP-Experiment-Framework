@@ -2,7 +2,8 @@ grpcio>=1.68.1
 grpcio-tools>=1.68.1
 
 argcomplete==3.6.0
-gymnasium==1.0.0
+gymnasium==1.2.0
+gymnasium-robotics==1.4.1
 imageio==2.37.0
 matplotlib==3.10.0
 minigrid==3.0.0
