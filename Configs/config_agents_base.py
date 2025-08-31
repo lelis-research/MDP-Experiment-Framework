@@ -26,7 +26,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     OptionA2CAgent,
 )
 from RLBase.Options.Utils import load_options_list
-from .networks import NETWORKS
+from Configs.networks import NETWORKS
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -224,6 +224,8 @@ AGENT_DICT = {
             critic_step_size=info.get("critic_step_size", 3e-4),
             norm_adv_flag=info.get("norm_adv_flag", True),
             entropy_coef=info.get("entropy_coef", 0.0),
+            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
+            total_updates=info.get("total_updates", 1e6)
         ),
         get_num_envs(env),
         FLattenFeature,
@@ -266,6 +268,8 @@ AGENT_DICT = {
             critic_coef=info.get("critic_coef", 0.5),
             entropy_coef=info.get("entropy_coef", 0.0),
             max_grad_norm=info.get("max_grad_norm", 0.5),
+            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
+            total_updates=info.get("total_updates", 1e6)
         ),
         get_num_envs(env),
         FLattenFeature,

@@ -267,7 +267,7 @@ class PPOPolicyContinuous(BasePolicy):
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
         self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
         
-        # self.update_counter = 0     
+        self.update_counter = 0     
 
 
     def _log_prob_and_entropy(self, state_t, action_t=None):
@@ -308,12 +308,13 @@ class PPOPolicyContinuous(BasePolicy):
             dones: list[bool]
         """
 
-        # self.update_counter += 1
+        self.update_counter += 1
 
-        # # Update the step size
-        # if self.flag_anneal_step_size:
-        #     frac = 1.0 - (self.update_counter - 1.0) / self.total_updates
-        #     self.optimizer.param_groups[0]["lr"] = frac * self.step_size
+        # Update the step size
+        if self.hp.anneal_step_size_flag:
+            frac = 1.0 - (self.update_counter - 1.0) / self.hp.total_updates
+            self.critic_optimizer.param_groups[0]["lr"] = frac * self.hp.critic_step_size
+            self.actor_optimizer.param_groups[0]["lr"] = frac * self.hp.actor_step_size
         
         states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) \
                    else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)

@@ -6,7 +6,9 @@ import shutil
 import importlib.util
 import yaml
 import argparse
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import torch
 
 class BaseExperiment:
     """
@@ -59,6 +61,7 @@ class BaseExperiment:
         Returns:
             list: Episode metrics for the run.
         """
+        best_agent, best_return = None, -np.inf
         if self._train:
             agent.reset(seed)
         all_metrics = []
@@ -96,12 +99,15 @@ class BaseExperiment:
                 "ep_length": steps,
                 "frames": frames,
                 # "env_seed": ep_seed,
-                "transitions": transitions
+                "transitions": transitions,
+                "agent_seed": seed,
+                "episode_index": episode_idx,
             }
-            
-            metrics["agent_seed"] = seed
-            metrics["episode_index"] = episode_idx
             all_metrics.append(metrics)
+            if ep_return >= best_return:
+                best_return = ep_return
+                best_agent = agent.save()
+                
             pbar.set_postfix({
                 "Return": metrics['ep_return'], 
                 "Steps": metrics['ep_length'],
@@ -109,7 +115,7 @@ class BaseExperiment:
             if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
-        return all_metrics
+        return all_metrics, best_agent
     
     def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
         """
@@ -127,6 +133,8 @@ class BaseExperiment:
                 A list of episode metrics. Each element is the dictionary returned 
                 by self.run_episode(...), plus extra info (agent_seed, etc.).
         """
+        best_agent, best_return = None, -np.inf
+
         if self._train:
             agent.reset(seed)
             
@@ -200,6 +208,9 @@ class BaseExperiment:
                 "episode_index": episode_idx
             }
             all_metrics.append(metrics)
+            if ep_return >= best_return:
+                best_return = ep_return
+                best_agent = agent.save()
             
             # Show some info in the progress bar
             pbar.set_postfix({
@@ -213,7 +224,7 @@ class BaseExperiment:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         pbar.close()
-        return all_metrics
+        return all_metrics, best_agent
 
     def _one_run(self, run_idx, case_num, num_episodes, total_steps, seed_offset, tuning_hp=None):
         """
@@ -237,11 +248,15 @@ class BaseExperiment:
             agent.set_hp(tuning_hp)
 
         if case_num == 1:
-            result = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
+            result, best_agent = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
         else:
-            result = self._single_run_steps(env, agent, total_steps, seed, run_idx)
+            result, best_agent = self._single_run_steps(env, agent, total_steps, seed, run_idx)
         
-        # Save agent
+        # Save best agent
+        path = os.path.join(self.exp_dir, f"Run{run_idx}_Best")
+        torch.save(best_agent, f"{path}_agent.t")
+        
+        # Save last agent
         if self._checkpoint_freq is not None:
             path = os.path.join(self.exp_dir, f"Run{run_idx}_Last")
             agent.save(path)

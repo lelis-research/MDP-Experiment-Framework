@@ -3,6 +3,7 @@ import os
 from tqdm import tqdm
 import pickle
 import random
+import numpy as np
 
 from . import BaseExperiment
 
@@ -46,6 +47,7 @@ class LoggerExperiment(BaseExperiment):
         Returns:
             list: A list of episode metrics.
         """
+        best_agent, best_return = None, -np.inf
         self.call_back.reset()
         if self._train:
             agent.reset(seed)
@@ -86,12 +88,14 @@ class LoggerExperiment(BaseExperiment):
                 "ep_length":    steps,
                 "frames":       frames,
                 # "env_seed":     ep_seed,
-                "transitions":  transitions
+                "transitions":  transitions,
+                "agent_seed": seed,
+                "episode_index": episode_idx
             }
-            
-            metrics['agent_seed'] = seed
-            metrics['episode_index'] = episode_idx
             all_metrics.append(metrics)
+            if ep_return >= best_return:
+                best_return = ep_return
+                best_agent = agent.save()
 
             self.call_back({"ep_return": metrics["ep_return"]},
                            f"ep_return/run_{run_idx}", 
@@ -107,7 +111,7 @@ class LoggerExperiment(BaseExperiment):
             if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
-        return all_metrics
+        return all_metrics, best_agent
     
     def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
         """
@@ -125,6 +129,7 @@ class LoggerExperiment(BaseExperiment):
                 A list of episode metrics. Each element is the dictionary returned 
                 by self.run_episode(...), plus extra info (agent_seed, etc.).
         """
+        best_agent, best_return = None, -np.inf
         self.call_back.reset()
         if self._train:
             agent.reset(seed)
@@ -197,6 +202,10 @@ class LoggerExperiment(BaseExperiment):
                 "episode_index": episode_idx
             }
             all_metrics.append(metrics)
+            
+            if ep_return >= best_return:
+                best_return = ep_return
+                best_agent = agent.save()
 
             self.call_back({"ep_return": metrics["ep_return"]},
                            f"ep_return/run_{run_idx}", 
@@ -217,7 +226,7 @@ class LoggerExperiment(BaseExperiment):
                 path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
                 agent.save(path)
         pbar.close()
-        return all_metrics
+        return all_metrics, best_agent
 
     def multi_run(self, num_runs, 
                   num_episodes=0, total_steps=0, 

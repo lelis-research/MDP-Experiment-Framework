@@ -40,7 +40,7 @@ from RLBase import load_policy, load_agent
 #     return parser.parse_args()
 
 if __name__ == "__main__":
-    exp_name = "MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)/OptionA2C/DecWhole_0_seed[0]"
+    exp_name = "AntMaze_BL_TR-v0_continuing_task-False/CombineObs_AddHealthyReward/A2C/_seed[123123]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -51,9 +51,9 @@ if __name__ == "__main__":
     args = BaseExperiment.load_args(train_path)
     config = BaseExperiment.load_config(train_path)
     
-    args.env = "MiniGrid-FourRooms-v0"
-    args.env_wrapping = ["ViewSize","FlattenOnehotObj","FixedSeed"]#,"FixedRandomDistractor"]
-    args.wrapping_params = [{"agent_view_size":9},{},{"seed":5000}]#,{"num_distractors": 30, "seed": 100}]
+    # args.env = "AntMaze_BL_TR-v0"
+    # args.env_wrapping = ["CombineObs","AddHealthyReward"]#,"FixedRandomDistractor"]
+    # args.wrapping_params = [{}, {}]#,{"num_distractors": 30, "seed": 100}]
     env = get_env(
         env_name=args.env,
         num_envs=args.num_envs,
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         wrapping_lst=args.env_wrapping,
         wrapping_params=args.wrapping_params,
     )
-    agent = load_agent(os.path.join(train_path, "Run1_Last_agent.t"))
+    agent = load_agent(os.path.join(train_path, "Run1_Best_agent.t"))
     
     # policy = load_policy(os.path.join(train_path, "Run1_Last_policy.t"))
     # print(policy)
