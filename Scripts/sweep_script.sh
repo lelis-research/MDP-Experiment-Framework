@@ -6,7 +6,7 @@
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-17      # check sweep.py to calculate arrays
+#SBATCH --array=0-15      # check HP_SEARCH_SPACE to calculate the space size
 
 set -euo pipefail
 
@@ -29,32 +29,39 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="Ant-v5"
+AGENT="PPO"
+ENV="AntMaze_UMaze-v5"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RecordReward", "NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]'
+ENV_WRAPPING='["CombineObs"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}, {}, {}, {}, {}]' 
-ENV_PARAMS='{}' #'{"continuing_task":False}'
+WRAPPING_PARAMS='[{}]' 
+ENV_PARAMS='{"continuing_task":false}' #'{"continuing_task":False}'
 SEED=1
 
 NUM_RUNS=3
 NUM_EPISODES=0
-TOTAL_STEPS=500000
+TOTAL_STEPS=1000000
 EPISODE_MAX_STEPS=500
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="Wrapped"
+NAME_TAG=""
 INFO='{
   "actor_step_size": 0.001,
   "critic_step_size": 0.01,
   "rollout_steps": 20,
   "mini_batch_size": 64
 }'  
+
   # "option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t",
   # "rollout_steps": 20
 
+HP_SEARCH_SPACE='{
+  "actor_step_size": [0.003, 0.0003],
+  "critic_step_size": [0.003, 0.0003],
+  "rollout_steps":    [1024, 2048],
+  "mini_batch_size":  [32, 64]
+}'
 
 # ---------------------------------------------------------
 
@@ -74,4 +81,5 @@ python sweep.py \
   --info               "$INFO" \
   --env_params        "$ENV_PARAMS" \
   --env_wrapping      "$ENV_WRAPPING" \
-  --wrapping_params   "$WRAPPING_PARAMS"\
+  --wrapping_params   "$WRAPPING_PARAMS" \
+  --hp_search_space   "$HP_SEARCH_SPACE"  

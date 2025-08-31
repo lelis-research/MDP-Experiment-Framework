@@ -47,13 +47,25 @@ def parse_args():
     # Number of workers to run parallel for each trial
     parser.add_argument('--num_workers',  type=int, default=1)
     # Info for agent specification
-    parser.add_argument("--info", type=json.loads, help='JSON dict, e.g. \'{"lr":0.001,"epochs":10}\'')
+    parser.add_argument("--info", type=json.loads, help='JSON dict for the default values, e.g. \'{"lr":0.001,"epochs":10}\'')
+    # Search space
+    parser.add_argument("--hp_search_space", type=json.loads, 
+                        help='JSON dict of hyper-params, e.g. \'{"actor_step_size":[0.001,0.0003], "rollout_steps":[1024,2048]}\'')
     return parser.parse_args()
 
 
-def main(hp_search_space):
-    args = parse_args()   
+def validate_hp_space(space: dict):
+    if not isinstance(space, dict) or not space:
+        raise ValueError("hp_search_space must be a non-empty dict")
+    for k, v in space.items():
+        if not isinstance(v, (list, tuple)) or len(v) == 0:
+            raise ValueError(f"hp_search_space['{k}'] must be a non-empty list/tuple; got {v}")
+    return space
 
+def main():
+    args = parse_args()   
+    hp_search_space = validate_hp_space(args.hp_search_space)
+        
     # Build list of (actor, critic, rollout) combos
     keys = list(hp_search_space.keys())
     grid = list(itertools.product(*(hp_search_space[k] for k in keys)))
@@ -126,21 +138,6 @@ def main(hp_search_space):
 
 
 if __name__ == '__main__':
-    # hp_search_space = {
-    #     'step_size':   [0.0001, 0.001, 0.01],
-    #     'epsilon':  [0.1, 0.01, 0.001],
-    #     'batch_size':     [128, 256],
-    #     'target_update_freq': [20, 200]
-    # }
-    hp_search_space = {
-        'actor_step_size':   [0.0001, 0.001, 0.01],
-        'critic_step_size':  [0.0001, 0.001, 0.01],
-        'rollout_steps':     [10, 20],
-        
-        # 'rollout_steps':     [1024, 2048],
-        # 'mini_batch_size':   [32, 64, 128]
-    }
-    
-    main(hp_search_space)
+    main()
 
 

@@ -243,7 +243,9 @@ class A2CPolicyContinuous(BasePolicy):
         self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
         
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
-        self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)     
+        self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
+        
+        # self.update_counter = 0
 
 
     def _log_prob_and_entropy(self, state_t, action_t=None):
@@ -274,7 +276,14 @@ class A2CPolicyContinuous(BasePolicy):
         Args are identical to the discrete version, except:
           - actions: list/array of shape [n_steps, action_dim]
         """
-        # states/next_states may already be tensors from your framework
+        
+        # self.update_counter += 1
+
+        # # Update the step size
+        # if self.flag_anneal_step_size:
+        #     frac = 1.0 - (self.update_counter - 1.0) / self.total_updates
+        #     self.optimizer.param_groups[0]["lr"] = frac * self.step_size
+            
         states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) \
                    else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
         next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) \

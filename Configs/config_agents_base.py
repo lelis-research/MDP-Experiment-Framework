@@ -11,7 +11,6 @@ from RLBase.Agents.TabularAgent import (
     NStepQLearningAgent,
     SarsaAgent,
     DoubleQLearningAgent,
-    # MaskedQLearningAgent
 )
 from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
@@ -27,7 +26,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     OptionA2CAgent,
 )
 from RLBase.Options.Utils import load_options_list
-
+from .networks import NETWORKS
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -38,33 +37,7 @@ def get_env_observation_space(env):
 def get_num_envs(env):
     return env.num_envs if hasattr(env, 'num_envs') else 1
 
-conv_network_1 = [
-    {"type": "conv2d", "out_channels": 32, "kernel_size": 3, "stride": 1},
-    {"type": "relu"},
-    {"type": "conv2d", "in_channels": 32, "out_channels": 64, "kernel_size": 3, "stride": 1},
-    {"type": "relu"},
-    {"type": "flatten"},
-    {"type": "linear", "out_features": 512},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 512}
-]
-fc_network_1 = [
-    {"type": "linear", "out_features": 64},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 64},
-]
 
-fc_network_2 = [
-    {"type": "linear", "out_features": 64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64, "out_features":64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64, "std":0.01}
-]
-
-linear_network_1 = [
-    {"type": "linear"}
-]
 
 device="cpu" # cpu, mps, cuda#
 
@@ -96,50 +69,63 @@ AGENT_DICT = {
     QLearningAgent.name: lambda env, info: QLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
+        HyperParameters(
+            step_size=info.get("step_size", 0.2),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.1),
+        ),
         get_num_envs(env),
         TabularFeature,
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.1),
+        HyperParameters(
+            step_size=info.get("step_size", 0.5),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.1),
+        ),
         get_num_envs(env),
         TabularFeature,
     ),
     DoubleQLearningAgent.name: lambda env, info: DoubleQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.1, gamma=0.99, epsilon=0.1),
+        HyperParameters(
+            step_size=info.get("step_size", 0.5),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.1),
+        ),
         get_num_envs(env),
         TabularFeature,
     ),
     NStepQLearningAgent.name: lambda env, info: NStepQLearningAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.5, gamma=0.99, epsilon=0.01, n_steps=1),
+        HyperParameters(
+            step_size=info.get("step_size", 0.5),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            n_steps=info.get("n_steps", 1),
+        ),
         get_num_envs(env),
         TabularFeature,
     ),
     
-    # MaskedQLearningAgent.name: lambda env: MaskedQLearningAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(step_size=0.2, gamma=0.99, epsilon=0.1),
-    #     get_num_envs(env),
-    #     TabularFeature,
-    #     initial_options=load_option("Runs/Train/MiniGrid-ChainEnv-v0_{'chain_length': 20}/DQN/_seed[123123]_20250312_092541/R1_T5_N1_L['1']_S100_options.t"),        
-    # ),
     
     # Deep Agents
     DQNAgent.name: lambda env, info: DQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.01, 
-                        replay_buffer_cap=10000, batch_size=128,
-                        target_update_freq=20,
-                        value_network=fc_network_1,
-                        ),
+        HyperParameters(
+            step_size=info.get("step_size", 0.001),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            replay_buffer_cap=info.get("replay_buffer_cap", 10000),
+            batch_size=info.get("batch_size", 128),
+            target_update_freq=info.get("target_update_freq", 20),
+            value_network=NETWORKS[info.get("value_network", "fc_network_1")],
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device,
@@ -148,11 +134,15 @@ AGENT_DICT = {
     OptionDQNAgent.name: lambda env, info: OptionDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=info['step_size'], gamma=0.99, epsilon=info['epsilon'], 
-                        replay_buffer_cap=100000, batch_size=info['batch_size'],
-                        target_update_freq=info['target_update_freq'],
-                        value_network=fc_network_1,
-                        ),
+        HyperParameters(
+            step_size=info.get("step_size", 0.001),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            replay_buffer_cap=info.get("replay_buffer_cap", 100000),
+            batch_size=info.get("batch_size", 128),
+            target_update_freq=info.get("target_update_freq", 20),
+            value_network=NETWORKS[info.get("value_network", "fc_network_1")],
+        ),
         get_num_envs(env),
         FLattenFeature,
         options_lst=load_options_list(info["option_path"]),
@@ -162,11 +152,15 @@ AGENT_DICT = {
     DoubleDQNAgent.name: lambda env, info: DoubleDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.01, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=512, batch_size=32,
-                        target_update_freq=20,
-                        value_network=fc_network_1,
-                        ),
+        HyperParameters(
+            step_size=info.get("step_size", 0.001),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            replay_buffer_cap=info.get("replay_buffer_cap", 100000),
+            batch_size=info.get("batch_size", 128),
+            target_update_freq=info.get("target_update_freq", 20),
+            value_network=NETWORKS[info.get("value_network", "fc_network_1")],
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device
@@ -174,11 +168,16 @@ AGENT_DICT = {
     NStepDQNAgent.name: lambda env, info: NStepDQNAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1, 
-                        replay_buffer_cap=512, batch_size=32,
-                        target_update_freq=20, n_steps=10,
-                        value_network=fc_network_1,
-                        ),
+        HyperParameters(
+            step_size=info.get("step_size", 0.001),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            replay_buffer_cap=info.get("replay_buffer_cap", 100000),
+            batch_size=info.get("batch_size", 128),
+            target_update_freq=info.get("target_update_freq", 20),
+            n_steps=info.get("n_steps", 10),
+            value_network=NETWORKS[info.get("value_network", "fc_network_1")],
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device
@@ -187,9 +186,12 @@ AGENT_DICT = {
     ReinforceAgent.name: lambda env, info: ReinforceAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(step_size=0.001, gamma=0.99, epsilon=0.1,
-                        actor_network=fc_network_1,
-                        ),
+        HyperParameters(
+            step_size=info.get("step_size", 0.001),
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_1")],
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device
@@ -197,12 +199,14 @@ AGENT_DICT = {
     ReinforceWithBaselineAgent.name: lambda env, info: ReinforceWithBaselineAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, epsilon=0.1,
-                        actor_network=fc_network_1,
-                        actor_step_size=0.001,
-                        critic_network=fc_network_1,
-                        critic_step_size=0.001,
-                        ),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            epsilon=info.get("epsilon", 0.01),
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_1")],
+            actor_step_size=info.get("actor_step_size", 0.001),
+            critic_network=NETWORKS[info.get("critic_network", "fc_network_1")],
+            critic_step_size=info.get("critic_step_size", 0.001),
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device
@@ -210,14 +214,17 @@ AGENT_DICT = {
     A2CAgent.name: lambda env, info: A2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
-                        actor_network=fc_network_2,
-                        actor_step_size=info['actor_step_size'],
-                        critic_network=fc_network_2,
-                        critic_step_size=info['critic_step_size'],
-                        norm_adv_flag=True,
-                        entropy_coef=0.0,
-                        ),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            lamda=info.get("lamda", 0.95),
+            rollout_steps=info.get("rollout_steps", 20),
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
+            actor_step_size=info.get("actor_step_size", 3e-4),
+            critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
+            critic_step_size=info.get("critic_step_size", 3e-4),
+            norm_adv_flag=info.get("norm_adv_flag", True),
+            entropy_coef=info.get("entropy_coef", 0.0),
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device
@@ -225,30 +232,41 @@ AGENT_DICT = {
     OptionA2CAgent.name: lambda env, info: OptionA2CAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, lamda=0.95, rollout_steps=info['rollout_steps'],
-                        actor_network=fc_network_2,
-                        actor_step_size=info['actor_step_size'],
-                        critic_network=fc_network_2,
-                        critic_step_size=info['critic_step_size'],
-                        ),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            lamda=info.get("lamda", 0.95),
+            rollout_steps=info.get("rollout_steps", 20),
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
+            actor_step_size=info.get("actor_step_size", 3e-4),
+            critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
+            critic_step_size=info.get("critic_step_size", 3e-4),
+        ),
         get_num_envs(env),
         FLattenFeature,
         options_lst=load_options_list(info["option_path"]),
         device=device
     ),
+    
     PPOAgent.name: lambda env, info: PPOAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(gamma=0.99, lamda=0.95, 
-                        mini_batch_size=info['mini_batch_size'], rollout_steps=info['rollout_steps'], 
-                        num_epochs=10, clip_range=0.2,
-                        actor_network=fc_network_2,
-                        actor_step_size=info['actor_step_size'],
-                        critic_network=fc_network_2,
-                        critic_step_size=info['critic_step_size'], 
-                        norm_adv_flag=True, clip_critic_loss_flag=True,
-                        critic_coef=0.5, entropy_coef=0.0, max_grad_norm=0.5, 
-                        ),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            lamda=info.get("lamda", 0.95),
+            mini_batch_size=info.get("mini_batch_size", 64),
+            rollout_steps=info.get("rollout_steps", 2048),
+            num_epochs=info.get("num_epochs", 10),
+            clip_range=info.get("clip_range", 0.2),
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
+            actor_step_size=info.get("actor_step_size", 3e-4),
+            critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
+            critic_step_size=info.get("critic_step_size", 3e-4),
+            norm_adv_flag=info.get("norm_adv_flag", True),
+            clip_critic_loss_flag=info.get("clip_critic_loss_flag", True),
+            critic_coef=info.get("critic_coef", 0.5),
+            entropy_coef=info.get("entropy_coef", 0.0),
+            max_grad_norm=info.get("max_grad_norm", 0.5),
+        ),
         get_num_envs(env),
         FLattenFeature,
         device=device

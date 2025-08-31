@@ -190,7 +190,9 @@ class SingleExpAnalyzer:
         # ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", show_legend=True, window_size=1, plot_each=True, show_ci=True, title="", ignore_last=False):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", 
+                      show_legend=True, window_size=1, plot_each=True, show_ci=True, title="", 
+                      ignore_last=False, plt_configs=["r_e", "r_s", "s_e"]):
         """
         Plot total rewards and steps per episode and per steps.
         
@@ -202,23 +204,36 @@ class SingleExpAnalyzer:
             save_dir (str, optional): Directory to save the plot.
             show (bool): Whether to display the plot.
         """
-        if fig is None or axs is None:
-            fig, axs = plt.subplots(3, 1, figsize=(12, 10))
+        assert all(c in {"r_e", "r_s", "s_e"} for c in plt_configs), \
+        f"Invalid entries in plt_configs: {plt_configs}"
 
+        if fig is None or axs is None:
+            fig, axs = plt.subplots(len(plt_configs), 1, figsize=(15, 10))
+        
         # find minimum number of episodes across runs
         num_episodes = min([len(run) for run in self.ep_returns])
         num_steps = min([sum(steps) for steps in self.ep_lengths])
-
-        self._plot_reward_per_episode(axs[0], num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
-        self._plot_reward_per_steps(axs[1], num_steps, color, label, window_size, plot_each, show_ci, ignore_last)
-        self._plot_steps_per_episode(axs[2], num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+        
+        ax_counter = 0
+        if "r_e" in plt_configs:
+            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
+            self._plot_reward_per_episode(ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+            ax_counter += 1
+        if "r_s" in plt_configs:
+            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
+            self._plot_reward_per_steps(ax, num_steps, color, label, window_size, plot_each, show_ci, ignore_last)
+            ax_counter += 1
+        if "s_e" in plt_configs:
+            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
+            self._plot_steps_per_episode(ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+            ax_counter += 1
 
         if title:
             fig.suptitle(title, fontsize=14)
             
         if show_legend:
             # Retrieve handles and labels from one of the subplots.
-            handles, labels = axs[0].get_legend_handles_labels()
+            handles, labels = ax.get_legend_handles_labels()
             # Create one legend for the entire figure.
             fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.96))
             fig.tight_layout(rect=[0, 0, 1.0, 0.95])

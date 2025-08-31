@@ -1,14 +1,58 @@
 import gymnasium as gym
 import gymnasium_robotics
 from .Wrappers import WRAPPING_TO_WRAPPER
+from .Maps import BL_TR, BR_TL, TL_BR, TR_BL
+from gymnasium_robotics.envs.maze import AntMazeEnv
 
 gym.register_envs(gymnasium_robotics)
+gym.register(
+    id="AntMaze_BL_TR-v0",  
+    entry_point=AntMazeEnv,  # or your custom class
+    kwargs={
+        "maze_map": BL_TR,
+        # "reward_type": "sparse",
+        # "eval": False,
+    }
+)
+gym.register(
+    id="AntMaze_BR_TL-v0",  
+    entry_point=AntMazeEnv,  # or your custom class
+    kwargs={
+        "maze_map": BR_TL,
+        # "reward_type": "sparse",
+        # "eval": False,
+    }
+)
+gym.register(
+    id="AntMaze_TL_BR-v0",  
+    entry_point=AntMazeEnv,  # or your custom class
+    kwargs={
+        "maze_map": TL_BR,
+        # "reward_type": "sparse",
+        # "eval": False,
+    }
+)
+gym.register(
+    id="AntMaze_TR_BL-v0",  
+    entry_point=AntMazeEnv,  # or your custom class
+    kwargs={
+        "maze_map": TR_BL,
+        # "reward_type": "sparse",
+        # "eval": False,
+    }
+)
 
 # List of supported Mujoco environments
+
+
 MUJOCO_ENV_LST = [
     "Walker2d-v5",
     "Ant-v5",
     "AntMaze_UMaze-v5",
+    "AntMaze_BL_TR-v0",
+    "AntMaze_BR_TL-v0",
+    "AntMaze_TL_BR-v0",
+    "AntMaze_TR_BL-v0",
 ]
 
 def get_single_env(env_name, 

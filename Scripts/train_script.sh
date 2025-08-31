@@ -2,7 +2,7 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=2G        # memory per node
-#SBATCH --time=0-03:00      # time (DD-HH:MM)
+#SBATCH --time=0-05:00      # time (DD-HH:MM)
 #SBATCH --output=logs/train_%A_%a.out
 #SBATCH --error=logs/train_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -30,21 +30,21 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="PPO"
-ENV="Ant-v5"
+AGENT="A2C"
+ENV="AntMaze_BL_TR-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RecordReward", "NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]'
+ENV_WRAPPING='["CombineObs"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}, {}, {}, {}, {}]' 
-ENV_PARAMS='{}' #'{"continuing_task":false}'
-NAME_TAG="Wrapped_$IDX" #"Test_$IDX"
+WRAPPING_PARAMS='[{}]' 
+ENV_PARAMS='{"continuing_task":false}' #'{"continuing_task":False}'
+NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=1000000
+TOTAL_STEPS=3000000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=500
 
@@ -52,9 +52,9 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  "actor_step_size": 0.001,
-  "critic_step_size": 0.01,
-  "rollout_steps": 1024,
+  "actor_step_size": 3e-3,
+  "critic_step_size": 3e-4,
+  "rollout_steps": 16,
   "mini_batch_size": 128
 }'
 # "actor_step_size": 0.001,
