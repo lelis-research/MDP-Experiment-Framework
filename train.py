@@ -24,7 +24,7 @@ def parse():
     # A list of dictionary of the parameters for each wrapper
     parser.add_argument("--wrapping_params", type=json.loads, default="[]", help="list of dictionary represeting the parameters for each wrapper")
     # A dictionary of the environment parameters
-    parser.add_argument("--env_params",     type=json.loads, default="{}", help="dictionary of the env parameters")
+    parser.add_argument("--env_params", type=json.loads, default='{}', help="dictionary of the env parameters")
     # Random seed for reproducibility
     parser.add_argument("--seed", type=int, default=123123, help="Random seed for reproducibility")
     # Number of runs
@@ -48,7 +48,7 @@ def parse():
     # Number of parallel workers
     parser.add_argument("--num_workers", type=int, default=1, help="number of parallel workers")
     # Info for agent specification
-    parser.add_argument("--info", type=json.loads, help='JSON dict, e.g. \'{"lr":0.001,"epochs":10}\'')
+    parser.add_argument("--info", default='{}', type=json.loads, help='JSON dict, e.g. \'{"lr":0.001,"epochs":10}\'')
     
     
     argcomplete.autocomplete(parser)
