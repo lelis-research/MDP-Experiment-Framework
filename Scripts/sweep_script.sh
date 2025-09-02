@@ -6,7 +6,7 @@
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-15      # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-127      # check HP_SEARCH_SPACE to calculate the space size
 
 set -euo pipefail
 
@@ -29,39 +29,40 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="PPO"
-ENV="AntMaze_UMaze-v5"
+AGENT="A2C"
+ENV="AntMaze_BL_TR-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["CombineObs"]'
+ENV_WRAPPING='["RecordReward", "CombineObs", "AddHealthyReward"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}]' 
+WRAPPING_PARAMS='[{}, {}, {}]' 
 ENV_PARAMS='{"continuing_task":false}' #'{"continuing_task":False}'
 SEED=1
 
 NUM_RUNS=3
 NUM_EPISODES=0
-TOTAL_STEPS=1000000
+TOTAL_STEPS=2000000
 EPISODE_MAX_STEPS=500
 NUM_ENVS=1
 
 NUM_WORKERS=3
 NAME_TAG=""
 INFO='{
-  "actor_step_size": 0.001,
-  "critic_step_size": 0.01,
-  "rollout_steps": 20,
-  "mini_batch_size": 64
+  "gamma": 0.99,
+  "lamda": 0.95
 }'  
 
   # "option_path":"Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-l1_0/selected_options_10.t",
   # "rollout_steps": 20
 
 HP_SEARCH_SPACE='{
-  "actor_step_size": [0.003, 0.0003],
-  "critic_step_size": [0.003, 0.0003],
-  "rollout_steps":    [1024, 2048],
-  "mini_batch_size":  [32, 64]
+  "actor_step_size": [3e-4, 3e-5],
+  "critic_step_size": [3e-4, 3e-5],
+  "rollout_steps": [16, 32, 128, 1024],
+  "entropy_coef": [0.1, 0.01],
+  "norm_adv_flag": [true, false],
+  "anneal_step_size_flag": [true, false]
 }'
+# "mini_batch_size":  [32, 64]
 
 # ---------------------------------------------------------
 

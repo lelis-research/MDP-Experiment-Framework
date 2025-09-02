@@ -29,16 +29,18 @@ class CombineObsWrapper(ObservationWrapper):
         ]).astype(np.float32)
 
 class AddHealthyRewardWrapper(gym.Wrapper):
-    def __init__(self, env, healthy_const=0.001, control_const=0.001):
+    def __init__(self, env, healthy_const=0.001, control_const=0.001, forward_const=0.001):
         super().__init__(env)
         self.healthy_const = healthy_const
         self.control_const = control_const
+        self.forward_const = forward_const
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         healthy_reward = info["reward_survive"]
         control_reward = info["reward_ctrl"]
-        reward += self.healthy_const * healthy_reward + self.control_const * control_reward
+        forward_reward = info["reward_forward"]
+        reward += self.healthy_const * healthy_reward + self.control_const * control_reward + self.forward_const * forward_reward
         return obs, reward, terminated, truncated, info
         
 class ClipObsWrapper(gym.wrappers.TransformObservation):

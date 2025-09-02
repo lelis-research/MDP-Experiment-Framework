@@ -117,7 +117,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/AntMaze_UMaze-v5_continuing_task-False/CombineObs/PPO/_seed[1]"
+    exp_dir = "Runs/Sweep/AntMaze_BL_TR-v0_continuing_task-False/RecordReward_CombineObs_AddHealthyReward/A2C/_seed[1]"
     ratio   = 0.5
     # ---------------------
 

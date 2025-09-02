@@ -217,15 +217,15 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
-            rollout_steps=info.get("rollout_steps", 20),
+            rollout_steps=info.get("rollout_steps", 128),
             actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
-            critic_step_size=info.get("critic_step_size", 3e-4),
-            norm_adv_flag=info.get("norm_adv_flag", True),
-            entropy_coef=info.get("entropy_coef", 0.0),
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_updates=info.get("total_updates", 1e6)
+            critic_step_size=info.get("critic_step_size", 3e-5),
+            norm_adv_flag=info.get("norm_adv_flag", False),
+            entropy_coef=info.get("entropy_coef", 0.1),
+            anneal_step_size_flag=info.get("anneal_step_size_flag", True),
+            total_updates=info.get("total_updates", 2e6)
         ),
         get_num_envs(env),
         FLattenFeature,

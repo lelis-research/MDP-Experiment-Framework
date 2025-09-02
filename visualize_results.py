@@ -11,10 +11,12 @@ if __name__ == "__main__":
     PPO_Ant_TL_BR = "Runs/Train/AntMaze_TL_BR-v0_continuing_task-False/CombineObs/PPO"
     PPO_Ant_TR_BL = "Runs/Train/AntMaze_TR_BL-v0_continuing_task-False/CombineObs/PPO"
     PPO_Ant_BR_TL = "Runs/Train/AntMaze_BR_TL-v0_continuing_task-False/CombineObs/PPO"
-    A2C_Ant_BL_TR = "Runs/Train/AntMaze_BL_TR-v0_continuing_task-False/CombineObs/A2C"
+    A2C_Ant_BL_TR = "Runs/Train/AntMaze_BL_TR-v0_continuing_task-False/CombineObs_AddHealthyReward/A2C"
     A2C_Ant_TL_BR = "Runs/Train/AntMaze_TL_BR-v0_continuing_task-False/CombineObs/A2C"
     A2C_Ant_TR_BL = "Runs/Train/AntMaze_TR_BL-v0_continuing_task-False/CombineObs/A2C"
     A2C_Ant_BR_TL = "Runs/Train/AntMaze_BR_TL-v0_continuing_task-False/CombineObs/A2C"
+    
+    A2C_BL_TR = "Runs/Train/AntMaze_BL_TR-v0_continuing_task-False/RecordReward_CombineObs_AddHealthyReward/A2C"
 
     
     PPO_Ant_UMaze = "Runs/Train/AntMaze_UMaze-v5_continuing_task-False/CombineObs/PPO"
@@ -46,16 +48,17 @@ if __name__ == "__main__":
         # "A2C": gather_experiments(A2C_Ant_UMaze, name_string_conditions=[""], name_string_anti_conditions=[]),
         # "PPO": gather_experiments(PPO_Ant_UMaze, name_string_conditions=[""], name_string_anti_conditions=[]), 
         
-        "PPO_BL_TR": gather_experiments(PPO_Ant_BL_TR, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "PPO_BR_TL": gather_experiments(PPO_Ant_BR_TL, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "PPO_TL_BR": gather_experiments(PPO_Ant_TL_BR, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "PPO_TR_BL": gather_experiments(PPO_Ant_TR_BL, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "PPO_BL_TR": gather_experiments(PPO_Ant_BL_TR, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "PPO_BR_TL": gather_experiments(PPO_Ant_BR_TL, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "PPO_TL_BR": gather_experiments(PPO_Ant_TL_BR, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "PPO_TR_BL": gather_experiments(PPO_Ant_TR_BL, name_string_conditions=[""], name_string_anti_conditions=[]), 
         
-        "A2C_BL_TR": gather_experiments(A2C_Ant_BL_TR, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "A2C_BR_TL": gather_experiments(A2C_Ant_BR_TL, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "A2C_TL_BR": gather_experiments(A2C_Ant_TL_BR, name_string_conditions=[""], name_string_anti_conditions=[]), 
-        "A2C_TR_BL": gather_experiments(A2C_Ant_TR_BL, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "A2C_BL_TR": gather_experiments(A2C_Ant_BL_TR, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "A2C_BR_TL": gather_experiments(A2C_Ant_BR_TL, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "A2C_TL_BR": gather_experiments(A2C_Ant_TL_BR, name_string_conditions=[""], name_string_anti_conditions=[]), 
+        # "A2C_TR_BL": gather_experiments(A2C_Ant_TR_BL, name_string_conditions=[""], name_string_anti_conditions=[]), 
 
+        "A2C_BL_TR": gather_experiments(A2C_BL_TR, name_string_conditions=[""], name_string_anti_conditions=[]), 
         
         # "DQN": gather_experiments(DQN_NoDistraction),
         # "DecWhole": gather_experiments(OptionDQN_NoDistraction, name_string_conditions=["DecWhole_NoDistractor"], name_string_anti_conditions=[]),
@@ -125,4 +128,4 @@ if __name__ == "__main__":
         
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name="PPO-A2C-AntCustomMaze", window_size=20, show_ci=True, ignore_last=True, plt_configs=["r_s"])
+    plot_experiments(agent_dict, "Runs/Figures", name="A2C-AntCustomMaze", window_size=1, show_ci=True, ignore_last=True, plt_configs=["r_s"])
