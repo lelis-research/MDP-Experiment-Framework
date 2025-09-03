@@ -251,15 +251,15 @@ class BaseExperiment:
             result, best_agent = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
         else:
             result, best_agent = self._single_run_steps(env, agent, total_steps, seed, run_idx)
+                
         
-        # Save best agent
-        path = os.path.join(self.exp_dir, f"Run{run_idx}_Best")
-        torch.save(best_agent, f"{path}_agent.t")
-        
-        # Save last agent
+        # Save last and best agent
         if self._checkpoint_freq is not None:
             path = os.path.join(self.exp_dir, f"Run{run_idx}_Last")
             agent.save(path)
+            
+            path = os.path.join(self.exp_dir, f"Run{run_idx}_Best")
+            torch.save(best_agent, f"{path}_agent.t")
         
         return result
         

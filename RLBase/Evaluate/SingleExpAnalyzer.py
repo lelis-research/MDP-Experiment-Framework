@@ -38,12 +38,20 @@ class SingleExpAnalyzer:
         self.ep_returns = [[episode.get("ep_return") for episode in run] for run in self.metrics]
         self.ep_lengths = [[episode.get("ep_length") for episode in run] for run in self.metrics]
     
+    # def _smooth(self, data, window_size):
+    #     """Apply centered moving average with window size self.window_size"""
+    #     if window_size <= 1:
+    #         return data
+    #     window = np.ones(window_size) / window_size
+    #     return np.convolve(data, window, mode='same')
+    
     def _smooth(self, data, window_size):
-        """Apply centered moving average with window size self.window_size"""
-        if window_size <= 1:
-            return data
-        window = np.ones(window_size) / window_size
-        return np.convolve(data, window, mode='same')
+        res = np.empty_like(data)
+        for j in range(len(data)):
+            start_idx = max(0, j - window_size)
+            end_idx = min(len(data), j + window_size)
+            res[j] = np.mean(data[start_idx:end_idx])
+        return res
         
     def print_summary(self):
         """
@@ -68,7 +76,7 @@ class SingleExpAnalyzer:
         if plot_each:
             for each_return in ep_return:
                 smooth_return = self._smooth(each_return, window_size)
-                ax.plot(episodes, smooth_return, color=color, alpha=min(1/(len(ep_return)), 0.15))
+                ax.plot(episodes, smooth_return, color=color, alpha=min(4/(len(ep_return)), 0.15))
         
         mean_returns = np.mean(ep_return, axis=0)
         smooth_returns = self._smooth(mean_returns, window_size)
@@ -107,7 +115,7 @@ class SingleExpAnalyzer:
         if plot_each:
             for each_step in steps:
                 smooth_step = self._smooth(each_step, window_size)
-                ax.plot(episodes, smooth_step, color=color, alpha=min(1/(len(steps)), 0.15))
+                ax.plot(episodes, smooth_step, color=color, alpha=min(4/(len(steps)), 0.15))
         
         
         
@@ -154,14 +162,16 @@ class SingleExpAnalyzer:
             
             # Get the cumulative steps
             cum_steps = np.cumsum(run_steps)
+            interpolated_run_returns = np.interp(x_common, cum_steps, run_returns)
+            
             
             if plot_each:
                 # Plot each run’s line and points (faint)
-                smooth_return = self._smooth(run_returns, window_size)
-                ax.plot(cum_steps, smooth_return, marker='o', alpha=min(1/(len(ep_returns)), 0.15), color=color, markersize=1)
+                smooth_return = self._smooth(interpolated_run_returns, window_size)
+                ax.plot(x_common, smooth_return, marker='o', alpha=min(4/(len(ep_returns)), 0.15), color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
-            returns_interpolation.append(np.interp(x_common, cum_steps, run_returns))
+            returns_interpolation.append(interpolated_run_returns)
 
         returns_interpolation = np.asarray(returns_interpolation)
         mean_returns = np.mean(returns_interpolation, axis=0)

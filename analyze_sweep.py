@@ -32,14 +32,6 @@ def compute_run_avgs(metrics, ratio):
     return run_avgs
 
 
-def compute_avg_reward(metrics, ratio):
-    """
-    Compute overall average reward across runs using run-level averages.
-    """
-    run_avgs = compute_run_avgs(metrics, ratio)
-    return float(np.mean(run_avgs)) if run_avgs else 0.0
-
-
 def find_trials(exp_dir):
     """
     Return a sorted list of trial directory names under exp_dir.
@@ -117,7 +109,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/AntMaze_BL_TR-v0_continuing_task-False/RecordReward_CombineObs_AddHealthyReward/A2C/_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1)_FixedRandomDistractor(num_distractors-25_seed-100)/A2C/_seed[1]"
     ratio   = 0.5
     # ---------------------
 

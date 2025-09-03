@@ -22,6 +22,13 @@ fc_network_2 = [
     {"type": "tanh"},
     {"type": "linear", "in_features": 64, "std":0.01}
 ]
+fc_network_relu = [
+    {"type": "linear", "out_features": 64},
+    {"type": "relu"},
+    {"type": "linear", "in_features": 64, "out_features":64},
+    {"type": "relu"},
+    {"type": "linear", "in_features": 64, "std":0.01}
+]
 
 linear_network_1 = [
     {"type": "linear"}
@@ -30,4 +37,6 @@ linear_network_1 = [
 NETWORKS = {
     "fc_network_1": fc_network_1,
     "fc_network_2": fc_network_2,
+    "fc_network_tanh": fc_network_2,
+    "fc_network_relu": fc_network_relu,
 }

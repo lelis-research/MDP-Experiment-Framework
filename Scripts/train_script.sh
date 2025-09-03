@@ -31,12 +31,12 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
 AGENT="A2C"
-ENV="AntMaze_BL_TR-v0"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RecordReward", "CombineObs", "AddHealthyReward"]'
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}, {}, {}]' 
-ENV_PARAMS='{"continuing_task":false}' #'{"continuing_task":False}'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":10000},{"num_distractors": 25, "seed": 100}]'
+ENV_PARAMS='{}' #'{"continuing_task":False}'
 NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
@@ -44,16 +44,25 @@ NUM_WORKERS=1
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=2000000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=500
+EPISODE_MAX_STEPS=300
 
 RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for none
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
   "gamma": 0.99,
-  "lamda": 0.95
+  "lamda": 0.95,
+  "anneal_step_size_flag": false,
+  "actor_network": "fc_network_relu",
+  "critic_network": "fc_network_relu",
+  "entropy_coef": 0.0,
+
+  "actor_step_size": 1e-4, 
+  "critic_step_size": 3e-4,
+  "rollout_steps": 16,
+  "norm_adv_flag": false
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
 

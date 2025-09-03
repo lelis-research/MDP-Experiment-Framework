@@ -51,32 +51,47 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
 
 device = "cpu" #cpu, mps, cuda
 
-
 OPTION_DICT = {
     TransferOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: TransferOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
-        hyper_params = HyperParameters(max_option_len=1)),
+        hyper_params = HyperParameters(max_option_len=info.get("max_option_len", 1),
+                                       )),
     
     DecWholeOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: DecWholeOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
-        hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
-                                       n_neighbours=50, n_restarts=300, n_iteration=200)),
+        hyper_params = HyperParameters(max_option_len=info.get("max_option_len", 20), 
+                                       max_num_options=info.get("max_num_options", 10), 
+                                       n_neighbours=info.get("n_neighbours", 100), 
+                                       n_restarts=info.get("n_restarts", 400), 
+                                       n_iteration=info.get("n_iteration", 200),
+                                       )),
     
     FineTuneOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: FineTuneOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
-        hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
-                                       n_neighbours=50, n_restarts=300, n_iteration=200,
-                                       n_epochs=300, actor_lr=5e-4)),
+        hyper_params = HyperParameters(max_option_len=info.get("max_option_len", 20),
+                                       max_num_options=info.get("max_num_options", 10), 
+                                       n_neighbours=info.get("n_neighbours", 100), 
+                                       n_restarts=info.get("n_restarts", 400), 
+                                       n_iteration=info.get("n_iteration", 200),
+                                       n_epochs=info.get("n_epochs", 500), 
+                                       actor_lr=info.get("actor_lr", 5e-4),
+                                       )),
     
     MaskedOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: MaskedOptionLearner(
         agent_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[0],
         trajectories_lst = exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst)[1],
-        hyper_params = HyperParameters(max_option_len=20, max_num_options=10, 
-                                       n_neighbours=50, n_restarts=300, n_iteration=200,
-                                       n_epochs=300, mask_lr=5e-4, reg_coef=0.01,
-                                       masked_layers=info["masked_layers"])),
+        hyper_params = HyperParameters(max_option_len=info.get("max_option_len", 20), 
+                                       max_num_options=info.get("max_num_options", 10), 
+                                       n_neighbours=info.get("n_neighbours", 100), 
+                                       n_restarts=info.get("n_restarts", 400), 
+                                       n_iteration=info.get("n_iteration", 200),
+                                       n_epochs=info.get("n_epochs", 500), 
+                                       mask_lr=info.get("actor_lr", 5e-4), 
+                                       reg_coef=info.get("reg_coef", 0.01),
+                                       masked_layers=info.get("masked_layers", ["input", "1"]),
+                                       )),
 }
    

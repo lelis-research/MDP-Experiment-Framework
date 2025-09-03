@@ -93,13 +93,12 @@ def main():
         wrapping_lst = args.env_wrapping,
         wrapping_params = args.wrapping_params,
     )
-    agent_fn = lambda env: config.AGENT_DICT[args.agent](env, args.info)
+   
+    params = args.info
+    params.update(tuning_params) #update the default params with the tuning params from search space
+    print(f"Start trial {args.idx+1}/{total}: {params}")
     
-    # get the default params and the tuning
-    default_hp = agent_fn(env_fn()).hp
-    base_dict = default_hp.to_dict()
-    base_dict.update(tuning_params)
-    tuning_hp = HyperParameters(**base_dict)
+    agent_fn = lambda env: config.AGENT_DICT[args.agent](env, params)
     
     # choose experiment class
     exp_class = BaseExperiment if args.num_envs == 1 else ParallelExperiment
@@ -124,7 +123,6 @@ def main():
         num_workers=args.num_workers,
         seed_offset=args.seed,
         dump_metrics=True,
-        tuning_hp=tuning_hp,
     )
 
     # save agent and seeds
@@ -133,7 +131,7 @@ def main():
     analyzer = SingleExpAnalyzer(metrics=metrics)
     analyzer.save_seeds(save_dir=trial_dir)
 
-    print(f"Done trial {args.idx+1}/{total}: {base_dict}")
+    print(f"Done trial {args.idx+1}/{total}: {params}")
     
 
 

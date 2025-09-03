@@ -91,14 +91,14 @@ class FixedRandomDistractorWrapper(gym.Wrapper):
         rng = np.random.RandomState(seed)
         base = self.env.unwrapped
         W, H = base.width, base.height
-
+        color = "grey"
         self._distractors = []
         placed = 0
         attempts = 0
         while placed < num_distractors and attempts < 1000:
             x, y = rng.randint(1, W-1), rng.randint(1, H-1)
-            if base.grid.get(x, y) is None:
-                color = rng.choice(COLOR_NAMES)
+            if base.grid.get(x, y) is None and (x, y, color) not in self._distractors:
+                # color = rng.choice(COLOR_NAMES)
                 self._distractors.append((x, y, color))
                 placed += 1
             attempts += 1
