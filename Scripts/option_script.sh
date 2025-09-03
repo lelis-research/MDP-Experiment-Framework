@@ -2,7 +2,7 @@
 #SBATCH --job-name=Option
 #SBATCH --cpus-per-task=32   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=256G        # memory per node
-#SBATCH --time=0-03:00      # time (DD-HH:MM)
+#SBATCH --time=0-02:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -30,15 +30,25 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   
 
 # --------Random Variables-------
-NUM_DISTRACTORS=5
+NUM_DISTRACTORS=15
 
 # ---------------Configs--------- 
 CONFIG="config_options_base"
-OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="MaxLen-20_Mask-input-l1_Regularized-0.01_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+OPTION_TYPE="FineTuneOptionLearner"
+NAME_TAG="MaxLen-20_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-3000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-4000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-6000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-7000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-8000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-9000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
+
 
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/A2C/${IDX}_seed[${IDX}]"
@@ -62,7 +72,20 @@ EXP_PATH_LIST=(
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-9000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/${IDX}_seed[${IDX}]"
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)_FixedRandomDistractor(num_distractors-10_seed-100)/A2C/${IDX}_seed[${IDX}]"
 )
-INFO='{"masked_layers":["input","1"]}' 
+INFO='{
+    "max_option_len": 20,
+
+    "max_num_options": 10,
+    "n_neighbours": 100,
+    "n_restarts": 300,
+    "n_iteration": 200,
+
+    "n_epochs": 500,
+    "actor_lr": 5e-4,
+
+    "reg_coef": 0.0,
+    "masked_layers":["input", "1"]
+}' 
 
 RUN_IND_LIST=(1 1 1 1 1 1 1 1 1 1)
 NUM_WORKERS=32
