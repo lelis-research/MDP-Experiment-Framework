@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=Option
-#SBATCH --cpus-per-task=32   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=256G        # memory per node
-#SBATCH --time=0-02:00      # time (DD-HH:MM)
+#SBATCH --cpus-per-task=16   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
+#SBATCH --mem=200G        # memory per node
+#SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -35,7 +35,7 @@ NUM_DISTRACTORS=25
 # ---------------Configs--------- 
 CONFIG="config_options_base"
 OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+NAME_TAG="MaxLen-20_Mask-l1_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
@@ -83,8 +83,8 @@ INFO='{
     "n_epochs": 500,
     "actor_lr": 5e-4,
 
-    "reg_coef": 0.01,
-    "masked_layers":["input"]
+    "reg_coef": 0.0,
+    "masked_layers":["1"]
 }' 
 
 RUN_IND_LIST=(1 1 1 1 1 1 1 1 1 1)
@@ -101,3 +101,7 @@ python learn_options.py \
   --run_ind_lst       "${RUN_IND_LIST[@]}" \
   --num_workers       "$NUM_WORKERS" \
   --info              "$INFO"
+
+
+echo "---- SLURM JOB STATS ----"
+seff $SLURM_JOBID || sacct -j $SLURM_JOBID --format=JobID,ReqMem,MaxRSS,Elapsed,State

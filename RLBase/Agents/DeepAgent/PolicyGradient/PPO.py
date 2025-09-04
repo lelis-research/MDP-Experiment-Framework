@@ -430,7 +430,7 @@ class PPOPolicyContinuous(BasePolicy):
         instance.critic.load_state_dict(checkpoint['critic_state_dict'])
         instance.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         instance.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-        instance.actor_logstd = checkpoint['actor_logstd']
+        instance.actor_logstd = nn.Parameter(checkpoint['actor_logstd'])
         return instance
 
     def load_from_checkpoint(self, checkpoint):
@@ -438,7 +438,7 @@ class PPOPolicyContinuous(BasePolicy):
         self.critic.load_state_dict(checkpoint['critic_state_dict'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
-        self.actor_logstd = checkpoint.get('actor_logstd')
+        self.actor_logstd = nn.Parameter(checkpoint.get('actor_logstd'))
         
         self.action_space = checkpoint.get('action_space')
         self.features_dim = checkpoint.get('features_dim')

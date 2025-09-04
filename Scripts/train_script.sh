@@ -104,4 +104,7 @@ python train.py \
   --info              "$INFO" \
   --env_params        "$ENV_PARAMS" \
   --env_wrapping      "$ENV_WRAPPING" \
-  --wrapping_params   "$WRAPPING_PARAMS"\
+  --wrapping_params   "$WRAPPING_PARAMS"
+
+echo "---- SLURM JOB STATS ----"
+seff $SLURM_JOBID || sacct -j $SLURM_JOBID --format=JobID,ReqMem,MaxRSS,Elapsed,State

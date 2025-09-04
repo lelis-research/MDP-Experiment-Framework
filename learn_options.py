@@ -42,8 +42,6 @@ def parse():
     if len(args.exp_path_lst) != len(args.run_ind_lst):
         parser.error("--exp_path_lst and --run_ind_lst must have the same number of elements")
     return args
-    
-    return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse()
@@ -54,7 +52,12 @@ if __name__ == "__main__":
     
     exp_dir = os.path.join(runs_dir, args.option_type, args.name_tag)
     os.makedirs(exp_dir, exist_ok=True)
-
+    
     option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
+    for file in os.listdir(exp_dir):
+        if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
+            print("selected options already existed")
+            exit(0)
+            
     options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
 

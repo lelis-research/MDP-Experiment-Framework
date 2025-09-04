@@ -83,3 +83,7 @@ python sweep.py \
   --env_wrapping      "$ENV_WRAPPING" \
   --wrapping_params   "$WRAPPING_PARAMS" \
   --hp_search_space   "$HP_SEARCH_SPACE"  
+
+
+echo "---- SLURM JOB STATS ----"
+seff $SLURM_JOBID || sacct -j $SLURM_JOBID --format=JobID,ReqMem,MaxRSS,Elapsed,State

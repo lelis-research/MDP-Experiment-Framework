@@ -42,7 +42,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-5_seed-100)/A2C/0_seed[0]"
+    exp_name = "MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)_FixedRandomDistractor(num_distractors-25_seed-100)/A2C/0_seed[0]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         exp_args.env_wrapping = args.env_wrapping
         exp_args.wrapping_params = args.wrapping_params
     
-    # exp_args.wrapping_params = [{"agent_view_size":9},{},{"seed":3000},{"num_distractors": 5, "seed": 100}]
+    exp_args.wrapping_params = [{"agent_view_size":9},{},{"seed":2000},{"num_distractors": 5, "seed": 100}]
     
     env = get_env(
         env_name=exp_args.env,
