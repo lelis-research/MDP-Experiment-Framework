@@ -21,7 +21,7 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
         config = BaseExperiment.load_config(exp_path)
 
         # Load Agent
-        agent = load_agent(os.path.join(exp_path, f"Run{run_ind}_Last_agent.t"))
+        agent = load_agent(os.path.join(exp_path, f"Run{run_ind}_Best_agent.t"))
 
         env = get_env(
             env_name=args.env,

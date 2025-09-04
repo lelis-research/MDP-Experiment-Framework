@@ -30,12 +30,12 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   
 
 # --------Random Variables-------
-NUM_DISTRACTORS=15
+NUM_DISTRACTORS=25
 
 # ---------------Configs--------- 
 CONFIG="config_options_base"
-OPTION_TYPE="FineTuneOptionLearner"
-NAME_TAG="MaxLen-20_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+OPTION_TYPE="MaskedOptionLearner"
+NAME_TAG="MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-${NUM_DISTRACTORS}_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
@@ -83,8 +83,8 @@ INFO='{
     "n_epochs": 500,
     "actor_lr": 5e-4,
 
-    "reg_coef": 0.0,
-    "masked_layers":["input", "1"]
+    "reg_coef": 0.01,
+    "masked_layers":["input"]
 }' 
 
 RUN_IND_LIST=(1 1 1 1 1 1 1 1 1 1)
