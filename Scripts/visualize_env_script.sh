@@ -33,9 +33,9 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 seed=$((IDX * 1000))
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":1},{"num_distractors": 25, "seed": 100}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":10000},{"num_distractors": 5, "seed": 100}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]'
 ENV_PARAMS='{}'
-NAME_TAG="25_Distractors" #"$seed"
+NAME_TAG="5_Distractors_10000" #"$seed"
 # ------------------------------
 
 python visualize_env.py \

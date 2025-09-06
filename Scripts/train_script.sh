@@ -2,7 +2,7 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=2G        # memory per node
-#SBATCH --time=0-05:00      # time (DD-HH:MM)
+#SBATCH --time=0-02:00      # time (DD-HH:MM)
 #SBATCH --output=logs/train_%A_%a.out
 #SBATCH --error=logs/train_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -30,21 +30,21 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="OptionA2C"
+ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":10000},{"num_distractors": 25, "seed": 100}]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
-NAME_TAG="$IDX" #"Test_$IDX"
+NAME_TAG="Transfer_Distractor-25_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=800_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -59,10 +59,11 @@ INFO='{
   "critic_network": "fc_network_relu",
   "entropy_coef": 0.0,
 
-  "actor_step_size": 1e-4, 
-  "critic_step_size": 3e-4,
-  "rollout_steps": 16,
-  "norm_adv_flag": false
+  "actor_step_size": 3e-4, 
+  "critic_step_size": 3e-5,
+  "rollout_steps": 32,
+  "norm_adv_flag": false,
+  "option_path": "Runs/Options/TransferOptionLearner/MaxLen-1_NumDistractors-25_'"$SLURM_ARRAY_TASK_ID"'/all_options.t"
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
 

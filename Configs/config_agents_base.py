@@ -242,6 +242,10 @@ AGENT_DICT = {
             actor_step_size=info.get("actor_step_size", 3e-4),
             critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
             critic_step_size=info.get("critic_step_size", 3e-4),
+            norm_adv_flag=info.get("norm_adv_flag", True),
+            entropy_coef=info.get("entropy_coef", 0.0),
+            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
+            total_updates=info.get("total_updates", 2e6)
         ),
         get_num_envs(env),
         FLattenFeature,

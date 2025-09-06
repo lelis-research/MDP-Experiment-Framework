@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=3
-#SBATCH --mem=32G          # memory per node
-#SBATCH --time=0-03:00    # time (DD-HH:MM)
+#SBATCH --mem=16G          # memory per node
+#SBATCH --time=0-01:00    # time (DD-HH:MM)
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -29,12 +29,12 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="OptionA2C"
+ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
+ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":1},{"num_distractors": 25, "seed": 100}]'
+WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -45,14 +45,15 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG=""
+NAME_TAG="Mask-input-Reg0.01_25Distractor"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
   "anneal_step_size_flag": false,
   "actor_network": "fc_network_relu",
   "critic_network": "fc_network_relu",
-  "entropy_coef": 0.0
+  "entropy_coef": 0.0,
+  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 }'  
 
 HP_SEARCH_SPACE='{
