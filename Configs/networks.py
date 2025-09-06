@@ -39,4 +39,5 @@ NETWORKS = {
     "fc_network_2": fc_network_2,
     "fc_network_tanh": fc_network_2,
     "fc_network_relu": fc_network_relu,
+    "conv_network_1": conv_network_1,
 }

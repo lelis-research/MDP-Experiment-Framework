@@ -118,6 +118,8 @@ class FixedRandomDistractorWrapper(gym.Wrapper):
                 base.put_obj(DistractorBall(color), x, y)
 
         return obs
+
+
     
 # Dictionary mapping string keys to corresponding wrapper classes.
 WRAPPING_TO_WRAPPER = {
