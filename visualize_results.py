@@ -14,6 +14,16 @@ if __name__ == "__main__":
     A2C_SimpleCrossing_9 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-9000)_FixedRandomDistractor(num_distractors-25_seed-100)/A2C"
     A2C_SimpleCrossing_10 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-10000)_FixedRandomDistractor(num_distractors-25_seed-100)/A2C"
     
+    PPO_SimpleCrossing_1_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-1000)/PPO"
+    PPO_SimpleCrossing_2_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-2000)/PPO"
+    PPO_SimpleCrossing_3_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-3000)/PPO"
+    PPO_SimpleCrossing_4_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-4000)/PPO"
+    PPO_SimpleCrossing_5_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-5000)/PPO"
+    PPO_SimpleCrossing_6_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-6000)/PPO"
+    PPO_SimpleCrossing_7_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-7000)/PPO"
+    PPO_SimpleCrossing_8_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-8000)/PPO"
+    PPO_SimpleCrossing_9_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-9000)/PPO"
+    PPO_SimpleCrossing_10_RGB = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgObs_FixedSeed(seed-10000)/PPO"
 
     
     
@@ -104,19 +114,19 @@ if __name__ == "__main__":
         # "A2C_9": gather_experiments(A2C_SimpleCrossing_9),
         # "A2C_10": gather_experiments(A2C_SimpleCrossing_10),
         
-        f"A2C": gather_experiments(A2C_NoDistraction),
-        f"DecWhole-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"DecWhole_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
-        f"FineTune-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"FineTune_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
-        f"Transfer-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Transfer_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"A2C": gather_experiments(A2C_NoDistraction),
+        # f"DecWhole-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"DecWhole_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"FineTune-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"FineTune_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Transfer-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Transfer_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
 
-        f"Mask-Input-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
-        f"Mask-Input-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Input-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Input-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
         
-        f"Mask-Layer1-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-l1_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
-        f"Mask-Layer1-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-l1_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Layer1-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-l1_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Layer1-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-l1_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
 
-        f"Mask-Input-Layer1-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
-        f"Mask-Input-Layer1-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Input-Layer1-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
+        # f"Mask-Input-Layer1-Reg-{num_distractors}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Reg01_Distractor-{num_distractors}"], name_string_anti_conditions=[]),
         
         
         # *********
@@ -154,7 +164,18 @@ if __name__ == "__main__":
         # f"Mask-Input-Layer1-Reg-{15}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Reg01_Distractor-{15}"], name_string_anti_conditions=[]),
         # f"Mask-Input-Layer1-Reg-{25}": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=[f"Mask-input-l1_Reg01_Distractor-{25}"], name_string_anti_conditions=[]),
 
+        f"PPO_1": gather_experiments(PPO_SimpleCrossing_1_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_2": gather_experiments(PPO_SimpleCrossing_2_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_3": gather_experiments(PPO_SimpleCrossing_3_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_4": gather_experiments(PPO_SimpleCrossing_4_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_5": gather_experiments(PPO_SimpleCrossing_5_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_6": gather_experiments(PPO_SimpleCrossing_6_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_7": gather_experiments(PPO_SimpleCrossing_7_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_8": gather_experiments(PPO_SimpleCrossing_8_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_9": gather_experiments(PPO_SimpleCrossing_9_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO_10": gather_experiments(PPO_SimpleCrossing_10_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom_{num_distractors}_distractors_train", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
+    plot_experiments(agent_dict, "Runs/Figures", name=f"SimpleCrossing RGB", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
     # plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom_Transfer_train", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)

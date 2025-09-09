@@ -6,7 +6,7 @@
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-53      # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-71      # check HP_SEARCH_SPACE to calculate the space size
 
 #SBATCH --gres=gpu:1
 
@@ -34,9 +34,9 @@ CONFIG="config_agents_base"
 AGENT="A2C"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RGBImgObs", "FixedSeed"]'
+ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}, {"seed":1000}]'
+WRAPPING_PARAMS='[{"tile_size":7}, {"seed":1000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -47,13 +47,13 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="conv_network_1"
+NAME_TAG="conv_network_2"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
   "anneal_step_size_flag": false,
-  "actor_network": "conv_network_1",
-  "critic_network": "conv_network_1",
+  "actor_network": "conv_network_2",
+  "critic_network": "conv_network_2",
   "entropy_coef": 0.0
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
@@ -61,8 +61,8 @@ INFO='{
 HP_SEARCH_SPACE='{
   "actor_step_size": [1e-4, 3e-4, 3e-5], 
   "critic_step_size": [1e-4, 3e-4, 3e-5],
-  "rollout_steps": [32, 64, 128],
-  "norm_adv_flag": [true, false]
+  "rollout_steps": [32, 128, 1024, 2048],
+  "norm_adv_flag": [true, false],
 }'
 # "mini_batch_size":  [32, 64]
 

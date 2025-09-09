@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=2G        # memory per node
-#SBATCH --time=0-02:00      # time (DD-HH:MM)
+#SBATCH --mem=16G          # memory per node
+#SBATCH --time=0-06:00      # time (DD-HH:MM)
 #SBATCH --output=logs/train_%A_%a.out
 #SBATCH --error=logs/train_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-50
+
+#SBATCH --gres=gpu:1
 
 set -euo pipefail
 
@@ -35,7 +37,7 @@ ENV="MiniGrid-SimpleCrossingS9N1-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["RGBImgObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{}, {"seed":1000}]'
+WRAPPING_PARAMS='[{}, {"seed":10000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX

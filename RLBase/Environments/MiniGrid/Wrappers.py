@@ -1,6 +1,6 @@
 import gymnasium as gym
 import numpy as np
-from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper, RGBImgObsWrapper
+from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper, RGBImgObsWrapper, RGBImgPartialObsWrapper
 
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
 from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT
@@ -131,4 +131,5 @@ WRAPPING_TO_WRAPPER = {
     "FixedSeed": FixedSeedWrapper,
     "FixedRandomDistractor": FixedRandomDistractorWrapper,
     "RGBImgObs": RGBImgObsWrapper,
+    "RGBImgPartialObs": RGBImgPartialObsWrapper
 }

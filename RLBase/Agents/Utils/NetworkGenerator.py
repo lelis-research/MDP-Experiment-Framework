@@ -72,7 +72,7 @@ def prepare_network_config(config, input_dim, output_dim):
     assert isinstance(input_dim, int) or (isinstance(input_dim, tuple) and len(input_dim) == 3), \
         "input_dim must be an int or a tuple of three dimensions (C, H, W)"
     assert isinstance(output_dim, int), "output_dim must be an int"
-
+   
     updated_config = [dict(layer) for layer in config]
     current_shape = input_dim
     for i, layer in enumerate(updated_config):
