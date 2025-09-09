@@ -39,7 +39,7 @@ def get_num_envs(env):
 
 
 
-device="cpu" # cpu, mps, cuda#
+device="cuda" # cpu, mps, cuda
 
 AGENT_DICT = {
     HumanAgent.name: lambda env, info: HumanAgent(
@@ -263,9 +263,9 @@ AGENT_DICT = {
             rollout_steps=info.get("rollout_steps", 2048),
             num_epochs=info.get("num_epochs", 10),
             clip_range=info.get("clip_range", 0.2),
-            actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
-            actor_step_size=info.get("actor_step_size", 3e-4),
-            critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
+            actor_network=NETWORKS[info.get("actor_network", "conv_network_1")],
+            actor_step_size=info.get("actor_step_size", 3e-5),
+            critic_network=NETWORKS[info.get("critic_network", "conv_network_1")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             norm_adv_flag=info.get("norm_adv_flag", True),
             clip_critic_loss_flag=info.get("clip_critic_loss_flag", True),
@@ -276,7 +276,7 @@ AGENT_DICT = {
             total_updates=info.get("total_updates", 1e6)
         ),
         get_num_envs(env),
-        FLattenFeature,
+        ImageFeature,
         device=device
     )
 }

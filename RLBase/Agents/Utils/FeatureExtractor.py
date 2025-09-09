@@ -70,13 +70,13 @@ class ImageFeature(BaseFeature):
             return observation["image"]
         return observation  # assume it's already the image
     
-    def __call__(self, observation):
+    def __call__(self, observation, normalization_factor=255):
         # 1) If dict, pick observation['image']; otherwise use observation as-is
         img = self._extract_image_from_obs(observation)
 
         # 2) Ensure torch tensor on device (handles numpy/torch)
-        img_t = self._to_tensor(img)
-
+        img_t = self._to_tensor(img) / normalization_factor 
+        
        # 3) Add batch dim if missing (expecting (W,H,C) without batch)
         # If already batched (N,W,H,C), leave it.
         if img_t.dim() == 3:
