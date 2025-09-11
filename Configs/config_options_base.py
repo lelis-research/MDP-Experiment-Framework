@@ -49,7 +49,7 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
             
     return agent_lst, trajectories_lst
 
-device = "cpu" #cpu, mps, cuda
+device = "cuda" #cpu, mps, cuda
 
 OPTION_DICT = {
     TransferOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: TransferOptionLearner(

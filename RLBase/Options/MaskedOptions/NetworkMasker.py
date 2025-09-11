@@ -60,7 +60,7 @@ class NetworkMasker(nn.Module):
                 # differentiable trick
                 m = hard.detach() - probs.detach() + probs # (3, ...)
                 p_act, p_deact, p_prog = m.unbind(0) # each (..., )
-                
+
                 # linear input (batch, features)
                 # image input (batch, channels, H, W)
                 shape = [1, -1] + [1] * (output.dim() - 2)

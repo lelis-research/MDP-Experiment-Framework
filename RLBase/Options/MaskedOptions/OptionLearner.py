@@ -32,7 +32,6 @@ class MaskedOptionLearner():
                 if not (hasattr(agent.policy, 'select_action_masked') and callable(getattr(agent.policy, 'select_action_masked'))):
                     agent.policy.__class__ = POLICY_TO_MASKER[agent.policy.__class__]  # Injects select_action_masked into the policy.
                 self.maskable_layers.append(agent.policy.maskable_layers)
-                
 
         if trajectories_lst is not None:
             self.trajectories_lst = trajectories_lst

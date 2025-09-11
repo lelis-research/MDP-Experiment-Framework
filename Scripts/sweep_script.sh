@@ -62,7 +62,7 @@ HP_SEARCH_SPACE='{
   "actor_step_size": [1e-4, 3e-4, 3e-5], 
   "critic_step_size": [1e-4, 3e-4, 3e-5],
   "rollout_steps": [32, 128, 1024, 2048],
-  "norm_adv_flag": [true, false],
+  "norm_adv_flag": [true, false]
 }'
 # "mini_batch_size":  [32, 64]
 

@@ -3,6 +3,9 @@ import os
 import argparse
 import torch
 import json
+import shutil
+import yaml
+
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 from RLBase import load_option, load_agent, load_policy
@@ -53,11 +56,20 @@ if __name__ == "__main__":
     exp_dir = os.path.join(runs_dir, args.option_type, args.name_tag)
     os.makedirs(exp_dir, exist_ok=True)
     
+    # Save config
+    if config is not None:
+        shutil.copy(config_path, os.path.join(exp_dir, "config.py"))
+
+    # Save args
+    file = os.path.join(exp_dir, "args.yaml")
+    with open(file, "w") as f:
+        yaml.dump(vars(args), f)
+    
     option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
-    for file in os.listdir(exp_dir):
-        if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
-            print("selected options already existed")
-            exit(0)
+    # for file in os.listdir(exp_dir):
+    #     if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
+    #         print("selected options already existed")
+    #         exit(0)
             
     options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
 
