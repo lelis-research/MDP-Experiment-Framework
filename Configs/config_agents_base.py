@@ -238,9 +238,9 @@ AGENT_DICT = {
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
             rollout_steps=info.get("rollout_steps", 20),
-            actor_network=NETWORKS[info.get("actor_network", "fc_network_2")],
+            actor_network=NETWORKS[info.get("actor_network", "conv_network_1")],
             actor_step_size=info.get("actor_step_size", 3e-4),
-            critic_network=NETWORKS[info.get("critic_network", "fc_network_2")],
+            critic_network=NETWORKS[info.get("critic_network", "conv_network_1")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             norm_adv_flag=info.get("norm_adv_flag", True),
             entropy_coef=info.get("entropy_coef", 0.0),
@@ -248,7 +248,7 @@ AGENT_DICT = {
             total_updates=info.get("total_updates", 2e6)
         ),
         get_num_envs(env),
-        FLattenFeature,
+        ImageFeature,
         options_lst=load_options_list(info["option_path"]),
         device=device
     ),

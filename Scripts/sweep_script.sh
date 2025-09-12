@@ -31,12 +31,12 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="OptionA2C"
+ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"tile_size":7}, {"seed":1000}]'
+WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -47,14 +47,15 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="conv_network_2"
+NAME_TAG="Mask-l8_Reg-001_Conv2"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
   "anneal_step_size_flag": false,
   "actor_network": "conv_network_2",
   "critic_network": "conv_network_2",
-  "entropy_coef": 0.0
+  "entropy_coef": 0.0,
+  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_RGB_Mask-l8_Regularized-0.01_0/selected_options_5.t"
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 

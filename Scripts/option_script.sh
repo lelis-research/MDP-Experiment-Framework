@@ -36,7 +36,7 @@ NUM_DISTRACTORS=15
 # ---------------Configs--------- 
 CONFIG="config_options_base"
 OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="MaxLen-20_RGB_Mask-l1-l3-l5_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+NAME_TAG="MaxLen-20_RGB_Mask-l8_Regularized-0.01_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
@@ -95,8 +95,8 @@ INFO='{
     "n_epochs": 500,
     "actor_lr": 5e-4,
 
-    "reg_coef": 0.0,
-    "masked_layers":["1", "3", "5"]
+    "reg_coef": 0.01,
+    "masked_layers":["8"]
 }' 
 
 RUN_IND_LIST=(1 1 1 1 1) #1 1 1 1 1)
