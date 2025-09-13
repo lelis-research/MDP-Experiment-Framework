@@ -17,6 +17,17 @@ from ...Utils import (
 )
 from ....registry import register_agent, register_policy
 
+def explained_variance(y_pred: torch.Tensor, y_true: torch.Tensor) -> float:
+    """
+    1 - Var[y_true - y_pred] / Var[y_true]
+    Returns 0 if Var[y_true] == 0.
+    """
+    y_true_np = y_true.detach().cpu().numpy()
+    y_pred_np = y_pred.detach().cpu().numpy()
+    var_y = np.var(y_true_np)
+    if var_y < 1e-10:
+        return 0.0
+    return float(1.0 - np.var(y_true_np - y_pred_np) / (var_y + 1e-10))
 
 @register_policy
 class PPOPolicyDiscrete(BasePolicy):
@@ -25,9 +36,16 @@ class PPOPolicyDiscrete(BasePolicy):
     
     Hyper-parameters (in self.hp) must include:
         - gamma (float)
+        - actor_network (dict)
         - actor_step_size (float)
+        - actor_eps (float)
+        - critic_network (dict)
         - critic_step_size (float)
-        - clip_range (float)
+        - critic_eps (float)
+        - clip_range_actor_init (float)
+        - clip_range_critic_init  (float)
+        - anneal_clip_range_actor (bool)
+        - anneal_clip_range_critic (bool)
         - num_epochs (int)
         - mini_batch_size (int)
         - entropy_coef (float)
@@ -68,8 +86,10 @@ class PPOPolicyDiscrete(BasePolicy):
         self.actor = NetworkGen(layer_descriptions=actor_description).to(self.device)
         self.critic = NetworkGen(layer_descriptions=critic_description).to(self.device)
 
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size)
-        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size, eps=self.hp.critic_eps)
+        
+        self.update_counter = 0
 
     def select_action(self, state, greedy=False):
         """
@@ -106,13 +126,35 @@ class PPOPolicyDiscrete(BasePolicy):
             dones (list): List of done flags (bool).
             call_back (function, optional): Callback to report loss metrics.
         """
+        self.update_counter += 1
+        
+        # LR annealing (optional)
+        if self.hp.anneal_step_size_flag:
+            frac = 1.0 - (self.update_counter - 1) / float(self.hp.total_updates)  # linear from initial->0
+            for param_groups in self.actor_optimizer.param_groups:
+                param_groups["lr"] = frac * self.hp.actor_step_size
+            for param_groups in self.critic_optimizer.param_groups:
+                param_groups["lr"] = frac * self.hp.critic_step_size    
+                
+        if self.hp.anneal_clip_range_actor:
+            frac = 1.0 - (self.update_counter - 1) / float(self.hp.total_updates) 
+            self.hp.update(clip_range_actor = float(frac * self.hp.clip_range_actor_init))
+        else:
+            self.hp.update(clip_range_actor = self.hp.clip_range_actor_init)
+        
+        if self.hp.anneal_clip_range_critic:
+            frac = 1.0 - (self.update_counter - 1) / float(self.hp.total_updates) 
+            self.hp.update(clip_range_critic = float(frac * self.hp.clip_range_critic_init))
+        else:
+            self.hp.update(clip_range_critic = self.hp.clip_range_critic_init)
+    
         states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) \
                     else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
         actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device)
         log_probs_old_t = torch.stack(old_log_probs).squeeze().to(dtype=torch.float32, device=self.device)
         next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) \
                         else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
-        
+                
         with torch.no_grad():
             prev_state_values_t = self.critic(states_t) # shape (rollout_steps, 1)
             next_state_values_t = self.critic(next_states_t) # shape (rollout_steps, 1)
@@ -129,49 +171,68 @@ class PPOPolicyDiscrete(BasePolicy):
         advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device)
         returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device).unsqueeze(1)  # [rollout_steps,1]
         
-        if self.hp.norm_adv_flag:
+        if self.hp.norm_adv_flag and advantages_t.numel() > 1:
             advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
         
         datasize = len(states)
         indices = np.arange(datasize)
+        continue_training = True
+        
+        # for logging
+        entropy_losses, actor_losses, critic_losses, clip_fractions = [], [], [], []
+        
         for epoch in range(self.hp.num_epochs):
+            if not continue_training:
+                break
+            approx_kl_divs = []
             np.random.shuffle(indices)
             for start in range(0, datasize, self.hp.mini_batch_size):
                 batch_indices = indices[start:start + self.hp.mini_batch_size]
                 
                 batch_states_t     = states_t[batch_indices] # shape (B, obs_dim)
-                batch_actions_t    = actions_t[batch_indices] # shape (B, action_dim)
+                batch_actions_t    = actions_t[batch_indices] # shape (B, )
                 batch_log_probs_t  = log_probs_old_t[batch_indices] # shape (B, )
                 batch_advantages_t = advantages_t[batch_indices]     # shape (B, )
-                batch_returns_t    = returns_t[batch_indices]        # shape (B, )
+                batch_returns_t    = returns_t[batch_indices].squeeze()        # shape (B, )
                 batch_values_t     = prev_state_values_t[batch_indices].squeeze() # shape (B, )
-
+                
                 logits = self.actor(batch_states_t)
                 dist = Categorical(logits=logits)
                 batch_new_log_probs_t = dist.log_prob(batch_actions_t)
                 entropy = dist.entropy()
-                
+              
                 # actor loss
-                ratios = torch.exp(batch_new_log_probs_t - batch_log_probs_t)  # [B, ]
+                log_ratio = batch_new_log_probs_t - batch_log_probs_t
+                ratios = torch.exp(log_ratio)  # [B, ]
                 surr1 = - batch_advantages_t * ratios
-                surr2 = - batch_advantages_t * torch.clamp(ratios, 1 - self.hp.clip_range, 1 + self.hp.clip_range)
+                surr2 = - batch_advantages_t * torch.clamp(ratios, 1 - self.hp.clip_range_actor, 1 + self.hp.clip_range_actor)
                 actor_loss = torch.max(surr1, surr2).mean()
+                actor_losses.append(actor_loss.item())
+                clip_fraction = torch.mean((torch.abs(ratios - 1) > self.hp.clip_range_actor).float()).item()
+                clip_fractions.append(clip_fraction)
                 
                 # critic loss
-                batch_new_values_t = self.critic(batch_states_t).squeeze()
-
-                if self.hp.clip_critic_loss_flag:
-                    critic_loss_unclipped = (batch_returns_t - batch_new_values_t).pow(2)
-                    value_clipped = batch_values_t + torch.clamp(batch_new_values_t - batch_values_t, 
-                                                               -self.hp.clip_range, self.hp.clip_range)
-                    critic_loss_clipped = (batch_returns_t - value_clipped).pow(2)
-                    critic_loss = 0.5 * torch.max(critic_loss_clipped, critic_loss_unclipped).mean()
+                batch_new_values_t = self.critic(batch_states_t).squeeze()                   
+                if self.hp.clip_range_critic is None:
+                    values_pred = batch_new_values_t
                 else:
-                    critic_loss = 0.5 * (batch_returns_t - batch_new_values_t).pow(2).mean()
+                    values_pred = batch_values_t + torch.clamp(batch_new_values_t - batch_values_t,
+                                                           -self.hp.clip_range_critic, self.hp.clip_range_critic)
+                critic_loss = F.mse_loss(batch_returns_t, values_pred)
+                critic_losses.append(critic_loss.item())
                 
                 entropy_bonus = entropy.mean()
+                entropy_losses.append(entropy_bonus.item())
                 
                 loss = actor_loss + self.hp.critic_coef * critic_loss - self.hp.entropy_coef * entropy_bonus
+                
+                with torch.no_grad():
+                    approx_kl = torch.mean((torch.exp(log_ratio) - 1) - log_ratio).item()
+                    approx_kl_divs.append(approx_kl)
+                    
+                if self.hp.target_kl is not None and approx_kl > 1.5 * self.hp.target_kl:
+                    continue_training = False
+                    break
                 
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
@@ -180,10 +241,21 @@ class PPOPolicyDiscrete(BasePolicy):
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
-                
-                if call_back is not None:
-                    call_back({"critic_loss": critic_loss.item(),
-                               "actor_loss": actor_loss.item()})
+        
+        
+        if call_back is not None:
+            call_back({"critic_loss": float(np.mean(critic_losses)),
+                        "actor_loss": float(np.mean(actor_losses)),
+                        "entropy_loss": float(np.mean(entropy_losses)),
+                        "loss": float(np.mean(actor_losses)) + 
+                                self.hp.critic_coef * float(np.mean(critic_losses)) + 
+                                self.hp.entropy_coef * float(np.mean(entropy_losses)),
+                                
+                        "clip_fraction": float(np.mean(clip_fractions)),
+                        "approx_kl": float(np.mean(approx_kl_divs)),
+                        "explained_variance": explained_variance(prev_state_values_t, returns_t)
+                                
+                        })
     
     def save(self, file_path=None):
         checkpoint = {
@@ -367,16 +439,16 @@ class PPOPolicyContinuous(BasePolicy):
                 ratios = torch.exp(batch_log_prob_new_t - batch_log_probs_t)  # [B, ]
                 
                 surr1 = - batch_advantages_t * ratios
-                surr2 = - batch_advantages_t * torch.clamp(ratios, 1 - self.hp.clip_range, 1 + self.hp.clip_range)
+                surr2 = - batch_advantages_t * torch.clamp(ratios, 1 - self.hp.clip_range_actor, 1 + self.hp.clip_range_actor)
                 actor_loss = torch.max(surr1, surr2).mean()
 
                 # critic loss 
                 batch_new_values_t = self.critic(batch_states_t).squeeze()
 
-                if self.hp.clip_critic_loss_flag:
+                if self.hp.clip_range_critic:
                     critic_loss_unclipped = (batch_returns_t - batch_new_values_t).pow(2)
                     value_clipped = batch_values_t + torch.clamp(batch_new_values_t - batch_values_t, 
-                                                               -self.hp.clip_range, self.hp.clip_range)
+                                                               -self.hp.clip_range_critic, self.hp.clip_range_critic)
                     critic_loss_clipped = (batch_returns_t - value_clipped).pow(2)
                     critic_loss = 0.5 * torch.max(critic_loss_clipped, critic_loss_unclipped).mean()
                 else:

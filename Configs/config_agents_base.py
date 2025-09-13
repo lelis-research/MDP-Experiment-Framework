@@ -39,7 +39,7 @@ def get_num_envs(env):
 
 
 
-device="cuda" # cpu, mps, cuda
+device="cpu" # cpu, mps, cuda
 
 AGENT_DICT = {
     HumanAgent.name: lambda env, info: HumanAgent(
@@ -48,7 +48,7 @@ AGENT_DICT = {
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         FLattenFeature,
-        options_lst=load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_0/selected_options_10.t"),
+        options_lst=load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
         device=device
     ),
     RandomAgent.name: lambda env, info: RandomAgent(
@@ -260,23 +260,33 @@ AGENT_DICT = {
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
             mini_batch_size=info.get("mini_batch_size", 64),
-            rollout_steps=info.get("rollout_steps", 2048),
+            rollout_steps=info.get("rollout_steps", 256),
             num_epochs=info.get("num_epochs", 5),
-            clip_range=info.get("clip_range", 0.2),
-            actor_network=NETWORKS[info.get("actor_network", "conv_network_1")],
-            actor_step_size=info.get("actor_step_size", 3e-5),
-            critic_network=NETWORKS[info.get("critic_network", "conv_network_1")],
+            
+            clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
+            anneal_clip_range_actor=info.get("anneal_clip_range_actor", True),
+            clip_range_critic_init=info.get("clip_range_critic_init", None), # None means no clipping
+            anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
+            target_kl=info.get("target_kl", 0.02),
+            
+            actor_network=NETWORKS[info.get("actor_network", "fc_network_relu")],
+            actor_step_size=info.get("actor_step_size", 3e-4),
+            actor_eps = info.get("actor_eps", 1e-5),
+            critic_network=NETWORKS[info.get("critic_network", "fc_network_relu")],
             critic_step_size=info.get("critic_step_size", 3e-4),
+            critic_eps = info.get("critic_eps", 1e-5),
+            
+            anneal_step_size_flag=info.get("anneal_step_size_flag", True),
+            total_updates=info.get("total_updates", 500_000 // 256),
+            
             norm_adv_flag=info.get("norm_adv_flag", True),
-            clip_critic_loss_flag=info.get("clip_critic_loss_flag", True),
             critic_coef=info.get("critic_coef", 0.5),
-            entropy_coef=info.get("entropy_coef", 0.0),
+            entropy_coef=info.get("entropy_coef", 0.02),
             max_grad_norm=info.get("max_grad_norm", 0.5),
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_updates=info.get("total_updates", 1e6)
+            
         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
         device=device
     )
 }
