@@ -2,7 +2,7 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-06:00      # time (DD-HH:MM)
+#SBATCH --time=0-03:00      # time (DD-HH:MM)
 #SBATCH --output=logs/train_%A_%a.out
 #SBATCH --error=logs/train_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -33,20 +33,20 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
 AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"tile_size":7}, {"seed":10000}]'
+WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
-NAME_TAG="$IDX" #"Test_$IDX"
+NAME_TAG="Long_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=2_000_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -61,9 +61,9 @@ INFO='{
   "critic_network": "conv_network_2",
   "entropy_coef": 0.0,
   "actor_step_size": 1e-4, 
-  "critic_step_size": 1e-4,
-  "rollout_steps": 2048,
-  "norm_adv_flag": true
+  "critic_step_size": 3e-4,
+  "rollout_steps": 1024,
+  "norm_adv_flag": false
 }'  
   # "actor_step_size": 3e-4, 
   # "critic_step_size": 3e-5,
