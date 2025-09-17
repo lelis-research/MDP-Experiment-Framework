@@ -88,6 +88,17 @@ class A2CPolicyDiscrete(BasePolicy):
         else:
             action_t = dist.sample()
         return action_t.item()
+    
+    def select_parallel_actions(self, states, greedy=False):
+        state_t = states.to(dtype=torch.float32, device=self.device) if torch.is_tensor(states) \
+                    else torch.tensor(states, dtype=torch.float32, device=self.device)
+        logits = self.actor(state_t)
+        dist = Categorical(logits=logits)
+        if greedy:
+            action_t = torch.argmax(logits, dim=-1)
+        else:
+            action_t = dist.sample()
+        return action_t.cpu().numpy()
 
     def update(self, states, actions, rewards, next_states, dones, call_back=None):
         """
@@ -441,6 +452,14 @@ class A2CAgent(BaseAgent):
         self.last_action = action
         return action
 
+    def parallel_act(self, observations, greedy=False):        
+        states = self.feature_extractor(observations)
+        actions = self.policy.select_parallel_actions(states, greedy=False)
+        
+        self.last_states = states
+        self.last_actions = actions
+        return actions
+
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         Store the transition; if rollout is complete (n_steps reached or episode ended), perform update.
@@ -463,7 +482,35 @@ class A2CAgent(BaseAgent):
             
             self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
             self.rollout_buffer.reset()
+            
+    
+    def parallel_update(self, observations, rewards, terminateds, truncateds, call_back=None):
+        """
+        observations: next batched obs after step (num_envs, ...)
+        rewards:     (num_envs,)
+        terminateds: (num_envs,)
+        truncateds:  (num_envs,)
+        """
+        states = self.feature_extractor(observations)
+        
+        for i in range(self.num_envs):
+            #unsqueeze(0) to keep the batch dimension
+            transition =  (self.last_states[i].unsqueeze(0), self.last_actions[i], rewards[i], states[i].unsqueeze(0), terminateds[i])
+            self.rollout_buffer.add_single_item(transition)
+            
 
+        if self.rollout_buffer.size >= self.hp.rollout_steps:
+            self.last_update_counter = 0
+            
+            rollout = self.rollout_buffer.get_all()
+            states, actions, rewards, next_states, dones = zip(*rollout)
+            
+            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
+            self.rollout_buffer.reset()
+            
+
+        
+    
     def reset(self, seed):
         """
         Reset the agent's state, including feature extractor and rollout buffer.

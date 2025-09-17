@@ -33,7 +33,7 @@ class DecWholeOptionLearner():
         self.num_workers = num_workers
         self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
-        
+                
         if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, "all_options.t")):
             print("Loading all options")
             self.options_lst = load_options_list(os.path.join(self.exp_dir, "all_options.t"))

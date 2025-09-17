@@ -87,7 +87,7 @@ def main():
     if args.num_envs == 1:
         experiment = LoggerExperiment(env_fn, agent_fn, exp_dir, config=config_path, args=args)
     else:
-        experiment = ParallelExperiment(env_fn, agent_fn, exp_dir)
+        experiment = ParallelExperiment(env_fn, agent_fn, exp_dir, config=config_path, args=args)
     
     # Run the experiment and collect metrics
     metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, total_steps=args.total_steps,

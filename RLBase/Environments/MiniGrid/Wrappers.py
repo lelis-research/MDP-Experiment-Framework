@@ -120,6 +120,12 @@ class FixedRandomDistractorWrapper(gym.Wrapper):
         return obs
 
 
+class RecordRewardWrapper(gym.Wrapper):
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        # Store the original reward in the info dict.
+        info['actual_reward'] = reward
+        return obs, reward, terminated, truncated, info
     
 # Dictionary mapping string keys to corresponding wrapper classes.
 WRAPPING_TO_WRAPPER = {
@@ -131,5 +137,6 @@ WRAPPING_TO_WRAPPER = {
     "FixedSeed": FixedSeedWrapper,
     "FixedRandomDistractor": FixedRandomDistractorWrapper,
     "RGBImgObs": RGBImgObsWrapper,
-    "RGBImgPartialObs": RGBImgPartialObsWrapper
+    "RGBImgPartialObs": RGBImgPartialObsWrapper,
+    "RecordReward": RecordRewardWrapper
 }

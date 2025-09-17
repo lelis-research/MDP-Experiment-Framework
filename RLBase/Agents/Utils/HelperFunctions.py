@@ -61,3 +61,13 @@ def calculate_gae_torch(rewards, values, next_values, dones, gamma, lam):
         returns = advantages + values
 
     return returns, advantages
+
+def keep_batch(x, i):
+    '''
+    get index i element of input x but keep the batch dimension
+    '''
+    if isinstance(x, dict):
+        return {k: keep_batch(v, i) for k, v in x.items()}
+    if isinstance(x, (np.ndarray, torch.Tensor)):
+        return x[i:i+1]  # preserves batch dim
+    return x  # scalars or other types, just return as is

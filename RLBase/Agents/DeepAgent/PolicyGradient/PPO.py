@@ -90,6 +90,7 @@ class PPOPolicyDiscrete(BasePolicy):
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=self.hp.critic_step_size, eps=self.hp.critic_eps)
         
         self.update_counter = 0
+        self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
 
     def select_action(self, state, greedy=False):
         """

@@ -1,7 +1,11 @@
 from RLBase.Evaluate import plot_experiments, gather_experiments
 
 if __name__ == "__main__":
-    PPO_SimpleCrossing = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/PPO"
+    PPO_SimpleCrossing1 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/PPO"
+    PPO_SimpleCrossing2 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/PPO"
+    PPO_SimpleCrossing3 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-3000)/PPO"
+    PPO_SimpleCrossing4 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-4000)/PPO"
+    PPO_SimpleCrossing5 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/PPO"
     
     A2C_SimpleCrossing_1 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)/A2C"
     A2C_SimpleCrossing_2 = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)/A2C"
@@ -187,17 +191,34 @@ if __name__ == "__main__":
         # f"A2C_9": gather_experiments(A2C_SimpleCrossing_9, name_string_conditions=[], name_string_anti_conditions=[]),
         # f"A2C_10": gather_experiments(A2C_SimpleCrossing_10, name_string_conditions=[], name_string_anti_conditions=[]),
         
-        f"A2C": gather_experiments(A2C_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
-        f"Transfer": gather_experiments(OptionA2C_RGB, name_string_conditions=["Transfer_"], name_string_anti_conditions=[]),
-        f"DecWhole": gather_experiments(OptionA2C_RGB, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
-        f"FineTune": gather_experiments(OptionA2C_RGB, name_string_conditions=["FineTune_"], name_string_anti_conditions=[]),
+        # f"A2C": gather_experiments(A2C_RGB, name_string_conditions=[], name_string_anti_conditions=[]),
+        # f"Transfer": gather_experiments(OptionA2C_RGB, name_string_conditions=["Transfer_"], name_string_anti_conditions=[]),
+        # f"DecWhole": gather_experiments(OptionA2C_RGB, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
+        # f"FineTune": gather_experiments(OptionA2C_RGB, name_string_conditions=["FineTune_"], name_string_anti_conditions=[]),
         # f"Mask-l1-l3-l5": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5_"], name_string_anti_conditions=["Reg001"]),
-        # f"Mask-l1-l3-l5_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5_Reg001"], name_string_anti_conditions=[]),
-        f"Mask-l1-l3-l5-l8": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5-l8_"], name_string_anti_conditions=["Reg001"]),
-        # f"Mask-l1-l3-l5-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5-l8_Reg001"], name_string_anti_conditions=[]),
+        # f"Mask-l1-l3-l5_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5_Reg001_"], name_string_anti_conditions=[]),
+        # f"Mask-l1-l3-l5-l8": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5-l8_"], name_string_anti_conditions=["Reg001"]),
+        # f"Mask-l1-l3-l5-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l1-l3-l5-l8_Reg001_"], name_string_anti_conditions=[]),
         # f"Mask-l8_": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l8_"], name_string_anti_conditions=["Reg001"]),
-        # f"Mask-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l8_Reg"], name_string_anti_conditions=[]),
+        # f"Mask-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Masked-l8_Reg_"], name_string_anti_conditions=[]),
+        
+        # f"A2C": gather_experiments(A2C_RGB, name_string_conditions=["Long_"], name_string_anti_conditions=[]),
+        # f"Transfer": gather_experiments(OptionA2C_RGB, name_string_conditions=["Transfer_Long_"], name_string_anti_conditions=[]),
+        # f"DecWhole": gather_experiments(OptionA2C_RGB, name_string_conditions=["DecWhole_Long_"], name_string_anti_conditions=[]),
+        # f"FineTune": gather_experiments(OptionA2C_RGB, name_string_conditions=["FineTune_Long_"], name_string_anti_conditions=[]),
+        # f"Mask-l1-l3-l5": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l1-l3-l5_Long_"], name_string_anti_conditions=["Reg001"]),
+        # f"Mask-l1-l3-l5_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l1-l3-l5_Reg001_Long_"], name_string_anti_conditions=[]),
+        # f"Mask-l1-l3-l5-l8": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l1-l3-l5-l8_Long_"], name_string_anti_conditions=["Reg001"]),
+        # f"Mask-l1-l3-l5-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l1-l3-l5-l8_Reg001_Long_"], name_string_anti_conditions=[]),
+        # f"Mask-l8_": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l8_Long_"], name_string_anti_conditions=["Reg001"]),
+        # f"Mask-l8_Reg": gather_experiments(OptionA2C_RGB, name_string_conditions=["Mask-l8_Reg001_Long_"], name_string_anti_conditions=[]),
+        
+        f"PPO1": gather_experiments(PPO_SimpleCrossing1, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO2": gather_experiments(PPO_SimpleCrossing2, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO3": gather_experiments(PPO_SimpleCrossing3, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO4": gather_experiments(PPO_SimpleCrossing4, name_string_conditions=[], name_string_anti_conditions=[]),
+        f"PPO5": gather_experiments(PPO_SimpleCrossing5, name_string_conditions=[], name_string_anti_conditions=[]),
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name=f"RGB Four Rooms A2C Summary", window_size=20, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
+    plot_experiments(agent_dict, "Runs/Figures", name=f"PPO Simple Crossing", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
     # plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom_Transfer_train", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)

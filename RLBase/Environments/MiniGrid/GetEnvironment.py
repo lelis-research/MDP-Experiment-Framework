@@ -1,5 +1,5 @@
 import gymnasium as gym
-from gymnasium.vector import AsyncVectorEnv  # or use SyncVectorEnv if desired
+from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
 
 from .Wrappers import WRAPPING_TO_WRAPPER
 from .Chain import ChainEnv, ChainEnvLava
@@ -131,5 +131,5 @@ def get_parallel_env(env_name, num_envs, max_steps=500, render_mode=None, env_pa
         for i, wrapper_name in enumerate(wrapping_lst):
             env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
         env_fns.append(lambda: env)
-    envs = AsyncVectorEnv(env_fns)
+    envs = SyncVectorEnv(env_fns)
     return envs

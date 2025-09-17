@@ -11,8 +11,10 @@ from RLBase.Options.MaskedOptions import MaskedOptionLearner
 from RLBase.Experiments import BaseExperiment
 from RLBase import load_policy, load_agent
 from RLBase.Environments import get_env
+from RLBase.Evaluate import SingleExpAnalyzer
 
 import os
+
 def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
     agent_lst, trajectories_lst = [], []
     ind = 0
@@ -37,6 +39,8 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
         metrics = experiment.multi_run(num_runs=1, num_episodes=1, dump_transitions=True, dump_metrics=False)
         transitions = metrics[0][0]['transitions']
         trajectory = [(obs, action) for obs, action, *_ in transitions] #Only observations and actions
+        analyzer = SingleExpAnalyzer(metrics=metrics)
+        analyzer.generate_video(1, 1, name_tag=os.path.join(exp_path, "greedy_option"))
         
         if len(trajectory) != args.episode_max_steps:
             # if the policy was able to solve the problem

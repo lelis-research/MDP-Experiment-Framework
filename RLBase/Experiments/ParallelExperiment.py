@@ -1,89 +1,218 @@
 from tqdm import tqdm
 import os
-import pickle
-import random
 import numpy as np
+import torch  # used only for best-agent checkpointing passthrough
 
 from . import BaseExperiment
-#TODO: THIS CLASS IS NOT COMPLETED 
-class ParallelExperiment(BaseExperiment):
-    """    
-    This class handles running episodes and collecting metrics
-    for vectorized Envs.
-    """
-    def run_episodes_parallel(self, num_episodes, seed):
-        """
-        Run `num_episodes` *in total* across the vectorized environment.
-        
-        We'll track when each environment finishes an episode and 
-        reset it individually until we've completed `num_episodes`.
-        
-        Returns:
-            A list of episode metrics (dicts) with keys like
-            {"ep_return", "ep_length", "seed"}.
-        """
-        # We assume gymnasium-like API for vector env:
-        # obs.shape -> (num_envs, obs_space...)
-        # done, truncated are arrays of size num_envs
 
-        num_envs = self.env.num_envs
-        # For reproducibility (some vector envs also accept a list of seeds, one per env)
-        observations, infos = self.env.reset(seed=seed)
-        
-        # Tracking for each environment
-        episode_rewards = np.zeros(num_envs, dtype=np.float32)
-        episode_steps = np.zeros(num_envs, dtype=int)
-        episode_counts = 0  # how many episodes have finished so far
+
+class ParallelExperiment(BaseExperiment):
+    """
+    Parallel/vectorized variant of BaseExperiment.
+    Overrides only the run loops; everything else (multi_run, _one_run, etc.)
+    is reused from BaseExperiment.
+    Assumptions:
+      - self.env is a vectorized env with attribute `num_envs`
+      - step() → (obs, rewards, terminateds, truncateds, infos) with per-env arrays
+      - agent exposes parallel_act(...) and parallel_update(...)
+    """
+    def _extract_actual_rewards(self, infos, rewards):
+        if isinstance(infos, (list, tuple)) and len(infos) == len(rewards):
+            return np.asarray(
+                [info.get("actual_reward", rewards[j]) if isinstance(info, dict) else rewards[j]
+                for j, info in enumerate(infos)],
+                dtype=np.float32,
+            )
+        if isinstance(infos, dict) and "actual_reward" in infos:
+            ar = np.asarray(infos["actual_reward"], dtype=np.float32)
+            if ar.shape == rewards.shape:
+                return ar
+        return rewards
+
+    def _obs_i(self, obs, i):
+        if isinstance(obs, dict):
+            return {k: (v[i] if hasattr(v, "__getitem__") else v) for k, v in obs.items()}
+        return obs[i]
+
+    def _single_run_episodes(self, env, agent, num_episodes, seed, run_idx):
+        """
+        Vectorized episodes runner: completes `num_episodes` total across all sub-envs.
+        Returns: (all_metrics, best_agent_checkpoint_dict)
+        """
+        best_agent, best_return = None, -np.inf
+        if self._train:
+            agent.reset(seed)
         
         all_metrics = []
-        pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
-        # We continue stepping until we finish `num_episodes` episodes in total.
-        # We don't rely on all envs finishing simultaneously.
-        while episode_counts < num_episodes:
-            actions = self.agent.parallel_act(observations)                     
-            observations, rewards, dones, truncated, infos = self.env.step(actions)
-            self.agent.parallel_update(observations, rewards, dones, truncated)
+        pbar = tqdm(total=num_episodes, desc="Running episodes")
+        
+        num_envs = env.num_envs
+        
+        # # Per-sub-env trackers
+        ep_returns = np.zeros(num_envs, dtype=np.float32)
+        ep_lengths = np.zeros(num_envs, dtype=np.int64)
+        transitions_buf = [[] for _ in range(num_envs)] if self._dump_transitions else None
+
+        episodes_done = 0
+
+        observations, infos = env.reset()
+        while episodes_done < num_episodes:                
+            actions = agent.parallel_act(observations)
+            next_observations, rewards, terminateds, truncateds, infos = env.step(actions)
             
-            # Accumulate reward & step counts
-            episode_rewards += rewards
-            episode_steps += 1
+            if self._dump_transitions:
+                for i in range(num_envs):
+                    transitions_buf[i].append((self._obs_i(observations, i), actions[i], rewards[i],
+                                               bool(terminateds[i]), bool(truncateds[i])))
+            
+            
+            ep_returns += self._extract_actual_rewards(infos, rewards)
+            ep_lengths += 1
 
-            # For each env that's terminated/truncated, record metrics
-            for i in range(num_envs):
-                if (dones[i] or truncated[i]) and episode_counts < num_episodes:
-                    # We finished an episode in env i
-                    metrics = {
-                        "ep_return": episode_rewards[i],
-                        "ep_length": episode_steps[i],
-                        "seed": seed,
-                    }
+            if self._train:
+                agent.parallel_update(next_observations, rewards, terminateds, truncateds)
+                
+            observations = next_observations
 
-                    # Update the progress bar.
-                    pbar.update(1)
-                    pbar.set_postfix({
-                        "Return": metrics['ep_return'], 
-                        "Steps": metrics['ep_length']
-                    })
-                    
-
-                    all_metrics.append(metrics)
-                    
-                    episode_counts += 1
-                    episode_rewards[i] = 0.0
-                    episode_steps[i] = 0
-
-        return all_metrics
+            dones = np.logical_or(terminateds, truncateds)
+            # Record finished episodes (may be multiple per step)
+            for i in range(len(dones)):
+                if not dones[i]:
+                    continue
+                episodes_done += 1
+                                
+                try:
+                    frames = env.envs[i].render()
+                except:
+                    frames = []
+                
     
-    def _single_run(self, num_episodes, seed):
-        """
-        Run the experiment for a specified number of episodes.
-        
-        Returns:
-            A list of episode metrics for analysis.
-        """
-        self.agent.reset(seed)
+                metrics = {
+                    "ep_return": float(ep_returns[i]),
+                    "ep_length": int(ep_lengths[i]),
+                    "frames": frames,
+                    "transitions": transitions_buf[i] if self._dump_transitions else [],
+                    "agent_seed": seed,
+                    "episode_index": episodes_done,
+                }
+                all_metrics.append(metrics)
 
-        # Use a seed to ensure reproducibility.
-        all_metrics = self.run_episodes_parallel(num_episodes, seed)
+                # Best agent snapshot (checkpoint dict from agent.save())
+                if ep_returns[i] >= best_return:
+                    best_return = ep_returns[i]
+                    best_agent = agent.save()
+
+                # Progress + optional checkpoint
+                pbar.update(1)
+                pbar.set_postfix({"Return": metrics["ep_return"], "Steps": metrics["ep_length"]})
+
+                if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episodes_done % self._checkpoint_freq == 0:
+                    path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episodes_done}")
+                    agent.save(path)
+
+                # Reset per-sub-env trackers for that env slot
+                ep_returns[i] = 0.0
+                ep_lengths[i] = 0
+                if self._dump_transitions:
+                    transitions_buf[i] = []
+            
+
+        pbar.close()
+        return all_metrics, best_agent
+
+    def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
+        """
+        Vectorized steps runner: executes ~`total_steps` interactions in aggregate.
+        Each call to env.step() counts as `num_envs` interactions.
+        If the limit is hit mid-episode, we truncate and emit partial episodes.
+        Returns: (all_metrics, best_agent_checkpoint_dict)
+        """
+        best_agent, best_return = None, -np.inf
+        if self._train:
+            agent.reset(seed)
+
+        all_metrics = []
+        pbar = tqdm(total=total_steps, desc="Running steps")
         
-        return all_metrics
+        num_envs = env.num_envs
+
+        ep_returns = np.zeros(num_envs, dtype=np.float32)
+        ep_lengths = np.zeros(num_envs, dtype=np.int64)
+        transitions_buf = [[] for _ in range(num_envs)] if self._dump_transitions else None
+
+        steps_so_far = 0
+        episodes_done = 0
+        
+        observations, infos = env.reset()
+        while steps_so_far < total_steps:
+            actions = agent.parallel_act(observations)
+            next_observations, rewards, terminateds, truncateds, infos = env.step(actions)
+            
+            if self._dump_transitions:
+                for i in range(num_envs):
+                    transitions_buf[i].append((self._obs_i(observations, i), actions[i], rewards[i],
+                                               bool(terminateds[i]), bool(truncateds[i])))
+            
+                 
+            ep_returns += self._extract_actual_rewards(infos, rewards)
+            ep_lengths += 1
+            steps_so_far += num_envs  # aggregate interactions across sub-envs
+            
+            if steps_so_far >= total_steps:
+                truncateds = np.ones_like(truncateds)
+            
+            if self._train:
+                agent.parallel_update(next_observations, rewards, terminateds, truncateds)
+
+            pbar.update(num_envs)
+            observations = next_observations
+            
+
+            # Determine which envs finished this step (natural or forced)
+            dones = np.logical_or(terminateds, truncateds)
+
+
+            # Emit metrics for all finished slots
+            for i in range(len(dones)):
+                if not dones[i]:
+                    continue
+                episodes_done += 1
+                
+                try:
+                    frames = env.envs[i].render()
+                except:
+                    frames = []
+
+                metrics = {
+                    "ep_return": float(ep_returns[i]),
+                    "ep_length": int(ep_lengths[i]),
+                    "frames": frames,
+                    "transitions": transitions_buf[i] if self._dump_transitions else [],
+                    "agent_seed": seed,
+                    "episode_index": episodes_done,
+                }
+                all_metrics.append(metrics)
+                
+                # Best agent snapshot (checkpoint dict from agent.save())
+                if ep_returns[i] >= best_return:
+                    best_return = ep_returns[i]
+                    best_agent = agent.save()
+
+                
+                pbar.set_postfix({"Episode": episodes_done, 
+                                  "Return": metrics["ep_return"], 
+                                  "TotalSteps": steps_so_far})
+                
+                if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episodes_done % self._checkpoint_freq == 0:
+                    path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episodes_done}")
+                    agent.save(path)
+
+                # Reset per-slot accumulators
+                ep_returns[i] = 0.0
+                ep_lengths[i] = 0
+                if self._dump_transitions:
+                    transitions_buf[i] = []
+
+
+        pbar.close()
+        return all_metrics, best_agent

@@ -6,7 +6,7 @@
 #SBATCH --output=logs/exp_%A_%a.out
 #SBATCH --error=logs/exp_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-50
+#SBATCH --array=0-0
 
 
 set -euo pipefail
@@ -35,20 +35,25 @@ NUM_DISTRACTORS=15
 
 # ---------------Configs--------- 
 CONFIG="config_options_base"
-OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="MaxLen-20_RGB_Mask-l8_Regularized-0.01_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+OPTION_TYPE="DecWholeOptionLearner"
+NAME_TAG="PPO_MaxLen-20_RGB_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
-    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/A2C/${IDX}_seed[${IDX}]"
-    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-3000)/A2C/${IDX}_seed[${IDX}]"
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-4000)/A2C/${IDX}_seed[${IDX}]"
-    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/A2C/${IDX}_seed[${IDX}]"
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-6000)/A2C/${IDX}_seed[${IDX}]"
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-7000)/A2C/${IDX}_seed[${IDX}]"
-    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-8000)/A2C/${IDX}_seed[${IDX}]"
-    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-9000)/A2C/${IDX}_seed[${IDX}]"
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-10000)/A2C/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/PPO/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/PPO/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-3000)/PPO/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/PPO/${IDX}_seed[${IDX}]"
+
+    # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/A2C/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-3000)/A2C/${IDX}_seed[${IDX}]"
+    # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-4000)/A2C/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/A2C/${IDX}_seed[${IDX}]"
+    # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-6000)/A2C/${IDX}_seed[${IDX}]"
+    # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-7000)/A2C/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-8000)/A2C/${IDX}_seed[${IDX}]"
+    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-9000)/A2C/${IDX}_seed[${IDX}]"
+    # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-10000)/A2C/${IDX}_seed[${IDX}]"
 
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-1000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-2000)_FixedRandomDistractor(num_distractors-${NUM_DISTRACTORS}_seed-100)/A2C/${IDX}_seed[${IDX}]"
@@ -99,7 +104,7 @@ INFO='{
     "masked_layers":["8"]
 }' 
 
-RUN_IND_LIST=(1 1 1 1 1) #1 1 1 1 1)
+RUN_IND_LIST=(1 1 1) #1 1 1 1 1)
 NUM_WORKERS=16
 # ----------------------------------
 

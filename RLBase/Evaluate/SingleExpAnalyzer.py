@@ -278,7 +278,7 @@ class SingleExpAnalyzer:
         with open(os.path.join(save_dir, "seed.txt"), "w") as file:
             file.writelines(seed_lst)
 
-    def generate_video(self, run_number, episode_number, video_type="gif"):
+    def generate_video(self, run_number, episode_number, video_type="gif", name_tag=""):
         """
         Generate a video (currently only GIF supported) from stored frames.
         
@@ -288,9 +288,15 @@ class SingleExpAnalyzer:
             video_type (str): "gif" or "mp4" (only "gif" is implemented).
         """
         frames = self.metrics[run_number - 1][episode_number - 1]['frames']
+        
+        if self.exp_path is not None:
+            filename = os.path.join(self.exp_path, f"run_{run_number}_ep_{episode_number}_{name_tag}")
+        else:
+            filename = f"{name_tag}"
+       
         print(f"Number of frames: {len(frames)}")
         if video_type == "gif":
-            filename = os.path.join(self.exp_path, f"run_{run_number}_ep_{episode_number}.gif")
+            filename = f"{filename}.gif"
             imageio.mimsave(filename, frames, fps=15)  # Adjust fps as needed
             print(f"GIF saved as {filename}")
         else:

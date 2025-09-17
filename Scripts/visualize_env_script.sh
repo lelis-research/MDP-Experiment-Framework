@@ -31,7 +31,7 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1000))
-ENV="MiniGrid-FourRooms-v0"
+ENV="MiniGrid-Empty-8x8-v0"
 ENV_WRAPPING='["RGBImgPartialObs","FixedSeed"]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]' ,"FixedRandomDistractor"
 WRAPPING_PARAMS='[{"tile_size":7},{"seed":5000}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]' ,{"num_distractors": 5, "seed": 100}
 ENV_PARAMS='{}'

@@ -27,6 +27,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
 )
 from RLBase.Options.Utils import load_options_list
 from Configs.networks import NETWORKS
+import torch
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -37,9 +38,21 @@ def get_env_observation_space(env):
 def get_num_envs(env):
     return env.num_envs if hasattr(env, 'num_envs') else 1
 
+def get_device(preferred_device):
+    if preferred_device == "cuda" and torch.cuda.is_available():
+        device = "cuda"
+    elif preferred_device == "mps" and torch.backends.mps.is_available():
+        device = "mps"
+    elif preferred_device == "cpu":
+        device = "cpu"
+    else:
+        print(f"⚠️ Warning: {preferred_device} not available, falling back to CPU.")
+        device = "cpu"
+    return device
 
-
-device="cpu" # cpu, mps, cuda
+preferred_device = "cuda"  # cpu, mps, cuda
+device = get_device(preferred_device)
+print(f"Using device: {device}")
 
 AGENT_DICT = {
     HumanAgent.name: lambda env, info: HumanAgent(
@@ -269,15 +282,15 @@ AGENT_DICT = {
             anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
             target_kl=info.get("target_kl", 0.02),
             
-            actor_network=NETWORKS[info.get("actor_network", "fc_network_relu")],
+            actor_network=NETWORKS[info.get("actor_network", "conv_network_2")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             actor_eps = info.get("actor_eps", 1e-5),
-            critic_network=NETWORKS[info.get("critic_network", "fc_network_relu")],
+            critic_network=NETWORKS[info.get("critic_network", "conv_network_2")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             critic_eps = info.get("critic_eps", 1e-5),
             
             anneal_step_size_flag=info.get("anneal_step_size_flag", True),
-            total_updates=info.get("total_updates", 500_000 // 256),
+            total_steps=info.get("total_steps", 2_000_000 // 256),
             
             norm_adv_flag=info.get("norm_adv_flag", True),
             critic_coef=info.get("critic_coef", 0.5),
@@ -286,7 +299,7 @@ AGENT_DICT = {
             
         ),
         get_num_envs(env),
-        FLattenFeature,
+        ImageFeature,
         device=device
     )
 }

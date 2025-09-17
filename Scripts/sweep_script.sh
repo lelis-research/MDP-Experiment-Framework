@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
-#SBATCH --cpus-per-task=3
-#SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-06:00    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=5
+#SBATCH --mem=24G          # memory per node
+#SBATCH --time=0-02:00    # time (DD-HH:MM)
 #SBATCH --output=logs/sweep_%A_%a.out
 #SBATCH --error=logs/sweep_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-71      # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-971      # check HP_SEARCH_SPACE to calculate the space size
 
 #SBATCH --gres=gpu:1
 
@@ -31,7 +31,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionA2C"
+AGENT="PPO"
 ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
@@ -40,30 +40,45 @@ WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
-NUM_RUNS=3
+NUM_RUNS=5
 NUM_EPISODES=0
 TOTAL_STEPS=500_000
 EPISODE_MAX_STEPS=300
-NUM_ENVS=1
+NUM_ENVS=16
 
 NUM_WORKERS=3
-NAME_TAG="Mask-l8_Reg-001_Conv2"
+NAME_TAG="NumEnvs-16"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
-  "anneal_step_size_flag": false,
+  "mini_batch_size": 64,
+  "rollout_steps": 256,
+  "num_epochs": 5,
+
+  "clip_range_critic_init": null,
+  "anneal_clip_range_critic": false,
+
   "actor_network": "conv_network_2",
   "critic_network": "conv_network_2",
-  "entropy_coef": 0.0,
-  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_RGB_Mask-l8_Regularized-0.01_0/selected_options_5.t"
+  "actor_eps": 1e-5,
+  "critic_eps": 1e-5,
+  "anneal_step_size_flag": true,
+  "total_steps": 300000, 
+  
+  "norm_adv_flag": true,
+  "critic_coef": 0.5 
+
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 
 HP_SEARCH_SPACE='{
-  "actor_step_size": [1e-4, 3e-4, 3e-5], 
-  "critic_step_size": [1e-4, 3e-4, 3e-5],
-  "rollout_steps": [32, 128, 1024, 2048],
-  "norm_adv_flag": [true, false]
+  "clip_range_actor_init": [0.2, 0.1],
+  "anneal_clip_range_actor": [true, false],
+  "target_kl":[0.01, 0.02, 0.03],
+  "actor_step_size": [1e-4, 3e-4, 5e-4], 
+  "critic_step_size": [1e-4, 3e-4, 5e-4],
+  "entropy_coef": [0.0, 0.01, 0.02],
+  "max_grad_norm": [0.3, 0.5, 0.7]
 }'
 # "mini_batch_size":  [32, 64]
 

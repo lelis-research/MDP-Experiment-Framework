@@ -32,21 +32,21 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-FourRooms-v0"
+AGENT="PPO"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
-NAME_TAG="Long_$IDX" #"Test_$IDX"
+NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=2_000_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -54,21 +54,29 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
+  "actor_eps": 1e-05,
+  "actor_network": "conv_network_2",
+  "actor_step_size": 0.0001,
+  "anneal_clip_range_actor": true,
+  "anneal_clip_range_critic": false,
+  "anneal_step_size_flag": true,
+  "clip_range_actor_init": 0.2,
+  "clip_range_critic_init": null,
+  "critic_coef": 0.5,
+  "critic_eps": 1e-05,
+  "critic_network": "conv_network_2",
+  "critic_step_size": 0.0001,
+  "entropy_coef": 0.02,
   "gamma": 0.99,
   "lamda": 0.95,
-  "anneal_step_size_flag": false,
-  "actor_network": "conv_network_2",
-  "critic_network": "conv_network_2",
-  "entropy_coef": 0.0,
-  "actor_step_size": 1e-4, 
-  "critic_step_size": 3e-4,
-  "rollout_steps": 1024,
-  "norm_adv_flag": false
+  "max_grad_norm": 0.7,
+  "mini_batch_size": 64,
+  "norm_adv_flag": true,
+  "num_epochs": 5,
+  "rollout_steps": 256,
+  "target_kl": 0.03,
+  "total_steps": 300000
 }'  
-  # "actor_step_size": 3e-4, 
-  # "critic_step_size": 3e-5,
-  # "rollout_steps": 32,
-  # "norm_adv_flag": false
   # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
 
 # ------------------------------
