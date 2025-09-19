@@ -2,9 +2,9 @@
 #SBATCH --job-name=Option
 #SBATCH --cpus-per-task=16   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=256G        # memory per node
-#SBATCH --time=0-03:00      # time (DD-HH:MM)
-#SBATCH --output=logs/option_%A_%a.out
-#SBATCH --error=logs/option_%A_%a.err
+#SBATCH --time=0-06:00      # time (DD-HH:MM)
+#SBATCH --output=logs/%x_%A_%a.out
+#SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-50
 
@@ -35,8 +35,8 @@ NUM_DISTRACTORS=15
 
 # ---------------Configs--------- 
 CONFIG="config_options_base"
-OPTION_TYPE="MaskedOptionLearner"
-NAME_TAG="PPO_MaxLen-20_RGB_Mask-l8_Regularized-0.01_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
+OPTION_TYPE="FineTuneOptionLearner"
+NAME_TAG="PPO_MaxLen-20_RGB_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/PPO/${IDX}_seed[${IDX}]"

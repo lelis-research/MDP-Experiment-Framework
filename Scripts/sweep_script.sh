@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=24G          # memory per node
 #SBATCH --time=0-02:00    # time (DD-HH:MM)
-#SBATCH --output=logs/sweep_%A_%a.out
-#SBATCH --error=logs/sweep_%A_%a.err
+#SBATCH --output=logs/%x_%A_%a.out
+#SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-971      # check HP_SEARCH_SPACE to calculate the space size
 

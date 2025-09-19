@@ -115,6 +115,10 @@ class FineTuneOptionLearner():
         for observation, action in traj:
             state_t = feature_extractor(observation) 
             pred = policy.select_action(state_t)
+            
+            if isinstance(action, list) or isinstance(action, tuple):
+                pred = pred[0]
+                
             if pred != action:
                 return None
         return FineTuneOption(feature_extractor, policy, len(traj))
