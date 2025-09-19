@@ -158,7 +158,7 @@ class DecWholeOption(BaseOption):
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state)
         
-        if len(action) > 1:
+        if isinstance(action, list) or isinstance(action, tuple):
             # some policies return more than just action e.g. log_prob
             # We assume the action is always the first index 
             # NOTE: Make sure the action is always the first index!

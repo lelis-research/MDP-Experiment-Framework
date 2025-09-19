@@ -34,7 +34,8 @@ def discrete_levin_loss_on_trajectory(trajectory, options_lst, num_actions):
             while j + segment_length < T:
                 observation, true_action = trajectory[j + segment_length]
                 predicted_action = options_lst[index].select_action(observation)
-                if len(predicted_action) > 1:
+
+                if isinstance(predicted_action, list) or isinstance(predicted_action, tuple):
                     # some policies return more than just action e.g. log_prob
                     # We assume the action is always the first index 
                     # NOTE: Make sure the action is always the first index!
