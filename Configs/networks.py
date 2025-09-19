@@ -27,7 +27,7 @@ conv_network_1 = [
 ]
 
 conv_network_2 = [
-    {"type": "conv2d", "in_channels": 3,  "out_channels": 32, "kernel_size": 7, "stride": 3, "padding": 2},
+    {"type": "conv2d",  "out_channels": 32, "kernel_size": 7, "stride": 3, "padding": 2},
     {"type": "relu"},
 
     {"type": "conv2d", "in_channels": 32, "out_channels": 64, "kernel_size": 7, "stride": 3, "padding": 2},

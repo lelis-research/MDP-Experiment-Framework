@@ -32,11 +32,11 @@ IDX=$SLURM_ARRAY_TASK_ID
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
 AGENT="PPO"
-ENV="MiniGrid-FourRooms-v0"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]'
+ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed", "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]'
+WRAPPING_PARAMS='[{"tile_size":7}, {"seed":10000}, {}, {"stack_size":4}, {}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -44,10 +44,10 @@ NUM_RUNS=5
 NUM_EPISODES=0
 TOTAL_STEPS=500_000
 EPISODE_MAX_STEPS=300
-NUM_ENVS=16
+NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG="NumEnvs-16"
+NAME_TAG=""
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,

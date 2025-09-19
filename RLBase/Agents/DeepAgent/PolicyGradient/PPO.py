@@ -112,6 +112,19 @@ class PPOPolicyDiscrete(BasePolicy):
                 action_t = dist.sample()
             log_prob_t = dist.log_prob(action_t)
         return action_t.item(), log_prob_t.detach()
+    
+    def select_parallel_actions(self, states, greedy=False):
+        state_t = states.to(dtype=torch.float32, device=self.device) if torch.is_tensor(states) \
+                    else torch.tensor(states, dtype=torch.float32, device=self.device)
+        with torch.no_grad():
+            logits = self.actor(state_t)
+            dist = Categorical(logits=logits)
+            if greedy:
+                action_t = torch.argmax(logits, dim=-1)
+            else:
+                action_t = dist.sample()
+            log_prob_t = dist.log_prob(action_t)
+        return action_t.cpu().numpy(), log_prob_t.detach()
 
     def update(self, states, actions, old_log_probs, rewards, next_states, dones, call_back=None):
         """
@@ -583,6 +596,16 @@ class PPOAgent(BaseAgent):
         self.last_action = action
         self.last_log_prob = log_prob
         return action
+    
+    def parallel_act(self, observations, greedy=False):        
+        states = self.feature_extractor(observations)
+        actions, log_probs = self.policy.select_parallel_actions(states, greedy=False)
+        
+        self.last_states = states
+        self.last_actions = actions
+        self.last_log_probs = log_probs
+
+        return actions
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
@@ -604,6 +627,30 @@ class PPOAgent(BaseAgent):
             states, actions, log_probs, rewards, next_states, dones = zip(*rollout)
             
             self.policy.update(states, actions, log_probs, rewards, next_states, dones, call_back=call_back)
+            self.rollout_buffer.reset()
+            
+    def parallel_update(self, observations, rewards, terminateds, truncateds, call_back=None):
+        """
+        observations: next batched obs after step (num_envs, ...)
+        rewards:     (num_envs,)
+        terminateds: (num_envs,)
+        truncateds:  (num_envs,)
+        """
+        states = self.feature_extractor(observations)
+        
+        for i in range(self.num_envs):
+            #unsqueeze(0) to keep the batch dimension
+            transition =  (self.last_states[i].unsqueeze(0), self.last_actions[i], self.last_log_probs[i].unsqueeze(0), rewards[i], states[i].unsqueeze(0), terminateds[i])
+            self.rollout_buffer.add_single_item(transition)
+            
+
+        if self.rollout_buffer.size >= self.hp.rollout_steps:
+            self.last_update_counter = 0
+            
+            rollout = self.rollout_buffer.get_all()
+            states, actions, rewards, next_states, dones = zip(*rollout)
+            
+            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
             self.rollout_buffer.reset()
 
     def reset(self, seed):

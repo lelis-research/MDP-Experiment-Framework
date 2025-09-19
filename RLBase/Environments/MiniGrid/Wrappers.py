@@ -1,6 +1,8 @@
 import gymnasium as gym
 import numpy as np
+from typing import Mapping
 from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper, RGBImgObsWrapper, RGBImgPartialObsWrapper
+from gymnasium.wrappers import FrameStackObservation
 
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
 from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT
@@ -127,6 +129,81 @@ class RecordRewardWrapper(gym.Wrapper):
         info['actual_reward'] = reward
         return obs, reward, terminated, truncated, info
     
+class DropMissionWrapper(gym.ObservationWrapper):
+    """Remove string 'mission' from obs and observation_space."""
+    def __init__(self, env):
+        super().__init__(env)
+        if isinstance(self.observation_space, gym.spaces.Dict) and "mission" in self.observation_space.spaces:
+            new_spaces = dict(self.observation_space.spaces)
+            new_spaces.pop("mission")
+            self.observation_space = gym.spaces.Dict(new_spaces)
+
+    def observation(self, obs):
+        if isinstance(obs, dict) and "mission" in obs:
+            obs = dict(obs)
+            obs.pop("mission")
+        return obs
+
+class MergeStackIntoChannelsWrapper(ObservationWrapper):
+    """
+    Wrapper that merges a leading stack dimension into the channel dimension.
+
+    - Box(S,H,W,C) -> Box(H,W,S*C)
+    - Box(H,W,C)   -> unchanged
+    - Dict with 'image': Box(S,H,W,C) -> only 'image' becomes (H,W,S*C)
+
+    Assumes the stack dimension (if present) is the first axis of the image.
+    """
+
+    def __init__(self, env: gym.Env, image_key: str = "image"):
+        super().__init__(env)
+        self.image_key = image_key
+
+        space = self.observation_space
+        if isinstance(space, gym.spaces.Box):
+            self.observation_space = self._merge_box(space)
+        elif isinstance(space, gym.spaces.Dict):
+            spaces = dict(space.spaces)
+            if self.image_key not in spaces:
+                raise KeyError(f"Dict observation_space must contain key '{self.image_key}'.")
+            if not isinstance(spaces[self.image_key], gym.spaces.Box):
+                raise TypeError(f"'{self.image_key}' must be a Box space.")
+            spaces[self.image_key] = self._merge_box(spaces[self.image_key])
+            self.observation_space = gym.spaces.Dict(spaces)
+        else:
+            raise TypeError("MergeStackIntoChannelsWrapper expects Box obs or Dict with an 'image' Box.")
+
+    def _merge_box(self, space):
+        shape = tuple(space.shape)
+        if len(shape) == 3:
+            # Already (H, W, C)
+            return space
+        if len(shape) == 4:
+            S, H, W, C = shape
+            low  = np.transpose(space.low,  (1, 2, 0, 3)).reshape(H, W, S * C)
+            high = np.transpose(space.high, (1, 2, 0, 3)).reshape(H, W, S * C)
+            return gym.spaces.Box(low=low, high=high, shape=(H, W, S * C), dtype=space.dtype)
+        raise ValueError(f"Unsupported Box shape {shape}; expected (H,W,C) or (S,H,W,C).")
+
+    def _merge_array(self, arr: np.ndarray) -> np.ndarray:
+        if arr.ndim == 3:
+            # (H, W, C)
+            return arr
+        if arr.ndim == 4:
+            # (S, H, W, C) -> (H, W, S*C)
+            S, H, W, C = arr.shape
+            return np.transpose(arr, (1, 2, 0, 3)).reshape(H, W, S * C)
+        raise ValueError(f"Unsupported obs array shape {arr.shape}; expected (H,W,C) or (S,H,W,C).")
+
+    def observation(self, obs):
+        if isinstance(obs, Mapping):
+            new_obs = dict(obs)
+            new_obs[self.image_key] = self._merge_array(obs[self.image_key])
+            return new_obs
+        else:
+            return self._merge_array(obs)
+    
+
 # Dictionary mapping string keys to corresponding wrapper classes.
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
@@ -138,5 +215,8 @@ WRAPPING_TO_WRAPPER = {
     "FixedRandomDistractor": FixedRandomDistractorWrapper,
     "RGBImgObs": RGBImgObsWrapper,
     "RGBImgPartialObs": RGBImgPartialObsWrapper,
-    "RecordReward": RecordRewardWrapper
+    "RecordReward": RecordRewardWrapper,
+    "FrameStack": FrameStackObservation, # stack_size: int
+    "DropMission": DropMissionWrapper,
+    "MergeStackIntoChannels": MergeStackIntoChannelsWrapper,
 }

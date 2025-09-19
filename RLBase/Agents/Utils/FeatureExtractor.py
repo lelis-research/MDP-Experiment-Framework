@@ -33,7 +33,7 @@ class FLattenFeature(BaseFeature):
 @register_feature_extractor
 class ImageFeature(BaseFeature):
     def _image_space(self):
-        """Return the Box space corresponding to the image."""
+        """Return the Box space corresponding to the image."""        
         obs_space = self.observation_space
         if isinstance(obs_space, gym.spaces.Dict):
             if "image" not in obs_space.spaces:
