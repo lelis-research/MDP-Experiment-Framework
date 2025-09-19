@@ -157,6 +157,13 @@ class DecWholeOption(BaseOption):
     def select_action(self, observation):
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state)
+        
+        if len(action) > 1:
+            # some policies return more than just action e.g. log_prob
+            # We assume the action is always the first index 
+            # NOTE: Make sure the action is always the first index!
+            action = action[0] 
+            
         self.step_counter += 1
         return action
 

@@ -6,7 +6,7 @@
 #SBATCH --output=logs/option_%A_%a.out
 #SBATCH --error=logs/option_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-0
+#SBATCH --array=0-50
 
 
 set -euo pipefail
@@ -35,7 +35,7 @@ NUM_DISTRACTORS=15
 
 # ---------------Configs--------- 
 CONFIG="config_options_base"
-OPTION_TYPE="DecWholeOptionLearner"
+OPTION_TYPE="TransferOptionLearner"
 NAME_TAG="PPO_MaxLen-20_RGB_$IDX" #"Distractor_MaxLen-20_Mask-l1_$IDX"
 SEED=$IDX
 EXP_PATH_LIST=(
@@ -100,7 +100,7 @@ INFO='{
     "n_epochs": 500,
     "actor_lr": 5e-4,
 
-    "reg_coef": 0.01,
+    "reg_coef": 0.0,
     "masked_layers":["8"]
 }' 
 
