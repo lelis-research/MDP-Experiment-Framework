@@ -33,17 +33,28 @@ class DecWholeOptionLearner():
         self.num_workers = num_workers
         self.exp_dir = exp_dir
         self.set_params(agent_lst, trajectories_lst, hyper_params)
+        
+        if verbose:
+            print(f"Original Levin Loss: {self.org_loss}")
                 
         if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, "all_options.t")):
             print("Loading all options")
             self.options_lst = load_options_list(os.path.join(self.exp_dir, "all_options.t"))
             print(f"Number of loaded options: {len(self.options_lst)}")
+            if verbose:
+                new_loss = sum([discrete_levin_loss_on_trajectory(trajectory, self.options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
+                print(f"Total options before selection: {len(self.options_lst)}")
+                print(f"New Levin Loss: {new_loss}")
         else:
             print("Training all options")
             self.options_lst = self._get_all_options(verbose)
             save_options_list(self.options_lst, os.path.join(self.exp_dir, "all_options.t"))
             print(f"Number of trained options: {len(self.options_lst)}")
-        
+            if verbose:
+                new_loss = sum([discrete_levin_loss_on_trajectory(trajectory, self.options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
+                print(f"Total options before selection: {len(self.options_lst)}")
+                print(f"New Levin Loss: {new_loss}")
+            
         if self.exp_dir is not None and os.path.exists(os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t")):
             print("Loading selected options")
             self.selected_options_lst = load_options_list(os.path.join(self.exp_dir, f"selected_options_{self.hyper_params.max_num_options}.t"))
@@ -64,18 +75,11 @@ class DecWholeOptionLearner():
         
     def _get_all_options(self, verbose):
         options_lst = []
-        if verbose:
-            print(f"Original Levin Loss: {self.org_loss}")
             
         for agent in self.agent_lst:
             for option_len in range(1, self.hyper_params.max_option_len):
                 option = DecWholeOption(agent.feature_extractor, agent.policy, option_len)
                 options_lst.append(option)
-                
-        new_loss = sum([discrete_levin_loss_on_trajectory(trajectory, options_lst, self.action_space.n) for trajectory in self.trajectories_lst]) / len(self.trajectories_lst)
-        if verbose:
-            print(f"Total options before selection: {len(options_lst)}")
-            print(f"New Levin Loss: {new_loss}")
                         
         return options_lst
         

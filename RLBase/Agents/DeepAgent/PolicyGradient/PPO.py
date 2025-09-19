@@ -111,6 +111,8 @@ class PPOPolicyDiscrete(BasePolicy):
             else:
                 action_t = dist.sample()
             log_prob_t = dist.log_prob(action_t)
+        
+        
         return action_t.item(), log_prob_t.detach()
     
     def select_parallel_actions(self, states, greedy=False):

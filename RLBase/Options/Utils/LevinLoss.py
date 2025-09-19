@@ -34,13 +34,20 @@ def discrete_levin_loss_on_trajectory(trajectory, options_lst, num_actions):
             while j + segment_length < T:
                 observation, true_action = trajectory[j + segment_length]
                 predicted_action = options_lst[index].select_action(observation)
+                if len(predicted_action) > 1:
+                    # some policies return more than just action e.g. log_prob
+                    # We assume the action is always the first index 
+                    # NOTE: Make sure the action is always the first index!
+                    predicted_action = predicted_action[0] 
+                    
                 if predicted_action != true_action or options_lst[index].is_terminated(observation):
                     break
                 segment_length += 1
+
             # If the agent can cover at least one transition:
             if segment_length > 0:
                 M[j + segment_length] = min(M[j + segment_length], M[j] + 1)
-    
+        
     number_decisions = M[T]
     depth = T + 1  # Total number of "positions" is trajectory length plus one.
     

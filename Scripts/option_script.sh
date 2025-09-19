@@ -3,8 +3,8 @@
 #SBATCH --cpus-per-task=16   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=256G        # memory per node
 #SBATCH --time=0-12:00      # time (DD-HH:MM)
-#SBATCH --output=logs/exp_%A_%a.out
-#SBATCH --error=logs/exp_%A_%a.err
+#SBATCH --output=logs/option_%A_%a.out
+#SBATCH --error=logs/option_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-0
 
@@ -42,7 +42,7 @@ EXP_PATH_LIST=(
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/PPO/${IDX}_seed[${IDX}]"
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/PPO/${IDX}_seed[${IDX}]"
     "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-3000)/PPO/${IDX}_seed[${IDX}]"
-    # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/PPO/${IDX}_seed[${IDX}]"
+    "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/PPO/${IDX}_seed[${IDX}]"
 
     # # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-1000)/A2C/${IDX}_seed[${IDX}]"
     # "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)/A2C/${IDX}_seed[${IDX}]"
@@ -104,7 +104,7 @@ INFO='{
     "masked_layers":["8"]
 }' 
 
-RUN_IND_LIST=(1 1 1) #1 1 1 1 1)
+RUN_IND_LIST=(1 1 1 1) #1 1 1 1 1)
 NUM_WORKERS=16
 # ----------------------------------
 
