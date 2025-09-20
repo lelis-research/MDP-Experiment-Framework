@@ -3,3 +3,4 @@ from .PPO import PPOAgent, PPOPolicyDiscrete, PPOPolicyContinuous
 from .Reinforce import ReinforceAgent, ReinforcePolicy
 from .ReinforceWithBaseline import ReinforceWithBaselineAgent, ReinforceWithBaselinePolicy
 from .OptionA2C import OptionA2CAgent, OptionA2CPolicyDiscrete
+from .OptionPPO import OptionPPOAgent, OptionPPOPolicyDiscrete

@@ -66,10 +66,11 @@ if __name__ == "__main__":
         yaml.dump(vars(args), f)
     
     option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
-    # for file in os.listdir(exp_dir):
-    #     if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
-    #         print("selected options already existed")
-    #         exit(0)
+    
+    for file in os.listdir(exp_dir):
+        if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
+            print("selected options already existed")
+            exit(0)
             
     options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
 

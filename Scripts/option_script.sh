@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=Option
+#SBATCH --job-name=Option-FineTune
 #SBATCH --cpus-per-task=16   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=256G        # memory per node
 #SBATCH --time=0-06:00      # time (DD-HH:MM)
@@ -100,8 +100,8 @@ INFO='{
     "n_epochs": 500,
     "actor_lr": 5e-4,
 
-    "reg_coef": 0.01,
-    "masked_layers":["8"]
+    "reg_coef": 0.0,
+    "masked_layers":["1","3","5"]
 }' 
 
 RUN_IND_LIST=(1 1 1 1) #1 1 1 1 1)

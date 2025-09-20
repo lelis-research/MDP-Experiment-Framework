@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep
+#SBATCH --job-name=sweep-Mask
 #SBATCH --cpus-per-task=5
-#SBATCH --mem=24G          # memory per node
-#SBATCH --time=0-02:00    # time (DD-HH:MM)
+#SBATCH --mem=8G          # memory per node
+#SBATCH --time=0-03:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -31,12 +31,12 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="PPO"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="OptionPPO"
+ENV="MiniGrid-FourRooms-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed", "DropMission", "FrameStack", "MergeStackIntoChannels"]'
+ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"tile_size":7}, {"seed":10000}, {}, {"stack_size":4}, {}]'
+WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -47,7 +47,7 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 NUM_WORKERS=3
-NAME_TAG=""
+NAME_TAG="Mask-l8_Reg01"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
@@ -63,10 +63,11 @@ INFO='{
   "actor_eps": 1e-5,
   "critic_eps": 1e-5,
   "anneal_step_size_flag": true,
-  "total_steps": 300000, 
+  "total_steps": 500000, 
   
   "norm_adv_flag": true,
-  "critic_coef": 0.5 
+  "critic_coef": 0.5,
+  "option_path": "Runs/Options/MaskedOptionLearner/PPO_MaxLen-20_RGB_Mask-l8_Regularized-0.01_0/selected_options_5.t" 
 
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"

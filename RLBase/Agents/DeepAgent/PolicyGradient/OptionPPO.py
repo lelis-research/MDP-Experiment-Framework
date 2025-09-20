@@ -99,12 +99,11 @@ class OptionPPOAgent(PPOAgent):
                 self.option_multiplier = 1.0
                 # Get the option's first primitive action
                 action = self.options_lst[self.running_option_index].select_action(observation)
-        
-                
-        self.last_state = state
-        self.last_action = action
-        self.last_log_prob = log_prob
-
+            else:
+                self.last_state = state
+                self.last_action = action
+                self.last_log_prob = log_prob
+    
         return action
     
     

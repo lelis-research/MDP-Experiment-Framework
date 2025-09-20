@@ -173,7 +173,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-SimpleCrossingS9N1-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-2000)_DropMission_FrameStack(stack_size-4)_MergeStackIntoChannels/PPO/_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-FourRooms-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/OptionPPO/Transfer_seed[1]"
     ratio   = 0.5
     # ---------------------
 
