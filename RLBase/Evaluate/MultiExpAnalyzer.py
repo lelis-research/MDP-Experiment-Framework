@@ -5,6 +5,17 @@ import matplotlib.pyplot as plt
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
+plt.rcParams.update({
+    "font.size": 16,            # base font size
+    # "axes.titlesize": 16,       # title
+    # "axes.labelsize": 16,       # x and y labels
+    # "xtick.labelsize": 14,      # x tick labels
+    # "ytick.labelsize": 14,      # y tick labels
+    # "legend.fontsize": 14,      # legend
+    # "figure.titlesize": 18      # overall figure title
+})
+
+
 def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=False, show_ci=False, ignore_last=False, plt_configs=["r_e", "r_s", "s_e"]):
     '''
     Example:
@@ -21,7 +32,9 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
     # num_experiments = len(agent_dict)
     # colors = plt.cm.viridis(np.linspace(0, 1, num_experiments))
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    fig, axs = plt.subplots(len(plt_configs), 1, figsize=(12, 10))
+    colors = ['red', 'black', 'green', 'purple', 'blue', 'orange', 'brown', 'pink', 'grey', 'cyan']
+    markers = ['--', '-', '-.', ':*', '-o', ':s', '--^', '-.D', '-.v', ':p', '-X']
+    fig, axs = plt.subplots(len(plt_configs), 1, figsize=(10, 6*len(plt_configs)), constrained_layout=True)
     generated_name = ""
     for i, exp in enumerate(agent_dict):
         if type(agent_dict[exp]) == str:
@@ -30,7 +43,7 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
             analyzer = SingleExpAnalyzer(metrics=agent_dict[exp])
         else:
             raise ValueError(f"Unknown param type: {type(agent_dict[exp])}")
-        analyzer.plot_combined(fig, axs, color=colors[i], label=exp, 
+        analyzer.plot_combined(fig, axs, color=colors[i], marker=markers[i], label=exp, 
                                show_legend=(i==len(agent_dict)-1), window_size=window_size, 
                                plot_each=plot_each, show_ci=show_ci, 
                                title=name, ignore_last=ignore_last, plt_configs=plt_configs) # show legend only for the last which combines all of them

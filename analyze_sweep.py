@@ -47,6 +47,7 @@ def check_incomplete_runs(exp_dir):
     Identify trials missing metrics.pkl or agent.txt.
     Returns a list of trial names that are incomplete.
     """
+    num_complete = 0
     incomplete = []
     for trial in find_trials(exp_dir):
         trial_dir = os.path.join(exp_dir, trial)
@@ -54,7 +55,9 @@ def check_incomplete_runs(exp_dir):
                    os.path.isfile(os.path.join(trial_dir, AGENT_FILE))
         if not files_ok:
             incomplete.append(trial)
-    return incomplete
+        else:
+            num_complete += 1
+    return incomplete, num_complete
 
 
 def find_best_hyperparameters(exp_dir, ratio):
@@ -142,13 +145,12 @@ def print_info_for_best_trial(exp_dir, ratio, sort_keys=True, indent=2):
 
 def main(exp_dir, ratio):
     # 1) Check incomplete trials
-    incomplete = check_incomplete_runs(exp_dir)
+    incomplete, num_complete = check_incomplete_runs(exp_dir)
     if incomplete:
         print("Incomplete trials (missing files):")
         for t in incomplete:
             print(f"  {t}")
-    else:
-        print("All trials have metrics and agent info.")
+    print(f"{num_complete} trials have metrics and agent info.")
 
     # 2) Find best hyperparameters among completed
     best = find_best_hyperparameters(exp_dir, ratio)

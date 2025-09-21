@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep-Mask
-#SBATCH --cpus-per-task=5
-#SBATCH --mem=8G          # memory per node
-#SBATCH --time=0-03:00    # time (DD-HH:MM)
+#SBATCH --job-name=sweep-DecWhole
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=6G          # memory per node
+#SBATCH --time=0-05:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -41,13 +41,14 @@ ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
 NUM_RUNS=5
+NUM_WORKERS=5 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
 TOTAL_STEPS=500_000
 EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
-NUM_WORKERS=3
-NAME_TAG="Mask-l8_Reg01"
+
+NAME_TAG="Transfer"
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
@@ -67,7 +68,7 @@ INFO='{
   
   "norm_adv_flag": true,
   "critic_coef": 0.5,
-  "option_path": "Runs/Options/MaskedOptionLearner/PPO_MaxLen-20_RGB_Mask-l8_Regularized-0.01_0/selected_options_5.t" 
+  "option_path": "Runs/Options/TransferOptionLearner/PPO_MaxLen-1_RGB_0/all_options.t" 
 
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"

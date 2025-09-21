@@ -67,56 +67,69 @@ if __name__ == "__main__":
     num_distractors = 25
     Ant_Test = "Runs/Train/Ant-v5_/A2C"
     agent_dict = {
-
-        "A2C": gather_experiments(A2C_40Distraction),
-        "DecWhole": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
-        "FineTune": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
-        # "Mask-Input": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
-        # "Mask-Input-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
-        # "Mask-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
-        # "Mask-Input-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), #best
-        # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
-        # "Mask-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        "Transfer": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
-        "Didec": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]), #best
         
-        # "A2C": gather_experiments(A2C_20Distraction),
+        # "Didec": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]), #best
+        # "Vanilla (A2C)": gather_experiments(A2C_40Distraction),
+        # "Transferred Policy": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
+        # "DecWhole": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
+        # "FineTuned Policy": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Input": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
+        # # "Mask-Input-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
+        # # "Mask-Layer1": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
+        # # "Mask-Input-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), #best
+        # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+        # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        "Input Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
+        "Neuron Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        "Input and Neuron": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+        
+        
+        # "Didec": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=["Distractor"]), #best
+        # "Vanilla (A2C)": gather_experiments(A2C_20Distraction),
+        # "Transferred Policy": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
         # "DecWhole": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
-        # "FineTune": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
+        # "FineTuned Policy": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
         # # "Mask-Input": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
         # # "Mask-Input-Layer1": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
         # # "Mask-Layer1": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
         # # "Mask-Input-Reg": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
         # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]), #best
         # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        # "Transfer": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
-        # "Didec": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=["Distractor"]), #best
-
+        # "Input Only": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
+        # "Neuron Only": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Input and Neuron": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
         
-        # "A2C": gather_experiments(A2C_10Distraction),
+
+        # "Didec": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]), #best
+        # "Vanilla (A2C)": gather_experiments(A2C_10Distraction),
+        # "Transferred Policy": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
         # "DecWhole": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
-        # "FineTune": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
+        # "FineTuned Policy": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
         # # "Mask-Input": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
-        # # "Mask-Input-Layer1": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]), #best
+        # # "Mask-Input-Layer1": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
         # # "Mask-Layer1": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
         # # "Mask-Input-Reg": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
-        # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+        # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),#best
         # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        # "Transfer": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
-        # "Didec": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=["Distractor"]), #best
-
+        # "Input Only": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
+        # "Neuron Only": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Input and Neuron": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
         
-        # "A2C": gather_experiments(A2C_NoDistraction),
-        # "DecWhole": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
-        # "FineTune": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
-        # # "Mask-Input": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=[]),
-        # # "Mask-Input-Layer1": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=[]),
-        # # "Mask-Layer1": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=[]),
-        # # "Mask-Input-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), #best
-        # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
-        # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        # "Transfer": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
+
         # "Didec": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]), #best
+        # "Vanilla (A2C)": gather_experiments(A2C_NoDistraction),
+        # "Transferred Policy": gather_experiments(OptionA2C_10Distraction, name_string_conditions=["Transfer_"], name_string_anti_conditions=["Distractor"]),
+        # "DecWhole": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["DecWhole_"], name_string_anti_conditions=["Distractor"]),
+        # "FineTuned Policy": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["FineTune_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Input": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Input-Layer1": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-l1_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Layer1": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-l1_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Input-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]), #best
+        # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=["Distractor"]),
+        # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=["Distractor"]),
+        # "Input Only": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]),
+        # "Neuron Only": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=["Distractor"]),
+        # "Input and Neuron": gather_experiments(OptionA2C_NoDistraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=["Distractor"]),
 
         
         # "A2C_1": gather_experiments(A2C_SimpleCrossing_1),
@@ -220,5 +233,5 @@ if __name__ == "__main__":
         # f"PPO5": gather_experiments(PPO_SimpleCrossing5, name_string_conditions=[], name_string_anti_conditions=[]),
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom 40 Distractions A2C", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
+    plot_experiments(agent_dict, "Runs/Figures", name=f"FourRooms (5000) - 40 Distractions", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
     # plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom_Transfer_train", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)

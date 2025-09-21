@@ -4,6 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import imageio
 import math
+import matplotlib.ticker as mticker
+
+plt.rcParams.update({
+    "font.size": 16,            # base font size
+    # "axes.titlesize": 16,       # title
+    # "axes.labelsize": 16,       # x and y labels
+    # "xtick.labelsize": 14,      # x tick labels
+    # "ytick.labelsize": 14,      # y tick labels
+    # "legend.fontsize": 14,      # legend
+    # "figure.titlesize": 18      # overall figure title
+})
 
 class SingleExpAnalyzer:
     """
@@ -66,7 +77,10 @@ class SingleExpAnalyzer:
         print(f"  Average Episode Return: {avg_return:.2f} ± {std_return:.2f}")
         print(f"  Average Episode Length:  {avg_steps:.2f} ± {std_steps:.2f}")
     
-    def _plot_reward_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last=False):
+    def _plot_reward_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax.set_aspect('auto')
         if ignore_last: # sometimes the last episode is not complete
             ep_return = np.array([run[:num_episodes - 1] for run in self.ep_returns])
             episodes = np.arange(1, num_episodes)
@@ -80,7 +94,7 @@ class SingleExpAnalyzer:
         
         mean_returns = np.mean(ep_return, axis=0)
         smooth_returns = self._smooth(mean_returns, window_size)
-        ax.plot(episodes, smooth_returns, color=color, label=label)
+        ax.plot(episodes, smooth_returns, marker, color=color, label=label, markevery=50)
         
         # Optional confidence interval
         if show_ci and ep_return.shape[0] >= 2:
@@ -96,15 +110,19 @@ class SingleExpAnalyzer:
             # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
             upper_s = self._smooth(upper, window_size)
-            ax.fill_between(episodes, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
+            ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
             
-        ax.set_title("Sum Reward per Episode")
-        ax.set_xlabel("Episode")
-        ax.set_ylabel("Sum Reward")
+        # ax.set_title("Sum Reward per Episode")
+        ax.set_xlabel("Episode Number")
+        ax.set_ylabel("Return")
         # ax.legend()
         ax.grid(True)
 
-    def _plot_steps_per_episode(self, ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last=False):
+    def _plot_steps_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+        ax.set_aspect('auto')
+        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        
         if ignore_last: # sometimes the last episode is not complete
             steps = np.array([run[:num_episodes - 1] for run in self.ep_lengths])
             episodes = np.arange(1, num_episodes)
@@ -121,7 +139,7 @@ class SingleExpAnalyzer:
         
         mean_steps = np.mean(steps, axis=0)
         smooth_steps = self._smooth(mean_steps, window_size)
-        ax.plot(episodes, smooth_steps, color=color, label=label)
+        ax.plot(episodes, smooth_steps, marker, color=color, label=label, markevery=50)
                 
         if show_ci and steps.shape[0] >= 2:
             n = steps.shape[0]
@@ -136,15 +154,18 @@ class SingleExpAnalyzer:
             lower_s = self._smooth(lower, window_size)
             upper_s = self._smooth(upper, window_size)
 
-            ax.fill_between(episodes, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
+            ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
             
-        ax.set_title("Steps per Episode")
-        ax.set_xlabel("Episode")
-        ax.set_ylabel("Steps")
+        # ax.set_title("Steps per Episode")
+        ax.set_xlabel("Episode Number")
+        ax.set_ylabel("Environment Steps")
         # ax.legend()
         ax.grid(True)
     
-    def _plot_reward_per_steps(self, ax, num_steps, color, label, window_size, plot_each, show_ci, ignore_last=False):
+    def _plot_reward_per_steps(self, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+        ax.set_aspect('auto')
+        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         ep_returns = self.ep_returns
         steps = self.ep_lengths    
         x_common = np.linspace(0, num_steps, 1000)      
@@ -176,7 +197,7 @@ class SingleExpAnalyzer:
         returns_interpolation = np.asarray(returns_interpolation)
         mean_returns = np.mean(returns_interpolation, axis=0)
         smooth_returns = self._smooth(mean_returns, window_size)
-        ax.plot(x_common, smooth_returns, color=color, label=label)
+        ax.plot(x_common, smooth_returns, marker, color=color, label=label, markevery=50)
         
         # Optional confidence interval (quantile-based)
         if show_ci and returns_interpolation.shape[0] >= 2:
@@ -192,17 +213,17 @@ class SingleExpAnalyzer:
             # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
             upper_s = self._smooth(upper, window_size)
-            ax.fill_between(x_common, lower_s, upper_s, alpha=0.15, color=color, linewidth=0)
+            ax.fill_between(x_common, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
         
-        ax.set_title("Sum Rewards per Steps")
-        ax.set_xlabel("Steps")
-        ax.set_ylabel("Episode Reward")
+        # ax.set_title("Sum Rewards per Steps")
+        ax.set_xlabel("Environment Steps")
+        ax.set_ylabel("Return")
         # ax.legend()
         ax.grid(True)
 
-    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', label="", 
-                      show_legend=True, window_size=1, plot_each=True, show_ci=True, title="", 
-                      ignore_last=False, plt_configs=["r_e", "r_s", "s_e"]):
+    def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', marker='-',
+                      label="", show_legend=True, window_size=1, plot_each=True, show_ci=True, 
+                      title="", ignore_last=False, plt_configs=["r_e", "r_s", "s_e"]):
         """
         Plot total rewards and steps per episode and per steps.
         
@@ -218,8 +239,8 @@ class SingleExpAnalyzer:
         f"Invalid entries in plt_configs: {plt_configs}"
 
         if fig is None or axs is None:
-            fig, axs = plt.subplots(len(plt_configs), 1, figsize=(15, 10))
-        
+            fig, axs = plt.subplots(len(plt_configs), 1, figsize=(10, 6*len(plt_configs)), constrained_layout=True)
+
         # find minimum number of episodes across runs
         num_episodes = min([len(run) for run in self.ep_returns])
         num_steps = min([sum(steps) for steps in self.ep_lengths])
@@ -227,28 +248,32 @@ class SingleExpAnalyzer:
         ax_counter = 0
         if "r_e" in plt_configs:
             ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_reward_per_episode(ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+            self._plot_reward_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
             ax_counter += 1
         if "r_s" in plt_configs:
             ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_reward_per_steps(ax, num_steps, color, label, window_size, plot_each, show_ci, ignore_last)
+            self._plot_reward_per_steps(ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last)
             ax_counter += 1
         if "s_e" in plt_configs:
             ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_steps_per_episode(ax, num_episodes, color, label, window_size, plot_each, show_ci, ignore_last)
+            self._plot_steps_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
             ax_counter += 1
 
         if title:
-            fig.suptitle(title, fontsize=14)
-            
-        if show_legend:
-            # Retrieve handles and labels from one of the subplots.
-            handles, labels = ax.get_legend_handles_labels()
-            # Create one legend for the entire figure.
-            fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.96))
-            fig.tight_layout(rect=[0, 0, 1.0, 0.95])
+            fig.suptitle(title)
+        
+        if len(plt_configs) == 1:
+            ax.legend(loc="best", frameon=True)
         else:
-            fig.tight_layout()
+            if show_legend:
+                # Retrieve handles and labels from one of the subplots.
+                handles, labels = ax.get_legend_handles_labels()
+                
+                # Create one legend for the entire figure.
+                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.965))
+                fig.tight_layout(rect=[0, 0, 1.0, 0.95])
+            else:
+                fig.tight_layout()
 
         
             
