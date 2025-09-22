@@ -16,7 +16,8 @@ def calculate_gae(
     values,          # tensor [T] of V(s_t)
     next_values,     # tensor [T] of V(s_{t+1})
     dones,           # list of bools length T
-    gamma, lamda,      # γ and λ
+    gamma, 
+    lamda,      # γ and λ
 ):
     T = len(rollout_rewards)
     advantages = np.zeros(T, dtype=np.float32)
@@ -60,6 +61,27 @@ def calculate_gae_torch(rewards, values, next_values, dones, gamma, lam):
             advantages[t] = gae
         returns = advantages + values
 
+    return returns, advantages
+
+def calculate_gae_with_discounts(
+    rollout_rewards,     # list/np.array length T
+    values,              # torch tensor [T]
+    next_values,         # torch tensor [T]
+    dones,               # list/np.array[bool], True = true termination (no bootstrap)
+    discounts,           # list/np.array length T, e.g., γ for primitive, γ**τ for options
+    lamda,               # λ
+):
+    T = len(rollout_rewards)
+    advantages = np.zeros(T, dtype=np.float32)
+    returns    = np.zeros(T, dtype=np.float32)
+    gae = 0.0
+    for t in reversed(range(T)):
+        mask = 1.0 - float(dones[t])  # 0 if true terminal, 1 otherwise
+        d    = float(discounts[t])     # per-transition discount
+        delta = rollout_rewards[t] + d * next_values[t].item() * mask - values[t].item()
+        gae   = delta + d * lamda * mask * gae
+        advantages[t] = gae
+        returns[t]    = gae + values[t].item()
     return returns, advantages
 
 def keep_batch(x, i):

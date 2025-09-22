@@ -145,7 +145,7 @@ class A2CPolicyDiscrete(BasePolicy):
         critic_loss = F.mse_loss(values.unsqueeze(1), returns_t)
         
         # Actor loss: maximize expected return => minimize -log_prob * advantage
-        actor_loss = - (log_probs_t * advantages_t).sum()
+        actor_loss = - (log_probs_t * advantages_t).mean()
         
         loss = actor_loss + critic_loss - self.hp.entropy_coef * entropy.mean()
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep-DecWhole
+#SBATCH --job-name=sweep-ppo
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=6G          # memory per node
 #SBATCH --time=0-05:00    # time (DD-HH:MM)
@@ -48,7 +48,7 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="Transfer"
+NAME_TAG=""
 INFO='{
   "gamma": 0.99,
   "lamda": 0.95,
@@ -68,7 +68,7 @@ INFO='{
   
   "norm_adv_flag": true,
   "critic_coef": 0.5,
-  "option_path": "Runs/Options/TransferOptionLearner/PPO_MaxLen-1_RGB_0/all_options.t" 
+  "option_path": "Runs/Options/MaskedOptionLearner/PPO_MaxLen-20_RGB_Mask-l8_Regularized-0.01_0/selected_options_5.t" 
 
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"

@@ -11,6 +11,7 @@ from ...Utils import (
     BasePolicy,
     BasicBuffer,
     calculate_gae,
+    calculate_gae_with_discounts,
     NetworkGen,
     prepare_network_config,
 )
@@ -20,7 +21,54 @@ from ....Options.Utils import load_options_list, save_options_list
 
 @register_policy
 class OptionA2CPolicyDiscrete(A2CPolicyDiscrete):
-    pass
+    def update(self, states, actions, rewards, next_states, dones, discounts=None, call_back=None):
+        states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device)
+        next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
+        
+        values = self.critic(states_t).squeeze(-1)
+
+        with torch.no_grad():
+            next_values = self.critic(next_states_t).squeeze(-1)
+
+       
+        # numpy array to align with calculate_gae_with_discounts
+        discounts_np = np.asarray(discounts, dtype=np.float32)
+
+        # ---- GAE with per-transition discounts ----
+        returns, advantages = calculate_gae_with_discounts(
+            rewards,
+            values,
+            next_values,
+            dones,
+            discounts_np,
+            lamda=self.hp.lamda,
+        )
+
+        advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device)
+        returns_t    = torch.tensor(returns,    dtype=torch.float32, device=self.device).unsqueeze(1)
+
+        if getattr(self.hp, "norm_adv_flag", False):
+            advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
+
+        logits = self.actor(states_t)
+        dist   = Categorical(logits=logits)
+        log_probs_t   = dist.log_prob(actions_t)
+        entropy = dist.entropy()
+
+        critic_loss = F.mse_loss(values.unsqueeze(1), returns_t)
+        actor_loss  = -(log_probs_t * advantages_t).mean()   # mean is more stable than sum across batch
+        loss = actor_loss + critic_loss - self.hp.entropy_coef * entropy.mean()
+
+        self.critic_optimizer.zero_grad()
+        self.actor_optimizer.zero_grad()
+        loss.backward()
+        self.critic_optimizer.step()
+        self.actor_optimizer.step()
+
+        if call_back is not None:
+            call_back({"critic_loss": float(critic_loss.item()),
+                       "actor_loss": float(actor_loss.item())})
 
 @register_agent
 class OptionA2CAgent(BaseAgent):
@@ -131,16 +179,18 @@ class OptionA2CAgent(BaseAgent):
             # Accumulate discounted reward while the option is executing
             self.option_cumulative_reward += self.option_multiplier * reward
             self.option_multiplier *= self.hp.gamma
-
+            
             # Check option termination (or env termination/truncation)
             if terminated or truncated or self.options_lst[self.running_option_index].is_terminated(observation):
                 # Build a single macro transition for the option execution
+                effective_discount = self.option_multiplier
                 transition = (
                     self.option_start_state,
                     self.running_option_index + self.atomic_action_space.n,
                     self.option_cumulative_reward,
                     state,
-                    terminated
+                    terminated,
+                    effective_discount,
                 )
                 self.rollout_buffer.add_single_item(transition)
 
@@ -151,15 +201,15 @@ class OptionA2CAgent(BaseAgent):
                 self.option_multiplier = None
         else:
             # Primitive action: store single-step transition
-            transition = (self.last_state, self.last_action, reward, state, terminated)
+            transition = (self.last_state, self.last_action, reward, state, terminated, self.hp.gamma)
             self.rollout_buffer.add_single_item(transition)
 
         # If rollout length reached, perform update
         if self.rollout_buffer.size >= self.hp.rollout_steps:
             rollout = self.rollout_buffer.get_all()
-            states, actions, rewards, next_states, dones = zip(*rollout)
+            states, actions, rewards, next_states, dones, discounts = zip(*rollout)
 
-            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
+            self.policy.update(states, actions, rewards, next_states, dones, discounts, call_back=call_back)
             self.rollout_buffer.reset()
 
     def reset(self, seed):

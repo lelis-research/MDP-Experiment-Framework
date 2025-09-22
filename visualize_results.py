@@ -64,6 +64,9 @@ if __name__ == "__main__":
     A2C_RGB = "Runs/Train/MiniGrid-FourRooms-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/A2C"
     OptionA2C_RGB = "Runs/Train/MiniGrid-FourRooms-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/OptionA2C"
     
+    OptionPPO_RGB = "Runs/Train/MiniGrid-FourRooms-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/OptionPPO"
+    PPO_RGB = ""
+    
     num_distractors = 25
     Ant_Test = "Runs/Train/Ant-v5_/A2C"
     agent_dict = {
@@ -79,9 +82,9 @@ if __name__ == "__main__":
         # # "Mask-Input-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), #best
         # # "Mask-Input-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
         # # "Mask-Layer1-Reg": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        "Input Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
-        "Neuron Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
-        "Input and Neuron": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Input Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
+        # "Neuron Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Input and Neuron": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
         
         
         # "Didec": gather_experiments(OptionA2C_20Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=["Distractor"]), #best
@@ -231,7 +234,23 @@ if __name__ == "__main__":
         # f"PPO3": gather_experiments(PPO_SimpleCrossing3, name_string_conditions=[], name_string_anti_conditions=[]),
         # f"PPO4": gather_experiments(PPO_SimpleCrossing4, name_string_conditions=[], name_string_anti_conditions=[]),
         # f"PPO5": gather_experiments(PPO_SimpleCrossing5, name_string_conditions=[], name_string_anti_conditions=[]),
+        
+        # "Didec": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=["Distractor"]), #best
+        # "Vanilla (PPO)": gather_experiments(PPO_RGB),
+        # "Transferred Policy": gather_experiments(OptionPPO_RGB, name_string_conditions=["Transfer_"], name_string_anti_conditions=[]),
+        "DecWhole": gather_experiments(OptionPPO_RGB, name_string_conditions=["DecWhole_"], name_string_anti_conditions=[]),
+        "FineTuned Policy": gather_experiments(OptionPPO_RGB, name_string_conditions=["FineTune_"], name_string_anti_conditions=[]),
+        "Mask-l1-l3-l5": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l1-l3-l5_"], name_string_anti_conditions=["Reg"]),
+        "Mask-l1-l3-l5_Reg": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l1-l3-l5_Reg01_"], name_string_anti_conditions=[]),
+        "Mask-l1-l3-l5-l8": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l1-l3-l5-l8_"], name_string_anti_conditions=["Reg"]),
+        # "Mask-l1-l3-l5-l8_Reg": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l1-l3-l5-l8_Reg01_"], name_string_anti_conditions=[]), #best
+        # "Mask-l8": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l8_"], name_string_anti_conditions=[]),
+        # "Mask-l8_Reg": gather_experiments(OptionPPO_RGB, name_string_conditions=["Mask-l8_reg01_"], name_string_anti_conditions=[]),
+        # "Input Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-reg01_"], name_string_anti_conditions=[]), 
+        # "Neuron Only": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-l1-reg01_"], name_string_anti_conditions=[]),
+        # "Input and Neuron": gather_experiments(OptionA2C_40Distraction, name_string_conditions=["Mask-input-l1-reg01_"], name_string_anti_conditions=[]),
+    
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name=f"FourRooms (5000) - 40 Distractions", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
+    plot_experiments(agent_dict, "Runs/Figures", name=f"FourRooms (5000) - PPO", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
     # plot_experiments(agent_dict, "Runs/Figures", name=f"FourRoom_Transfer_train", window_size=10, show_ci=True, ignore_last=True, plt_configs=["r_s"], plot_each=False)
