@@ -1,11 +1,12 @@
 import gymnasium as gym
 import minihack
+from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
 
-from .Wrappers import WRAPPING_TO_WRAPPER
+from .Wrappers import WRAPPING_TO_WRAPPER, MiniHackWrap
 
 # List of supported MiniHack environments
 MINIHACK_ENV_LST = [
-    "MiniHack-Room-5x5-v0",
+    "MiniHack-Corridor-R2-v0",
 ]
 
 def get_single_env(env_name, 
@@ -28,9 +29,24 @@ def get_single_env(env_name,
         gym.Env: A wrapped MiniHack environment.
     """
     assert env_name in MINIHACK_ENV_LST, f"Environment {env_name} not supported."
-    # TODO: Complete the environment creation process (e.g., gym.make, applying wrappers)
-    # For now, raise NotImplementedError as a placeholder.
-    raise NotImplementedError("get_single_env for MiniHack is not implemented yet.")
+    # env = gym.make(env_name, max_episode_steps=max_steps, render_mode=render_mode, **env_params)
+    # # Apply each wrapper in the provided list with corresponding parameters.
+    # for i, wrapper_name in enumerate(wrapping_lst):
+    #     env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
+        
+        
+    base = gym.make(
+        env_name,
+        observation_keys=(
+            "chars",
+            "glyphs",
+            "blstats",
+            "chars_crop",
+            "glyphs_crop",
+        ),
+    )
+    env = MiniHackWrap(base, step_reward=-1.0, goal_reward=1000.0, **env_params) #seed=seed, view_size=view_size
+    return env
 
 def get_parallel_env(env_name,
                      num_envs, 
@@ -54,6 +70,21 @@ def get_parallel_env(env_name,
         gym.vector.AsyncVectorEnv: A vectorized MiniHack environment.
     """
     assert env_name in MINIHACK_ENV_LST, f"Environment {env_name} not supported."
-    # TODO: Complete the parallel environment creation process (e.g., creating env_fns, applying wrappers)
-    # For now, raise NotImplementedError as a placeholder.
-    raise NotImplementedError("get_parallel_env for MiniHack is not implemented yet.")
+    env_fns = []
+    for _ in range(num_envs):
+        base = gym.make(
+        env_name,
+            observation_keys=(
+                "chars",
+                "glyphs",
+                "blstats",
+                "chars_crop",
+                "glyphs_crop",
+            ),
+        )
+        env = MiniHackWrap(base, step_reward=-1.0, goal_reward=1000.0, **env_params) #seed=seed, view_size=view_size
+        env_fns.append(lambda: env)
+        
+    
+    envs = SyncVectorEnv(env_fns)
+    return envs

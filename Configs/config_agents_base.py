@@ -51,7 +51,7 @@ def get_device(preferred_device):
         device = "cpu"
     return device
 
-preferred_device = "cuda"  # cpu, mps, cuda
+preferred_device = "cpu"  # cpu, mps, cuda
 device = get_device(preferred_device)
 print(f"Using device: {device}")
 
@@ -300,7 +300,7 @@ AGENT_DICT = {
             
         ),
         get_num_envs(env),
-        ImageFeature,
+        FLattenFeature,
         device=device
     ),
     

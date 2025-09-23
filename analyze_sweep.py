@@ -175,7 +175,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-FourRooms-v0_/RGBImgPartialObs(tile_size-7)_FixedSeed(seed-5000)/OptionPPO/Mask-l8_Reg01_seed[1]"
+    exp_dir = "Runs/Sweep/MiniHack-Corridor-R2-v0_seed-12_view_size-9/PPO/_seed[1]"
     ratio   = 0.5
     # ---------------------
 

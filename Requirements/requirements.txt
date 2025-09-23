@@ -7,7 +7,7 @@ gymnasium-robotics==1.4.1
 imageio==2.37.0
 matplotlib==3.10.0
 minigrid==3.0.0
-minihack==1.0.0
+minihack==0.1.1
 nevergrad==1.0.8
 optuna==4.2.0
 PyYAML==6.0.2

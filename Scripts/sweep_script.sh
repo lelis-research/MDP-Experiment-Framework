@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep-ppo
-#SBATCH --cpus-per-task=2
-#SBATCH --mem=6G          # memory per node
-#SBATCH --time=0-05:00    # time (DD-HH:MM)
+#SBATCH --cpus-per-task=3
+#SBATCH --mem=1G          # memory per node
+#SBATCH --time=0-02:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-971      # check HP_SEARCH_SPACE to calculate the space size
 
-#SBATCH --gres=gpu:1
+########SBATCH --gres=gpu:1
 
 set -euo pipefail
 
@@ -31,19 +31,19 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionPPO"
-ENV="MiniGrid-FourRooms-v0"
+AGENT="PPO"
+ENV="MiniHack-Corridor-R2-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
+ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
-ENV_PARAMS='{}' #'{"continuing_task":False}'
+WRAPPING_PARAMS='[]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
+ENV_PARAMS='{"seed":12, "view_size":9}' #'{"continuing_task":False}'
 SEED=1
 
-NUM_RUNS=5
-NUM_WORKERS=5 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
+NUM_RUNS=3
+NUM_WORKERS=3 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=500_000
+TOTAL_STEPS=1_000_000
 EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
@@ -59,12 +59,12 @@ INFO='{
   "clip_range_critic_init": null,
   "anneal_clip_range_critic": false,
 
-  "actor_network": "conv_network_2",
-  "critic_network": "conv_network_2",
+  "actor_network": "minihack_actor",
+  "critic_network": "minihack_critic",
   "actor_eps": 1e-5,
   "critic_eps": 1e-5,
   "anneal_step_size_flag": true,
-  "total_steps": 500000, 
+  "total_steps": 1000000, 
   
   "norm_adv_flag": true,
   "critic_coef": 0.5,

@@ -69,6 +69,19 @@ linear_network_1 = [
     {"type": "linear"}
 ]
 
+minihack_actor = [
+    {"type": "linear", "out_features": 256},
+    {"type": "relu"},
+    {"type": "linear", "in_features": 256},
+]
+minihack_critic = [
+    {"type": "linear", "out_features": 64},
+    {"type": "tanh"},
+    {"type": "linear", "in_features": 64, "out_features": 64},
+    {"type": "tanh"},
+    {"type": "linear", "in_features": 64},
+]
+
 NETWORKS = {
     "fc_network_1": fc_network_1,
     "fc_network_2": fc_network_2,
@@ -76,4 +89,7 @@ NETWORKS = {
     "fc_network_relu": fc_network_relu,
     "conv_network_1": conv_network_1,
     "conv_network_2": conv_network_2,
+    
+    "minihack_critic": minihack_critic,
+    "minihack_actor": minihack_actor,
 }
