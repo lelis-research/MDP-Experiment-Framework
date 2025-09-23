@@ -2,13 +2,13 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=1G          # memory per node
-#SBATCH --time=0-02:00      # time (DD-HH:MM)
+#SBATCH --time=0-00:20      # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-50
 
-#SBATCH --gres=gpu:1
+## SBATCH --gres=gpu:1
 
 set -euo pipefail
 
@@ -35,10 +35,10 @@ CONFIG="config_agents_base"
 AGENT="PPO"
 ENV="MiniHack-Corridor-R2-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]'
+ENV_WRAPPING='["OneHotChars", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[]' #'[{"tile_size":7}, {"seed":5000}]'
-ENV_PARAMS='{"seed":12, "view_size":9}' #'{"continuing_task":False}'
+WRAPPING_PARAMS='[{}, {"seed":12}]' #'[{"tile_size":7}, {"seed":5000}]'
+ENV_PARAMS='{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
 NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
@@ -46,7 +46,7 @@ NUM_WORKERS=1
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=1_000_000
+TOTAL_STEPS=200_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 

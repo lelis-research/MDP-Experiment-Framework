@@ -42,7 +42,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniGrid-FourRooms-v0_/ViewSize(agent_view_size-9)_FlattenOnehotObj_FixedSeed(seed-5000)/OptionA2C/Mask-input_Distractor-5_0_seed[0]"
+    exp_name = "MiniHack-Corridor-R2-v0_seed-12_view_size-9/PPO/0_seed[0]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 

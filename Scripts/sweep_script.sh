@@ -31,7 +31,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="PPO"
+AGENT="OptionPPO"
 ENV="MiniHack-Corridor-R2-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'

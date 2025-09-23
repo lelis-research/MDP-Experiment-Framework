@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import imageio
 import math
 import matplotlib.ticker as mticker
+from .Utils import *
 
 plt.rcParams.update({
     "font.size": 16,            # base font size
@@ -303,7 +304,8 @@ class SingleExpAnalyzer:
         with open(os.path.join(save_dir, "seed.txt"), "w") as file:
             file.writelines(seed_lst)
 
-    def generate_video(self, run_number, episode_number, video_type="gif", name_tag=""):
+    def generate_video(self, run_number, episode_number, video_type="gif", name_tag="",
+                       fps=15, ansi_font_size=14, ansi_scale=2):
         """
         Generate a video (currently only GIF supported) from stored frames.
         
@@ -320,9 +322,36 @@ class SingleExpAnalyzer:
             filename = f"{name_tag}"
        
         print(f"Number of frames: {len(frames)}")
+        
+        first = frames[0]
+        is_ansi = isinstance(first, (str, bytes))
+
+        # If ANSI: render all to fixed-size images
+        if is_ansi:
+            font = self._get_mono_font(size=ansi_font_size)
+            frames_lines, max_cols, max_rows = self._normalize_ansi_frames(frames)
+            img_frames = [self._render_fixed_ansi(lines, max_cols, max_rows, font,scale=ansi_scale)
+                          for lines in frames_lines]
+        else:
+            # Assume RGB numpy arrays (H, W, 3) or lists thereof
+            img_frames = frames
+
+            # Optional safety: ensure all frames have same size by padding to max
+            # (uncomment if you ever hit shape mismatch)
+            # max_h = max(f.shape[0] for f in img_frames)
+            # max_w = max(f.shape[1] for f in img_frames)
+            # def _pad(img):
+            #     h, w = img.shape[:2]
+            #     if (h, w) == (max_h, max_w): return img
+            #     pad = np.zeros((max_h, max_w, img.shape[2]), dtype=img.dtype)
+            #     pad[:h, :w] = img
+            #     return pad
+            # img_frames = [_pad(f) for f in img_frames]
+
+        
         if video_type == "gif":
             filename = f"{filename}.gif"
-            imageio.mimsave(filename, frames, fps=15)  # Adjust fps as needed
+            imageio.mimsave(filename, frames, fps=fps)  # Adjust fps as needed
             print(f"GIF saved as {filename}")
         else:
             raise NotImplementedError("Only GIF video type is implemented.")
