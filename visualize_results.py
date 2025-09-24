@@ -70,16 +70,16 @@ if __name__ == "__main__":
     num_distractors = 25
     Ant_Test = "Runs/Train/Ant-v5_/A2C"
     
-    PPO_minihack1 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-10)/PPO"
-    PPO_minihack2 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-20)/PPO"
-    PPO_minihack3 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-30)/PPO"
-    PPO_minihack4 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-40)/PPO"
-    PPO_minihack5 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-50)/PPO"
-    PPO_minihack6 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-60)/PPO"
-    PPO_minihack7 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-70)/PPO"
-    PPO_minihack8 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-80)/PPO"
-    PPO_minihack9 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-90)/PPO"
-    PPO_minihack10 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-100)/PPO"
+    PPO_minihack1 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-12)/PPO"
+    PPO_minihack2 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-37)/PPO"
+    PPO_minihack3 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-44)/PPO"
+    PPO_minihack4 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-49)/PPO"
+    PPO_minihack5 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-52)/PPO"
+    PPO_minihack6 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-57)/PPO"
+    PPO_minihack7 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-10)/PPO"
+    PPO_minihack8 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-20)/PPO"
+    # PPO_minihack9 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-90)/PPO"
+    # PPO_minihack10 = "Runs/Train/MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-100)/PPO"
     
     agent_dict = {
         
@@ -270,8 +270,8 @@ if __name__ == "__main__":
         "PPO6": gather_experiments(PPO_minihack6, name_string_conditions=[], name_string_anti_conditions=[]),
         "PPO7": gather_experiments(PPO_minihack7, name_string_conditions=[], name_string_anti_conditions=[]),
         "PPO8": gather_experiments(PPO_minihack8, name_string_conditions=[], name_string_anti_conditions=[]),
-        "PPO9": gather_experiments(PPO_minihack9, name_string_conditions=[], name_string_anti_conditions=[]),
-        "PPO10": gather_experiments(PPO_minihack10, name_string_conditions=[], name_string_anti_conditions=[]),
+        # "PPO9": gather_experiments(PPO_minihack9, name_string_conditions=[], name_string_anti_conditions=[]),
+        # "PPO10": gather_experiments(PPO_minihack10, name_string_conditions=[], name_string_anti_conditions=[]),
     
     }
 

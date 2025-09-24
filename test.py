@@ -27,7 +27,7 @@ def parse():
     # Maximum steps per episode
     parser.add_argument("--episode_max_steps", type=int, default=None, help="maximum number of steps in each episode")
     # Render mode for the environment
-    parser.add_argument("--render_mode", type=str, default=None, choices=[None, "human", "rgb_array_list"], help="render mode for the environment")
+    parser.add_argument("--render_mode", type=str, default=None, choices=[None, "human", "rgb_array_list", "ansi"], help="render mode for the environment")
     # Flag to store transitions during the experiment
     parser.add_argument("--store_transitions", action='store_true', help="store the transitions during the experiment")
     # Add a name tag
@@ -42,7 +42,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniHack-Corridor-R2-v0_seed-12_view_size-9/PPO/0_seed[0]"
+    exp_name = "MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-20)/PPO/3_seed[3]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         env_name=exp_args.env,
         num_envs=1,
         max_steps=exp_args.episode_max_steps,
-        render_mode="rgb_array_list", #args.render_mode,
+        render_mode="ansi", #args.render_mode,
         env_params=exp_args.env_params,
         wrapping_lst=exp_args.env_wrapping,
         wrapping_params=exp_args.wrapping_params,

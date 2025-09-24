@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import imageio
 import math
 import matplotlib.ticker as mticker
-from .Utils import *
+from .Utils import get_mono_font, normalize_ansi_frames, render_fixed_ansi
 
 plt.rcParams.update({
     "font.size": 16,            # base font size
@@ -328,9 +328,9 @@ class SingleExpAnalyzer:
 
         # If ANSI: render all to fixed-size images
         if is_ansi:
-            font = self._get_mono_font(size=ansi_font_size)
-            frames_lines, max_cols, max_rows = self._normalize_ansi_frames(frames)
-            img_frames = [self._render_fixed_ansi(lines, max_cols, max_rows, font,scale=ansi_scale)
+            font = get_mono_font(size=ansi_font_size)
+            frames_lines, max_cols, max_rows = normalize_ansi_frames(frames)
+            img_frames = [render_fixed_ansi(lines, max_cols, max_rows, font,scale=ansi_scale)
                           for lines in frames_lines]
         else:
             # Assume RGB numpy arrays (H, W, 3) or lists thereof
@@ -351,7 +351,7 @@ class SingleExpAnalyzer:
         
         if video_type == "gif":
             filename = f"{filename}.gif"
-            imageio.mimsave(filename, frames, fps=fps)  # Adjust fps as needed
+            imageio.mimsave(filename, img_frames, fps=fps)  # Adjust fps as needed
             print(f"GIF saved as {filename}")
         else:
             raise NotImplementedError("Only GIF video type is implemented.")

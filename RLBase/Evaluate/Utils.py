@@ -3,7 +3,7 @@ Helper functions for rendering Ansi (minihack)
 """
 import os
 
-def _get_mono_font(self, size=14):
+def get_mono_font(size=14):
     """Try to load a monospaced font; fall back to PIL default."""
     from PIL import ImageFont
     for p in (
@@ -20,7 +20,7 @@ def _get_mono_font(self, size=14):
                 pass
     return ImageFont.load_default()
 
-def _normalize_ansi_frames(self, text_frames):
+def normalize_ansi_frames(text_frames):
     """
     Convert list of ANSI strings to (frames_lines, max_cols, max_rows) so
     every frame can be drawn on an identical canvas.
@@ -43,7 +43,7 @@ def _normalize_ansi_frames(self, text_frames):
         frames_lines.append(lines)
     return frames_lines, max_cols, max_rows
 
-def _render_fixed_ansi(self, lines, max_cols, max_rows, font,
+def render_fixed_ansi(lines, max_cols, max_rows, font,
                        scale=2, margin=8, line_spacing=2,
                        fg=(230, 230, 230), bg=(0, 0, 0)):
     """

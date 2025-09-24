@@ -67,11 +67,14 @@ class BaseExperiment:
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode_idx in pbar:
+            frames = []
             # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
             #                           (each episode is reproducible but maybe too specific)          
             observation, info = env.reset() #seed=ep_seed
             if env.render_mode == "human":
                 env.render()
+            elif env.render_mode == "ansi":
+                frames.append(env.render())
             
             ep_return = 0.0
             steps = 0
@@ -94,11 +97,11 @@ class BaseExperiment:
                 
                 if env.render_mode == "human":
                     env.render()
+                elif env.render_mode == "ansi":
+                    frames.append(env.render())
                     
-            try:
+            if env.render_mode == "rgb_array_list":
                 frames = env.render()
-            except:
-                frames = []
             
                 
             metrics = {
@@ -156,6 +159,7 @@ class BaseExperiment:
         
         while steps_so_far < total_steps:
             episode_idx += 1
+            frames = []
             
             # Initialize an episode
             # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
@@ -163,6 +167,9 @@ class BaseExperiment:
             observation, info = env.reset() # seed=ep_seed
             if env.render_mode == "human":
                 env.render()
+            elif env.render_mode == "ansi":
+                frames.append(env.render())
+                
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
@@ -202,12 +209,12 @@ class BaseExperiment:
                 
                 if env.render_mode == "human":
                     env.render()
+                elif env.render_mode == "ansi":
+                    frames.append(env.render())
            
             # Collect frames from the environment if needed
-            try:
+            if env.render_mode == "rgb_array_list":
                 frames = env.render()
-            except:
-                frames = []
             
             # Episode metrics
             metrics = {
