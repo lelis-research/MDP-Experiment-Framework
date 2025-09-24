@@ -70,6 +70,8 @@ class BaseExperiment:
             # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
             #                           (each episode is reproducible but maybe too specific)          
             observation, info = env.reset() #seed=ep_seed
+            if env.render_mode == "human":
+                env.render()
             
             ep_return = 0.0
             steps = 0
@@ -89,10 +91,15 @@ class BaseExperiment:
                 ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps += 1
                 observation = next_observation
+                
+                if env.render_mode == "human":
+                    env.render()
+                    
             try:
                 frames = env.render()
             except:
                 frames = []
+            
                 
             metrics = {
                 "ep_return": ep_return,
@@ -154,6 +161,8 @@ class BaseExperiment:
             # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
             #                           (each episode is reproducible but maybe too specific)    
             observation, info = env.reset() # seed=ep_seed
+            if env.render_mode == "human":
+                env.render()
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
@@ -190,6 +199,9 @@ class BaseExperiment:
 
                 # Move to next observation
                 observation = next_observation
+                
+                if env.render_mode == "human":
+                    env.render()
            
             # Collect frames from the environment if needed
             try:

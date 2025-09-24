@@ -57,6 +57,9 @@ class LoggerExperiment(BaseExperiment):
             # Use a seed to ensure reproducibility.
             # ep_seed = episode_idx + seed
             observation, info = env.reset() # seed=ep_seed
+            if env.render_mode == "human":
+                env.render()
+                    
             ep_return = 0.0
             steps = 0
             terminated = False
@@ -77,11 +80,16 @@ class LoggerExperiment(BaseExperiment):
                 ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps += 1
                 observation = next_observation
+                
+                if env.render_mode == "human":
+                    env.render()
+                
 
             try:
                 frames = env.render()
             except:
                 frames = []
+            
                 
             metrics = {
                 "ep_return":    ep_return,
@@ -149,6 +157,8 @@ class LoggerExperiment(BaseExperiment):
             # Initialize an episode
             # ep_seed = episode_idx + seed
             observation, info = env.reset() #seed=ep_seed)
+            if env.render_mode == "human":
+                env.render()
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
@@ -184,6 +194,9 @@ class LoggerExperiment(BaseExperiment):
                 pbar.update(1)
                 # Move to next observation
                 observation = next_observation
+                
+                if env.render_mode == "human":
+                    env.render()
                 
             # Collect frames from the environment if needed
             try:

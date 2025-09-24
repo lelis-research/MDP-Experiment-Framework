@@ -2,6 +2,7 @@ from tqdm import tqdm
 import os
 import numpy as np
 import torch  # used only for best-agent checkpointing passthrough
+import random
 
 from . import BaseExperiment
 
@@ -216,3 +217,41 @@ class ParallelExperiment(BaseExperiment):
 
         pbar.close()
         return all_metrics, best_agent
+    
+    
+    def _one_run(self, run_idx, case_num, num_episodes, total_steps, seed_offset, tuning_hp=None):
+        """
+        Helper for a single run: computes a seed and calls the
+        appropriate single-run method.
+        """
+        if seed_offset is None:
+            seed = random.randint(0, 2**32 - 1)
+        else:
+            if case_num == 1:
+                seed = (run_idx - 1) * num_episodes + seed_offset
+            else:
+                seed = (run_idx - 1) * total_steps + seed_offset
+
+        # build fresh env & agent each run
+        env   = self._make_env()
+        agent = self._make_agent(env)
+        
+        self.env, self.agent = env, agent
+        if tuning_hp is not None:
+            agent.set_hp(tuning_hp)
+
+        if case_num == 1:
+            result, best_agent = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
+        else:
+            result, best_agent = self._single_run_steps(env, agent, total_steps, seed, run_idx)
+                
+        
+        # Save last and best agent
+        if self._checkpoint_freq is not None:
+            path = os.path.join(self.exp_dir, f"Run{run_idx}_Last")
+            agent.save(path)
+            
+            path = os.path.join(self.exp_dir, f"Run{run_idx}_Best")
+            torch.save(best_agent, f"{path}_agent.t")
+        
+        return result

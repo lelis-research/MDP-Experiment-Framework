@@ -60,7 +60,7 @@ def get_parallel_env(env_name,
     assert env_name in MINIHACK_ENV_LST, f"Environment {env_name} not supported."
     env_fns = []
     for _ in range(num_envs):
-        env = gym.make(env_name, max_steps=max_steps, render_mode=render_mode, **env_params)
+        env = gym.make(env_name, max_episode_steps=max_steps, render_mode=render_mode, **env_params)
         for i, wrapper_name in enumerate(wrapping_lst):
             env = WRAPPING_TO_WRAPPER[wrapper_name](env, **wrapping_params[i])
         env_fns.append(lambda: env)

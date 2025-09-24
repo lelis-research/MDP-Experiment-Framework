@@ -651,7 +651,6 @@ class PPOAgent(BaseAgent):
             
             rollout = self.rollout_buffer.get_all()
             states, actions, rewards, last_log_probs, next_states, dones = zip(*rollout)
-            
             self.policy.update(states, actions, last_log_probs, rewards, next_states, dones, call_back=call_back)
             self.rollout_buffer.reset()
 

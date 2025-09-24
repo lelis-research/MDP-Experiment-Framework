@@ -38,7 +38,7 @@ def parse():
     # Number of parallel environments
     parser.add_argument("--num_envs", type=int, default=1, help="number of parallel environments")
     # Render mode for the environment
-    parser.add_argument("--render_mode", type=str, default=None, choices=[None, "human", "rgb_array_list"], help="render mode for the environment")
+    parser.add_argument("--render_mode", type=str, default=None, choices=[None, "human", "rgb_array_list", "ansi"], help="render mode for the environment")
     # Flag to store transitions during the experiment
     parser.add_argument("--store_transitions", action='store_true', help="store the transitions during the experiment")
     # Frequency of checking saving checkpoints

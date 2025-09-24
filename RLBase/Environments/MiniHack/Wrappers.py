@@ -5,7 +5,10 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 from gymnasium.core import ActionWrapper, ObservationWrapper, RewardWrapper
+from gymnasium.vector import VectorWrapper
+
 import minihack
+from nle import nethack
 
 class OneHotCharsWrapper(ObservationWrapper):
     def __init__(self, env, char_vocab=(" ", "-", "|", "#", ".", "<", ">", "@", "+")):
@@ -34,18 +37,37 @@ class OneHotCharsWrapper(ObservationWrapper):
         return one_hot
     
 class FixedSeedWrapper(gym.Wrapper):
-    def __init__(self, env, seed):
+    """Always reset MiniHack with the same seed so the map layout is identical."""
+    def __init__(self, env, seed: int):
         super().__init__(env)
-        self._seed = seed
+        self._seed = int(seed)
 
-    def reset(self, **kwargs):
-        # force the same seed every reset
-        kwargs.pop('seed', None)
-        return super().reset(seed=self._seed, **kwargs)  
+    # Gymnasium API: match the signature exactly
+    def reset(self, *, seed=None, options=None):
+        # Always force the same seed (ignore caller's seed)
+        base = self.env.unwrapped
+        base.seed(self._seed)
+        return self.env.reset(seed=self._seed, options=options)
+
+class MovementActionWrapper(gym.Wrapper):
+    """
+    Restrict the action space to only movement actions in MiniHack/NLE.
+    """
+    def __init__(self, env):
+        super().__init__(env)
+        base = self.env.unwrapped
+        # All 8 compass directions
+        movement_actions = list(nethack.CompassDirection)
+        base.actions = movement_actions
+
+        # Reduced discrete space
+        self.action_space = gym.spaces.Discrete(len(movement_actions))
+
+
 
 
 WRAPPING_TO_WRAPPER = {
     "OneHotChars": OneHotCharsWrapper,
     "FixedSeed": FixedSeedWrapper,
-
+    "MovementAction": MovementActionWrapper,
 }
