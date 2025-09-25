@@ -3,6 +3,7 @@ import argcomplete
 import os
 from PIL import Image
 import json
+import matplotlib.pyplot as plt
 
 from RLBase.Environments import get_env, ENV_LST
 from Configs.loader import load_config
@@ -36,6 +37,16 @@ def main():
                   )
     env.reset()
     frame = env.render()
+    
+    # fig, ax = plt.subplots(figsize=(6,6))
+    # ax.text(0.5, 0.5, frame, family="monospace", fontsize=10,
+    #         ha="center", va="center")
+    # ax.axis("off")
+
+    # path = os.path.join(runs_dir, f"{args.env}_{args.name_tag}.pdf")
+    # fig.savefig(path, bbox_inches="tight", format="pdf")
+
+
     img = Image.fromarray(frame)
     path = os.path.join(runs_dir, f"{args.env}_{args.name_tag}.png")
     img.save(path)

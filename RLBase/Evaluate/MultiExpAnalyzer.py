@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
 plt.rcParams.update({
-    "font.size": 16,            # base font size
+    "font.size": 24,            # base font size
     # "axes.titlesize": 16,       # title
     # "axes.labelsize": 16,       # x and y labels
     # "xtick.labelsize": 14,      # x tick labels
     # "ytick.labelsize": 14,      # y tick labels
-    # "legend.fontsize": 14,      # legend
-    # "figure.titlesize": 18      # overall figure title
+    "legend.fontsize": 24,      # legend
+    "figure.titlesize": 24      # overall figure title
 })
 
 
@@ -51,7 +51,7 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
 
     name = generated_name if name == "" else name
     path = os.path.join(save_dir, f"{name}.png")
-    fig.savefig(path)
+    fig.savefig(path, format="png")
 
 
 def gather_experiments(exp_dir, name_string_conditions=[], name_string_anti_conditions=[]):

@@ -55,6 +55,7 @@ class LoggerExperiment(BaseExperiment):
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode_idx in pbar:
             frames = []
+            infos = []
             # Use a seed to ensure reproducibility.
             # ep_seed = episode_idx + seed
             observation, info = env.reset() # seed=ep_seed
@@ -72,6 +73,7 @@ class LoggerExperiment(BaseExperiment):
             while not (terminated or truncated):
                 action = agent.act(observation, greedy=not self._train)
                 next_observation, reward, terminated, truncated, info = env.step(action)
+                infos.append(info)
 
                 if self._dump_transitions:
                     transitions.append((observation, action, reward, terminated, truncated))
@@ -98,6 +100,7 @@ class LoggerExperiment(BaseExperiment):
                 "ep_return":    ep_return,
                 "ep_length":    steps,
                 "frames":       frames,
+                "infos": infos,
                 # "env_seed":     ep_seed,
                 "transitions":  transitions,
                 "agent_seed": seed,
@@ -169,6 +172,7 @@ class LoggerExperiment(BaseExperiment):
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
+            infos = []
             terminated = False
             truncated = False
             
@@ -179,7 +183,8 @@ class LoggerExperiment(BaseExperiment):
                 
                 # Environment steps
                 next_observation, reward, terminated, truncated, info = env.step(action)
-
+                infos.append(info)
+                
                 # Update reward/step counters
                 ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps_in_episode += 1
@@ -216,6 +221,7 @@ class LoggerExperiment(BaseExperiment):
                 "ep_return": ep_return,
                 "ep_length": steps_in_episode,
                 "frames": frames,
+                "infos": infos,
                 # "env_seed": ep_seed,
                 "transitions": transitions,
                 "agent_seed": seed,

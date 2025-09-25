@@ -36,12 +36,21 @@ class OptionA2CPolicyDiscrete(A2CPolicyDiscrete):
         discounts_np = np.asarray(discounts, dtype=np.float32)
 
         # ---- GAE with per-transition discounts ----
-        returns, advantages = calculate_gae_with_discounts(
+        # returns, advantages = calculate_gae_with_discounts(
+        #     rewards,
+        #     values,
+        #     next_values,
+        #     dones,
+        #     discounts_np,
+        #     lamda=self.hp.lamda,
+        # )
+        
+        returns, advantages = calculate_gae(
             rewards,
             values,
             next_values,
             dones,
-            discounts_np,
+            self.hp.gamma,
             lamda=self.hp.lamda,
         )
 

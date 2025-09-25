@@ -63,11 +63,49 @@ class MovementActionWrapper(gym.Wrapper):
         # Reduced discrete space
         self.action_space = gym.spaces.Discrete(len(movement_actions))
 
+class LastActionWrapper(ObservationWrapper):
+    """
+    Augment MiniHack observations with the last action taken by the agent.
+    Adds a new key 'last_action' to the observation dict containing a one-hot vector.
+    """
 
+    def __init__(self, env):
+        super().__init__(env)
+        self.n_actions = env.action_space.n
+        self.last_action = None
+
+        if not isinstance(env.observation_space, spaces.Dict):
+            raise TypeError("MiniHack env must have Dict observation space")
+
+        # Extend observation_space with new entry for last_action
+        new_spaces = dict(env.observation_space.spaces)
+        new_spaces["last_action"] = spaces.Box(
+            low=0, high=1, shape=(self.n_actions,), dtype=np.int8
+        )
+        self.observation_space = spaces.Dict(new_spaces)
+
+    def reset(self, **kwargs):
+        obs, info = super().reset(**kwargs)
+        self.last_action = None
+        return self.observation(obs), info
+
+    def step(self, action):
+        self.last_action = action
+        obs, reward, terminated, truncated, info = super().step(action)
+        return self.observation(obs), reward, terminated, truncated, info
+
+    def observation(self, obs):
+        one_hot = np.zeros(self.n_actions, dtype=np.int8)
+        if self.last_action is not None:
+            one_hot[self.last_action] = 1
+        obs = dict(obs)  # copy to avoid mutating original
+        obs["last_action"] = one_hot
+        return obs
 
 
 WRAPPING_TO_WRAPPER = {
     "OneHotChars": OneHotCharsWrapper,
     "FixedSeed": FixedSeedWrapper,
     "MovementAction": MovementActionWrapper,
+    "LastAction": LastActionWrapper,
 }

@@ -8,14 +8,15 @@ import matplotlib.ticker as mticker
 from .Utils import get_mono_font, normalize_ansi_frames, render_fixed_ansi
 
 plt.rcParams.update({
-    "font.size": 16,            # base font size
+    "font.size": 24,            # base font size
     # "axes.titlesize": 16,       # title
     # "axes.labelsize": 16,       # x and y labels
     # "xtick.labelsize": 14,      # x tick labels
     # "ytick.labelsize": 14,      # y tick labels
-    # "legend.fontsize": 14,      # legend
-    # "figure.titlesize": 18      # overall figure title
+    "legend.fontsize": 14,      # legend
+    "figure.titlesize": 24      # overall figure title
 })
+
 
 class SingleExpAnalyzer:
     """
