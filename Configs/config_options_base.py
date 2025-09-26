@@ -8,6 +8,7 @@ from RLBase.Options.TransferOptions import TransferOptionLearner
 from RLBase.Options.DecWholeOptions import DecWholeOptionLearner
 from RLBase.Options.FineTuneOptions import FineTuneOptionLearner
 from RLBase.Options.MaskedOptions import MaskedOptionLearner
+from RLBase.Options.ManualSymbolicOptions import ManualSymbolicOptionLearner
 from RLBase.Experiments import BaseExperiment
 from RLBase import load_policy, load_agent
 from RLBase.Environments import get_env
@@ -53,7 +54,7 @@ def exp_path_lst_to_agent_and_trajectory(exp_path_lst, run_ind_lst):
             
     return agent_lst, trajectories_lst
 
-device = "cuda" #cpu, mps, cuda
+device = "cpu" #cpu, mps, cuda
 
 OPTION_DICT = {
     TransferOptionLearner.name: lambda exp_path_lst, run_ind_lst, info: TransferOptionLearner(
@@ -97,5 +98,8 @@ OPTION_DICT = {
                                        reg_coef=info.get("reg_coef", 0.01),
                                        masked_layers=info.get("masked_layers", ["input", "1"]),
                                        )),
+    ManualSymbolicOptionLearner.name: lambda info: ManualSymbolicOptionLearner(
+        hyper_params=info.get("hyper_params", None))
+    
 }
    

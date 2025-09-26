@@ -2,11 +2,11 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-00:20      # time (DD-HH:MM)
+#SBATCH --time=0-00:30      # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-0
+#SBATCH --array=0-50
 
 ## SBATCH --gres=gpu:1
 
@@ -32,21 +32,21 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="OptionA2C"
-ENV="MiniGrid-FourRooms-v0"
+AGENT="QLearning"
+ENV="MiniGrid-DoorKey-5x5-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["ViewSize","FlattenOnehotObj","FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
+ENV_WRAPPING='["ImgObs"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{"agent_view_size":9},{},{"seed":5000}]' #'[{"tile_size":7}, {"seed":5000}]'
+WRAPPING_PARAMS='[{}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="test2_$IDX" #"Test_$IDX"
+NAME_TAG="$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=50_000
+TOTAL_STEPS=200_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -54,20 +54,9 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  
-  "actor_network": "fc_network_1",
-  "actor_step_size": 0.001,
-
-  "critic_network": "fc_network_1",
-  "critic_step_size": 0.001,
-
-
   "gamma": 0.99,
-  "lamda": 0.95,
-  "rollout_steps": 10,
-  
-  "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t"
-  
+  "step_size": 0.1,
+  "epsilon": 0.1
 }'  
   # "actor_eps": 1e-05,
   # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
@@ -85,6 +74,13 @@ INFO='{
   # "num_epochs": 5,
   # "clip_range_actor_init": 0.2,
   # "entropy_coef": 0.0,
+  # "actor_network": "fc_network_1",
+  # "actor_step_size": 0.001,
+  # "critic_network": "fc_network_1",
+  # "critic_step_size": 0.001,
+  # "gamma": 0.99,
+  # "lamda": 0.95,
+  # "rollout_steps": 10,
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then

@@ -62,7 +62,7 @@ AGENT_DICT = {
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         FLattenFeature,
-        options_lst=[], #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
+        options_lst=load_options_list("Runs/Options/ManualSymbolicOptionLearner/FindKey_0/FindKey.t"), #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
         device=device
     ),
     RandomAgent.name: lambda env, info: RandomAgent(

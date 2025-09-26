@@ -20,7 +20,11 @@ class QLearningPolicy(BasePolicy):
         action_space (gym.spaces.Discrete): Action space.
         hyper_params: Hyper-parameters container.
     """       
-    def select_action(self, state):
+    def __init__(self, action_space, hyper_params=None, device='cpu'):
+        super().__init__(action_space, hyper_params, device)
+        self.action_dim = int(action_space.n)
+        
+    def select_action(self, state, greedy=False):
         """
         Select an action using epsilon-greedy exploration.
         
@@ -33,7 +37,7 @@ class QLearningPolicy(BasePolicy):
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
 
-        if random.random() < self.hp.epsilon:
+        if random.random() < self.hp.epsilon and not greedy:
             return self.action_space.sample()
         else:
             return int(np.argmax(self.q_table[state]))
@@ -141,7 +145,7 @@ class QLearningAgent(BaseAgent):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         self.policy = QLearningPolicy(action_space, hyper_params)
         
-    def act(self, observation):
+    def act(self, observation, greedy=False):
         """
         Select an action based on the observation.
         
@@ -151,8 +155,10 @@ class QLearningAgent(BaseAgent):
         Returns:
             int: Selected action.
         """
+        print(observation)
+        exit(0)
         state = self.feature_extractor(observation)
-        action = self.policy.select_action(state)
+        action = self.policy.select_action(state, greedy=greedy)
         self.last_action = action
         self.last_state = state
         return action

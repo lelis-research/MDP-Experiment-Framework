@@ -30,10 +30,10 @@ def parse():
     parser.add_argument("--seed", type=int, default=123123, help="Random seed for reproducibility")
     
     # Experiment paths (one or more)
-    parser.add_argument("--exp_path_lst", type=str, nargs='+', required=True, help="List of experiment directory paths")
+    parser.add_argument("--exp_path_lst", type=str, nargs='*', required=False, help="List of experiment directory paths")
     
     # Corresponding run indices (one or more)
-    parser.add_argument("--run_ind_lst", type=int, nargs='+', required=True, help="List of run indices for each experiment path")
+    parser.add_argument("--run_ind_lst", type=int, nargs='*', required=False, help="List of run indices for each experiment path")
     
     #Number of workers
     parser.add_argument("--num_workers", type=int, default=1, help="Number of workers for parallelization")
@@ -65,12 +65,14 @@ if __name__ == "__main__":
     with open(file, "w") as f:
         yaml.dump(vars(args), f)
     
-    option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
+    # option_learner = config.OPTION_DICT[args.option_type](args.exp_path_lst, args.run_ind_lst, args.info)
+    option_learner = config.OPTION_DICT[args.option_type](args.info)
     
-    for file in os.listdir(exp_dir):
-        if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
-            print("selected options already existed")
-            exit(0)
+    # for file in os.listdir(exp_dir):
+    #     if file == f"selected_options_{option_learner.hyper_params.max_num_options}.t":
+    #         print("selected options already existed")
+    #         exit(0)
             
-    options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
+    # options_lst = option_learner.learn(verbose=True, seed=args.seed, exp_dir=exp_dir, num_workers=args.num_workers) 
+    options_lst = option_learner.learn(exp_dir=exp_dir) 
 

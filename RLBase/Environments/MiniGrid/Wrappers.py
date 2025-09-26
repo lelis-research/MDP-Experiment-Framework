@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 from typing import Mapping
-from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper, RGBImgObsWrapper, RGBImgPartialObsWrapper
+from minigrid.wrappers import ViewSizeWrapper, ImgObsWrapper, RGBImgObsWrapper, RGBImgPartialObsWrapper, SymbolicObsWrapper
 from gymnasium.wrappers import FrameStackObservation
 
 
@@ -173,4 +173,5 @@ WRAPPING_TO_WRAPPER = {
     "FrameStack": FrameStackObservation, # stack_size: int
     "DropMission": DropMissionWrapper,
     "AgentPos": AgentPosWrapper,
+    "SymbolicObs": SymbolicObsWrapper,
 }

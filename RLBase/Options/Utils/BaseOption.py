@@ -1,4 +1,5 @@
 from ...loaders import load_policy, load_feature_extractor
+import torch
 
 class BaseOption:
     def __init__(self, feature_extractor, policy):
