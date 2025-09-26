@@ -36,7 +36,7 @@ class FindKey(BaseOption):
           - if key is directly in front (or on our tile), PICKUP
           - else turn toward it horizontally, otherwise go FORWARD
         """
-        img = observation["image"]
+        img = observation #["image"]
         obj = self._object_plane(img)              # (H, W)
 
         H, W = obj.shape
@@ -68,7 +68,7 @@ class FindKey(BaseOption):
 
     def is_terminated(self, observation):
         """Terminate when no key is visible (assumes we picked it up)."""
-        img = observation["image"]
+        img = observation#["image"]
         obj = self._object_plane(img)
         return not np.any(obj == self.key_code)
 
