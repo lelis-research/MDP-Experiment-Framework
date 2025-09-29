@@ -235,10 +235,10 @@ class LoggerExperiment(BaseExperiment):
 
             self.call_back({"ep_return": metrics["ep_return"]},
                            f"ep_return/run_{run_idx}", 
-                           episode_idx)
+                           steps_so_far)
             self.call_back({"ep_length": metrics["ep_length"]},
                            f"ep_length/run_{run_idx}", 
-                           episode_idx)
+                           steps_so_far)
             
             # Show some info in the progress bar
             pbar.set_postfix({

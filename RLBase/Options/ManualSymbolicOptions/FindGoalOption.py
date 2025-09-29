@@ -16,13 +16,13 @@ import shutil
 from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
 
 @register_option
-class FindKeyOption(BaseOption):
+class FindGoalOption(BaseOption):
     """
     Specifically works for minigrid
     """
     def __init__(self, option_len):
         self.agent_id = OBJECT_TO_IDX["agent"]
-        self.key_id = OBJECT_TO_IDX["key"]
+        self.goal_id = OBJECT_TO_IDX["goal"]
         self.wall_id = OBJECT_TO_IDX["wall"]
         self.option_len = option_len
         self.step_counter = 0
@@ -34,24 +34,24 @@ class FindKeyOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
+        goal_pos = np.argwhere(img[..., 2] == self.goal_id) 
         agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
         
-        if len(key_pos) > 0:
-            # more than 0 keys exists
-            key_pos = key_pos[0]
+        if len(goal_pos) > 0:
+            # more than 0 goal exists
+            goal_pos = goal_pos[0]
         else:
-            return 6 # action done (do nothing because there is no keys)
+            return 6 # action done (do nothing because there is no goal!)
         
-        key_direction = key_pos - agent_pos
+        goal_direction = goal_pos - agent_pos
         agent_direction = DIR_TO_VEC[observation["direction"]]
         
-        if np.array_equal(key_direction, agent_direction):
-            return 3 # pick up
+        if np.array_equal(goal_direction, agent_direction):
+            return 2 # forward get the goal
         
-        key_direction = np.sign(key_direction)
+        goal_direction = np.sign(goal_direction)
         
-        if agent_direction[0] == key_direction[0] != 0 or agent_direction[1] == key_direction[1] != 0:
+        if agent_direction[0] == goal_direction[0] != 0 or agent_direction[1] == goal_direction[1] != 0:
             agent_forward = agent_pos + agent_direction # front of the agent
             if img[tuple(agent_forward)][2] == self.wall_id:
                 # if there is a wall in front of the agent turn
@@ -63,8 +63,8 @@ class FindKeyOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
-        if len(key_pos) == 0 or self.step_counter >= self.option_len:
+        goal_pos = np.argwhere(img[..., 2] == self.goal_id) 
+        if len(goal_pos) == 0 or self.step_counter >= self.option_len:
             # no keys are in the observation
             self.step_counter = 0
             return True
@@ -93,6 +93,5 @@ class FindKeyOption(BaseOption):
         
         instance = cls(checkpoint["option_len"])
         return instance
-    
     
    

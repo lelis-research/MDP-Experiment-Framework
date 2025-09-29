@@ -12,7 +12,9 @@ class QLearningPolicy(BasePolicy):
     Epsilon-greedy policy using a Q-table.
     
     Hyper-parameters in hp must include:
-        - epsilon (float)
+        - epsilon_start (float)
+        - epsilon_end (float)
+        - epilon_decay_steps (int)
         - gamma (float)
         - step_size (float)
     
@@ -23,6 +25,8 @@ class QLearningPolicy(BasePolicy):
     def __init__(self, action_space, hyper_params=None, device='cpu'):
         super().__init__(action_space, hyper_params, device)
         self.action_dim = int(action_space.n)
+        self.epsilon = self.hp.epsilon_start
+        self.step_counter = 0
         
     def select_action(self, state, greedy=False):
         """
@@ -33,11 +37,12 @@ class QLearningPolicy(BasePolicy):
         
         Returns:
             int: Selected action.
-        """        
+        """ 
+        self.step_counter += 1       
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
-
-        if random.random() < self.hp.epsilon and not greedy:
+        
+        if random.random() < self.epsilon and not greedy:
             return self.action_space.sample()
         else:
             return int(np.argmax(self.q_table[state]))
@@ -58,12 +63,19 @@ class QLearningPolicy(BasePolicy):
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
 
+        #Update Value Function
         target = reward if terminated else reward + self.hp.gamma * np.max(self.q_table[state])
         td_error = target - self.q_table[last_state][last_action]
         self.q_table[last_state][last_action] += self.hp.step_size * td_error
         
+        #Update Epsilon
+        frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+        self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+            
         if call_back is not None:
-            call_back({"value_loss": td_error})
+            call_back({"value_loss": td_error,
+                       "epsilon": self.epsilon,
+                       })
 
     def reset(self, seed):
         """
@@ -74,6 +86,8 @@ class QLearningPolicy(BasePolicy):
         """
         super().reset(seed)
         self.q_table = {}
+        self.epsilon = self.hp.epsilon_start
+        self.step_counter = 0
 
     def save(self, file_path=None):
         """
@@ -155,8 +169,6 @@ class QLearningAgent(BaseAgent):
         Returns:
             int: Selected action.
         """
-        print(observation)
-        exit(0)
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state, greedy=greedy)
         self.last_action = action
@@ -177,3 +189,9 @@ class QLearningAgent(BaseAgent):
         state = self.feature_extractor(observation)
         self.policy.update(self.last_state, self.last_action, state, reward, terminated, truncated, call_back=call_back)
     
+    def reset(self, seed):
+        super().reset(seed)
+
+        self.last_state = None
+        self.last_action = None
+        

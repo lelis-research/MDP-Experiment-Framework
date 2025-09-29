@@ -16,16 +16,17 @@ import shutil
 from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
 
 @register_option
-class FindKeyOption(BaseOption):
+class OpenDoorOption(BaseOption):
     """
     Specifically works for minigrid
     """
     def __init__(self, option_len):
         self.agent_id = OBJECT_TO_IDX["agent"]
-        self.key_id = OBJECT_TO_IDX["key"]
+        self.door_id = OBJECT_TO_IDX["door"]
         self.wall_id = OBJECT_TO_IDX["wall"]
         self.option_len = option_len
         self.step_counter = 0
+        self.door_openned = False
         
 
     # ----------------------- Option API -----------------------
@@ -34,24 +35,25 @@ class FindKeyOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
+        door_pos = np.argwhere(img[..., 2] == self.door_id) 
         agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
         
-        if len(key_pos) > 0:
-            # more than 0 keys exists
-            key_pos = key_pos[0]
+        if len(door_pos) > 0:
+            # more than 0 door exists
+            door_pos = door_pos[0]
         else:
-            return 6 # action done (do nothing because there is no keys)
+            return 6 # action done (do nothing because there is no doors)
         
-        key_direction = key_pos - agent_pos
+        door_direction = door_pos - agent_pos
         agent_direction = DIR_TO_VEC[observation["direction"]]
         
-        if np.array_equal(key_direction, agent_direction):
-            return 3 # pick up
+        if np.array_equal(door_direction, agent_direction):
+            self.door_openned = True
+            return 5 # toggle (open door)
         
-        key_direction = np.sign(key_direction)
+        door_direction = np.sign(door_direction)
         
-        if agent_direction[0] == key_direction[0] != 0 or agent_direction[1] == key_direction[1] != 0:
+        if agent_direction[0] == door_direction[0] != 0 or agent_direction[1] == door_direction[1] != 0:
             agent_forward = agent_pos + agent_direction # front of the agent
             if img[tuple(agent_forward)][2] == self.wall_id:
                 # if there is a wall in front of the agent turn
@@ -63,10 +65,10 @@ class FindKeyOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
-        if len(key_pos) == 0 or self.step_counter >= self.option_len:
-            # no keys are in the observation
+        door_pos = np.argwhere(img[..., 2] == self.door_id) 
+        if len(door_pos) == 0 or self.door_openned or self.step_counter >= self.option_len:
             self.step_counter = 0
+            self.door_openned = False
             return True
         return False
 
@@ -93,6 +95,5 @@ class FindKeyOption(BaseOption):
         
         instance = cls(checkpoint["option_len"])
         return instance
-    
     
    

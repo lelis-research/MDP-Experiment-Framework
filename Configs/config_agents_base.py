@@ -1,7 +1,9 @@
 from RLBase.Agents.Utils import (
+    MirrorFeature,
     TabularFeature,
     FLattenFeature,
     ImageFeature,
+    TabularSymbolicFeature,
     HyperParameters,
 )
 from RLBase.Agents.HumanAgent import HumanAgent
@@ -11,6 +13,7 @@ from RLBase.Agents.TabularAgent import (
     NStepQLearningAgent,
     SarsaAgent,
     DoubleQLearningAgent,
+    OptionQLearningAgent,
 )
 from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
@@ -27,6 +30,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     OptionPPOAgent,
 )
 from RLBase.Options.Utils import load_options_list
+from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption
 from Configs.networks import NETWORKS
 import torch
 
@@ -61,8 +65,9 @@ AGENT_DICT = {
         get_env_observation_space(env),
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
-        FLattenFeature,
-        options_lst=load_options_list("Runs/Options/ManualSymbolicOptionLearner/FindKey_0/FindKey.t"), #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
+        MirrorFeature,
+        options_lst=[FindKeyOption(option_len=100), OpenDoorOption(option_len=100), FindGoalOption(option_len=100)], 
+        #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
         device=device
     ),
     RandomAgent.name: lambda env, info: RandomAgent(
@@ -86,10 +91,26 @@ AGENT_DICT = {
         HyperParameters(
             step_size=info.get("step_size", 0.2),
             gamma=info.get("gamma", 0.99),
-            epsilon=info.get("epsilon", 0.1),
+            epsilon_start=info.get("epsilon_start", 1.0),
+            epsilon_end=info.get("epsilon_end", 0.001),
+            epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
         ),
         get_num_envs(env),
-        TabularFeature,
+        TabularSymbolicFeature,
+    ),
+    OptionQLearningAgent.name: lambda env, info: OptionQLearningAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            step_size=info.get("step_size", 0.2),
+            gamma=info.get("gamma", 0.99),
+            epsilon_start=info.get("epsilon_start", 1.0),
+            epsilon_end=info.get("epsilon_end", 0.001),
+            epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
+        ),
+        get_num_envs(env),
+        TabularSymbolicFeature,
+        options_lst=[FindKeyOption(option_len=100), OpenDoorOption(option_len=100), FindGoalOption(option_len=100)], 
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 

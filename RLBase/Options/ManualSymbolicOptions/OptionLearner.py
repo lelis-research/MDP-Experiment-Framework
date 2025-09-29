@@ -3,7 +3,7 @@ from ..Utils import discrete_levin_loss_on_trajectory
 from ...registry import register_option
 from ...loaders import load_policy, load_feature_extractor
 from ..Utils import save_options_list, load_options_list
-from .FindKeyOption import FindKey
+from .FindKeyOption import FindKeyOption
 
 import random
 import torch
@@ -17,7 +17,7 @@ class ManualSymbolicOptionLearner():
     def learn(self, exp_dir=None):
         self.exp_dir = exp_dir
         
-        self.options_lst = [FindKey()]
+        self.options_lst = [FindKeyOption()]
         save_options_list(self.options_lst, os.path.join(self.exp_dir, "FindKey.t"))
             
                     

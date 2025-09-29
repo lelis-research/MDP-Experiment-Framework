@@ -9,6 +9,7 @@ from ..Utils import (
     BasicBuffer,
     BaseAgent,
 )
+from minigrid.core.constants import IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
 
 class HumanAgent(BaseAgent):
     """
@@ -44,7 +45,7 @@ class HumanAgent(BaseAgent):
         Returns:
             int: Selected action.
         """
-        
+        self.analyze_obs(observation)
 
         state = self.feature_extractor(observation)
          # If an options is running currently
@@ -100,6 +101,22 @@ class HumanAgent(BaseAgent):
         print("Atomic actions:", [i for i in self.hp.actions_enum])
         print("Options:", list(range(self.atomic_action_space.n, self.atomic_action_space.n+len(self.options_lst))))
 
+    def analyze_obs(self, observation):
+        print("")
+        print("")
+        print("****** Observation Description ******")
+        
+        img = observation["image"]
+        print(f"img shape: {img.shape}")
+       
+        agent_id = OBJECT_TO_IDX["agent"]
+                
+        agent_pos = np.argwhere(img[..., 2] == agent_id)[0] 
+        agent_direction = DIR_TO_VEC[observation["direction"]]
+        print(observation.keys())
+        
+        
+        
     def save(self, file_path=None):
         pass
 

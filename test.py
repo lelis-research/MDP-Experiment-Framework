@@ -42,7 +42,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniHack-Corridor-R2-v0_reward_win-1.0_reward_lose-0.0_penalty_step-0.0/OneHotChars_FixedSeed(seed-20)/PPO/7_seed[7]"
+    exp_name = "MiniGrid-DoorKey-5x5-v0_/SymbolicObs/QLearning/_seed[123123]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         env_name=exp_args.env,
         num_envs=1,
         max_steps=exp_args.episode_max_steps,
-        render_mode="ansi", #args.render_mode,
+        render_mode="rgb_array_list", #args.render_mode, rgb_array_list, ansi
         env_params=exp_args.env_params,
         wrapping_lst=exp_args.env_wrapping,
         wrapping_params=exp_args.wrapping_params,

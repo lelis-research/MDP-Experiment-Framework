@@ -6,12 +6,30 @@ from collections.abc import Mapping
 from ...registry import register_feature_extractor
 from .BaseClasses import BaseFeature
 
+
+@register_feature_extractor
+class MirrorFeature(BaseFeature):
+    def __call__(self, observation):
+        # Flatten and convert observation to a tuple.
+        return observation
+    
 @register_feature_extractor
 class TabularFeature(BaseFeature):
     def __call__(self, observation):
         # Flatten and convert observation to a tuple.
         return tuple(observation.flatten().tolist())
 
+@register_feature_extractor
+class TabularSymbolicFeature(BaseFeature):
+    def __call__(self, observation):
+        img = observation['image']
+        dir = observation['direction']
+        # Flatten image and append direction
+        features = img.flatten().tolist()
+        features.append(int(dir))  # ensure it's a plain int, not np.int64
+        
+        return tuple(features)
+    
 @register_feature_extractor
 class FLattenFeature(BaseFeature):
     @property
@@ -70,7 +88,7 @@ class ImageFeature(BaseFeature):
             return observation["image"]
         return observation  # assume it's already the image
     
-    def __call__(self, observation, normalization_factor=255):
+    def __call__(self, observation, normalization_factor=1):
         # 1) If dict, pick observation['image']; otherwise use observation as-is
         img = self._extract_image_from_obs(observation)
 
