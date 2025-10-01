@@ -121,7 +121,7 @@ class OptionQLearningAgent(QLearningAgent):
                     reward=self.option_cumulative_reward,
                     terminated=terminated,
                     truncated=truncated,
-                    effective_discount=self.option_multiplier,
+                    effective_discount=self.option_multiplier if self.hp.discount_option_flag else self.hp.gamma,
                     call_back=call_back
                 )
                 # Clear option state

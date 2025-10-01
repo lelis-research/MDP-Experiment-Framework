@@ -107,6 +107,7 @@ AGENT_DICT = {
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.001),
             epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
+            discount_option_flag=info.get("discount_option_flag", True)
         ),
         get_num_envs(env),
         TabularSymbolicFeature,

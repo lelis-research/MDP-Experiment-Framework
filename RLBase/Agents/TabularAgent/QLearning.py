@@ -169,6 +169,8 @@ class QLearningAgent(BaseAgent):
         Returns:
             int: Selected action.
         """
+        print(observation['image'])
+        exit(0)
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state, greedy=greedy)
         self.last_action = action

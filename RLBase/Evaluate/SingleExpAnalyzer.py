@@ -237,7 +237,7 @@ class SingleExpAnalyzer:
             save_dir (str, optional): Directory to save the plot.
             show (bool): Whether to display the plot.
         """
-        assert all(c in {"r_e", "r_s", "s_e"} for c in plt_configs), \
+        assert all(c in {"r_e", "r_s", "s_e", "ou_s", "ou_e"} for c in plt_configs), \
         f"Invalid entries in plt_configs: {plt_configs}"
 
         if fig is None or axs is None:
@@ -259,6 +259,14 @@ class SingleExpAnalyzer:
         if "s_e" in plt_configs:
             ax = axs[ax_counter] if len(plt_configs) > 1 else axs
             self._plot_steps_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
+            ax_counter += 1
+        if "ou_s" in plt_configs:
+            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
+            self._plot_option_usage_per_step(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
+            ax_counter += 1
+        if "ou_e" in plt_configs:
+            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
+            self._plot_option_usage_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
             ax_counter += 1
 
         if title:
@@ -287,6 +295,114 @@ class SingleExpAnalyzer:
 
         return fig, axs
     
+    
+    def _plot_option_usage_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        ax.set_aspect('auto')
+        option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+            if ep.get("agent_logs") else 0.0
+            for ep in run]
+            for run in self.metrics]
+        
+        if ignore_last: # sometimes the last episode is not complete
+            option_usage = np.array([run[:num_episodes - 1] for run in option_usage])
+            episodes = np.arange(1, num_episodes)
+        else:
+            option_usage = np.array([run[:num_episodes] for run in option_usage])
+            episodes = np.arange(1, num_episodes + 1)
+        if plot_each:
+            for each_option_usage in option_usage:
+                smooth_option_usage = self._smooth(each_option_usage, window_size)
+                ax.plot(episodes, smooth_option_usage, color=color, alpha=min(4/(len(option_usage)), 0.15))
+        
+        mean_option_usage = np.mean(option_usage, axis=0)
+        smooth_mean_option_usage = self._smooth(mean_option_usage, window_size)
+        ax.plot(episodes, smooth_mean_option_usage, marker, color=color, label=label, markevery=50)
+        
+        # Optional confidence interval
+        if show_ci and option_usage.shape[0] >= 2:
+            n = option_usage.shape[0]
+
+            # sample std with ddof=1 -> unbiased; then standard error
+            se = np.std(option_usage, axis=0, ddof=1) / np.sqrt(n)
+            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
+
+            lower = mean_option_usage - ci
+            upper = mean_option_usage + ci
+
+            # smooth mean and bounds consistently
+            lower_s = self._smooth(lower, window_size)
+            upper_s = self._smooth(upper, window_size)
+            ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
+            
+        # ax.set_title("Sum Reward per Episode")
+        ax.set_xlabel("Episode Number")
+        ax.set_ylabel("Option Usage")
+        # ax.legend()
+        ax.grid(True)
+        
+    def _plot_option_usage_per_step(self, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+        ax.set_aspect('auto')
+        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
+        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
+        option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+            if ep.get("agent_logs") else 0.0
+            for ep in run]
+            for run in self.metrics]
+        steps = self.ep_lengths    
+        x_common = np.linspace(0, num_steps, 1000)      
+        option_usage_interpolation = []
+        
+        # Build arrays for each run
+        for i in range(len(option_usage)):
+            # Convert to numeric arrays
+            if ignore_last: # sometimes the last episode is not complete
+                run_option_usage = np.array(option_usage[i], dtype=float)[:-1]
+                run_steps = np.array(steps[i], dtype=float)[:-1]
+            else:
+                run_option_usage = np.array(option_usage[i], dtype=float)
+                run_steps = np.array(steps[i], dtype=float)
+            
+            # Get the cumulative steps
+            cum_steps = np.cumsum(run_steps)
+            interpolated_run_option_usage = np.interp(x_common, cum_steps, run_option_usage)
+            
+            
+            if plot_each:
+                # Plot each run’s line and points (faint)
+                smooth_option_usage = self._smooth(interpolated_run_option_usage, window_size)
+                ax.plot(x_common, smooth_option_usage, marker='o', alpha=min(4/(len(option_usage)), 0.15), color=color, markersize=1)
+
+            # Interpolate the reward to fine in between values
+            option_usage_interpolation.append(interpolated_run_option_usage)
+
+        option_usage_interpolation = np.asarray(option_usage_interpolation)
+        mean_option_usage = np.mean(option_usage_interpolation, axis=0)
+        smooth_option_usage = self._smooth(mean_option_usage, window_size)
+        ax.plot(x_common, smooth_option_usage, marker, color=color, label=label, markevery=50)
+        
+        # Optional confidence interval (quantile-based)
+        if show_ci and option_usage_interpolation.shape[0] >= 2:
+            n = option_usage_interpolation.shape[0]
+
+            # sample std with ddof=1 -> unbiased; then standard error
+            se = np.std(option_usage_interpolation, axis=0, ddof=1) / np.sqrt(n)
+            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
+
+            lower = mean_option_usage - ci
+            upper = mean_option_usage + ci
+
+            # smooth mean and bounds consistently
+            lower_s = self._smooth(lower, window_size)
+            upper_s = self._smooth(upper, window_size)
+            ax.fill_between(x_common, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
+        
+        # ax.set_title("Sum Rewards per Steps")
+        ax.set_xlabel("Environment Steps")
+        ax.set_ylabel("Option Usage")
+        # ax.legend()
+        ax.grid(True)  
 
     def save_seeds(self, save_dir):
         """

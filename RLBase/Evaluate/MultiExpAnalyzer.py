@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import gc
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
@@ -48,6 +49,7 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
                                plot_each=plot_each, show_ci=show_ci, 
                                title=name, ignore_last=ignore_last, plt_configs=plt_configs) # show legend only for the last which combines all of them
         generated_name += f"{exp}_"
+        
 
     name = generated_name if name == "" else name
     path = os.path.join(save_dir, f"{name}.png")

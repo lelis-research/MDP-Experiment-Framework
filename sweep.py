@@ -129,7 +129,9 @@ def main():
     with open(os.path.join(trial_dir, 'agent.txt'), 'w') as f:
         f.write(str(experiment.agent))
     analyzer = SingleExpAnalyzer(metrics=metrics)
+    analyzer.plot_combined(save_dir=trial_dir, show_legend=False)
     analyzer.save_seeds(save_dir=trial_dir)
+    
 
     print(f"Done trial {args.idx+1}/{total}: {params}")
     

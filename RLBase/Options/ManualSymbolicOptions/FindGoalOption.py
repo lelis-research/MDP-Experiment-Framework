@@ -36,7 +36,8 @@ class FindGoalOption(BaseOption):
         
         goal_pos = np.argwhere(img[..., 2] == self.goal_id) 
         agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
-        
+        print(goal_pos, agent_pos)
+        exit(0)
         if len(goal_pos) > 0:
             # more than 0 goal exists
             goal_pos = goal_pos[0]
