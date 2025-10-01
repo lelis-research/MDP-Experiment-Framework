@@ -68,8 +68,8 @@ class OpenDoorOption(BaseOption):
     def is_terminated(self, observation):
         img = observation["image"]
         door_pos = np.argwhere(img[..., 0] == self.door_id) 
-        door_opened = img[door_pos[0][0], door_pos[0][1], 2] == 0 # is the door already open
-        if len(door_pos) == 0 or door_opened or self.step_counter >= self.option_len:
+        if len(door_pos) == 0 or img[door_pos[0][0], door_pos[0][1], 2] == 0 or self.step_counter >= self.option_len:
+            # img[door_pos[0][0], door_pos[0][1], 2] == 0 i.e. the door is already open
             self.step_counter = 0
             return True
         return False
