@@ -11,7 +11,6 @@ class call_back:
     def __init__(self, log_dir):
         self.writer = SummaryWriter(log_dir=log_dir)
         self.global_counter = 0
-        self.option_running_lst = []
 
     def __call__(self, data_dict, tag, counter=None):
         if counter is None:
@@ -23,13 +22,10 @@ class call_back:
     
     def reset(self):
         self.global_counter = 0
-        self.option_running_lst = []
     
     def close(self):
         self.writer.close()
-        
-    def option_log(self, option_running):
-        self.option_running_lst.append(option_running)
+    
         
     
 
@@ -62,6 +58,7 @@ class LoggerExperiment(BaseExperiment):
         for episode_idx in pbar:
             frames = []
             infos = []
+            agent_logs = []
             # Use a seed to ensure reproducibility.
             # ep_seed = episode_idx + seed
             observation, info = env.reset() # seed=ep_seed
@@ -96,6 +93,9 @@ class LoggerExperiment(BaseExperiment):
                     env.render()
                 elif env.render_mode == "ansi":
                     frames.append(env.render())
+                    
+                if hasattr(agent, 'log'):
+                    agent_logs.append(agent.log())
                 
 
             if env.render_mode == "rgb_array_list":
@@ -110,7 +110,8 @@ class LoggerExperiment(BaseExperiment):
                 # "env_seed":     ep_seed,
                 "transitions":  transitions,
                 "agent_seed": seed,
-                "episode_index": episode_idx
+                "episode_index": episode_idx,
+                "agent_logs": agent_logs,
             }
             all_metrics.append(metrics)
             if ep_return >= best_return:
@@ -166,6 +167,8 @@ class LoggerExperiment(BaseExperiment):
         while steps_so_far < total_steps:
             episode_idx += 1
             frames = []
+            agent_logs = []
+
             
             # Initialize an episode
             # ep_seed = episode_idx + seed
@@ -218,6 +221,9 @@ class LoggerExperiment(BaseExperiment):
                 elif env.render_mode == "ansi":
                     frames.append(env.render())
                 
+                if hasattr(agent, 'log'):
+                    agent_logs.append(agent.log())
+                
             # Collect frames from the environment if needed
             if env.render_mode == "rgb_array_list":
                 frames = env.render()
@@ -231,7 +237,8 @@ class LoggerExperiment(BaseExperiment):
                 # "env_seed": ep_seed,
                 "transitions": transitions,
                 "agent_seed": seed,
-                "episode_index": episode_idx
+                "episode_index": episode_idx,
+                "agent_logs": agent_logs,
             }
             all_metrics.append(metrics)
             

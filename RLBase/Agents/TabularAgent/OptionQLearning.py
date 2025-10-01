@@ -110,7 +110,6 @@ class OptionQLearningAgent(QLearningAgent):
 
         if self.running_option_index is not None:
             # Accumulate SMDP return while option runs
-            call_back.option_log(option_running=True)
             self.option_cumulative_reward += self.option_multiplier * float(reward)
             self.option_multiplier *= self.hp.gamma
 
@@ -132,7 +131,6 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_multiplier = 1.0
 
         else:
-            call_back.option_log(option_running=False)
             self.policy.update(
                 last_state=self.last_state,
                 last_action=self.last_action,
@@ -155,6 +153,12 @@ class OptionQLearningAgent(QLearningAgent):
         self.last_state = None
         self.last_action = None
     
+    def log(self):
+        if self.running_option_index is None:
+            return {"OptionUsageLog": False}
+        else:
+            return {"OptionUsageLog": True}
+        
     def save(self, file_path=None):
         """
         Save extended agent (including options list).
