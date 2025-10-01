@@ -34,9 +34,10 @@ class FindKeyOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
-        agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
         
+        key_pos = np.argwhere(img[..., 0] == self.key_id) 
+        agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
+
         if len(key_pos) > 0:
             # more than 0 keys exists
             key_pos = key_pos[0]
@@ -63,7 +64,7 @@ class FindKeyOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        key_pos = np.argwhere(img[..., 2] == self.key_id) 
+        key_pos = np.argwhere(img[..., 0] == self.key_id) 
         if len(key_pos) == 0 or self.step_counter >= self.option_len:
             # no keys are in the observation
             self.step_counter = 0

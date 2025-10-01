@@ -34,10 +34,9 @@ class FindGoalOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        goal_pos = np.argwhere(img[..., 2] == self.goal_id) 
-        agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
-        print(goal_pos, agent_pos)
-        exit(0)
+        goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
+        agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
+       
         if len(goal_pos) > 0:
             # more than 0 goal exists
             goal_pos = goal_pos[0]
@@ -64,7 +63,7 @@ class FindGoalOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        goal_pos = np.argwhere(img[..., 2] == self.goal_id) 
+        goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
         if len(goal_pos) == 0 or self.step_counter >= self.option_len:
             # no keys are in the observation
             self.step_counter = 0

@@ -26,7 +26,6 @@ class OpenDoorOption(BaseOption):
         self.wall_id = OBJECT_TO_IDX["wall"]
         self.option_len = option_len
         self.step_counter = 0
-        self.door_openned = False
         
 
     # ----------------------- Option API -----------------------
@@ -35,8 +34,8 @@ class OpenDoorOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        door_pos = np.argwhere(img[..., 2] == self.door_id) 
-        agent_pos = np.argwhere(img[..., 2] == self.agent_id)[0] 
+        door_pos = np.argwhere(img[..., 0] == self.door_id) 
+        agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
         
         if len(door_pos) > 0:
             # more than 0 door exists
@@ -44,18 +43,21 @@ class OpenDoorOption(BaseOption):
         else:
             return 6 # action done (do nothing because there is no doors)
         
+        door_opened = img[door_pos[0], door_pos[1], 2] == 0 
+        
+        if door_opened:
+            return 6 #action done (do nothing the door is already open)
+        
         door_direction = door_pos - agent_pos
         agent_direction = DIR_TO_VEC[observation["direction"]]
         
         if np.array_equal(door_direction, agent_direction):
-            self.door_openned = True
             return 5 # toggle (open door)
-        
+            
         door_direction = np.sign(door_direction)
-        
         if agent_direction[0] == door_direction[0] != 0 or agent_direction[1] == door_direction[1] != 0:
             agent_forward = agent_pos + agent_direction # front of the agent
-            if img[tuple(agent_forward)][2] == self.wall_id:
+            if img[tuple(agent_forward)][0] == self.wall_id:
                 # if there is a wall in front of the agent turn
                 return 0 #left
             return 2 # forward
@@ -65,10 +67,10 @@ class OpenDoorOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        door_pos = np.argwhere(img[..., 2] == self.door_id) 
-        if len(door_pos) == 0 or self.door_openned or self.step_counter >= self.option_len:
+        door_pos = np.argwhere(img[..., 0] == self.door_id) 
+        door_opened = img[door_pos[0][0], door_pos[0][1], 2] == 0 # is the door already open
+        if len(door_pos) == 0 or door_opened or self.step_counter >= self.option_len:
             self.step_counter = 0
-            self.door_openned = False
             return True
         return False
 

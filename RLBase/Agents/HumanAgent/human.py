@@ -111,8 +111,9 @@ class HumanAgent(BaseAgent):
        
         agent_id = OBJECT_TO_IDX["agent"]
                 
-        agent_pos = np.argwhere(img[..., 2] == agent_id)[0] 
+        agent_pos = np.argwhere(img[..., 0] == agent_id)
         agent_direction = DIR_TO_VEC[observation["direction"]]
+        print(agent_pos)
         print(observation.keys())
         
         
