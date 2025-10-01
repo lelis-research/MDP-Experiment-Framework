@@ -11,6 +11,7 @@ class call_back:
     def __init__(self, log_dir):
         self.writer = SummaryWriter(log_dir=log_dir)
         self.global_counter = 0
+        self.option_running_lst = []
 
     def __call__(self, data_dict, tag, counter=None):
         if counter is None:
@@ -22,9 +23,14 @@ class call_back:
     
     def reset(self):
         self.global_counter = 0
+        self.option_running_lst = []
     
     def close(self):
         self.writer.close()
+        
+    def option_log(self, option_running):
+        self.option_running_lst.append(option_running)
+        
     
 
 class LoggerExperiment(BaseExperiment):

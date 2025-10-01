@@ -10,7 +10,35 @@ from ...Options.Utils import load_options_list, save_options_list
 
 @register_policy
 class OptionQLearningPolicy(QLearningPolicy):
-    pass
+    def update(self, last_state, last_action, state, reward, terminated, truncated, effective_discount, call_back=None):
+        """
+        Update the Q-table using the Q-Learning update rule.
+        
+        Args:
+            last_state (hashable): Previous state (encoded) where the last action was taken.
+            last_action (int): Action taken in the previous state.
+            state (hashable): Current state (encoded) after action.
+            reward (float): Reward received.
+            terminated (bool): True if the episode has terminated.
+            truncated (bool): True if the episode was truncated.
+            call_back (function, optional): Callback for tracking training progress.
+        """
+        if state not in self.q_table:
+            self.q_table[state] = np.zeros(self.action_dim)
+
+        #Update Value Function
+        target = reward if terminated else reward + effective_discount * np.max(self.q_table[state])
+        td_error = target - self.q_table[last_state][last_action]
+        self.q_table[last_state][last_action] += self.hp.step_size * td_error
+        
+        #Update Epsilon
+        frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+        self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+            
+        if call_back is not None:
+            call_back({"value_loss": td_error,
+                       "epsilon": self.epsilon,
+                       })
 
 @register_agent
 class OptionQLearningAgent(QLearningAgent):
@@ -72,7 +100,7 @@ class OptionQLearningAgent(QLearningAgent):
         self.last_action = action
         return action
     
-    def update(self, observation, reward, terminated, truncated, call_back=None):
+    def update(self, observation, reward, terminated, truncated,call_back=None):
         """
         After env.step, update Q-values.
         - If inside an option, accumulate discounted reward and do a single SMDP update on option termination.
@@ -82,6 +110,7 @@ class OptionQLearningAgent(QLearningAgent):
 
         if self.running_option_index is not None:
             # Accumulate SMDP return while option runs
+            call_back.option_log(option_running=True)
             self.option_cumulative_reward += self.option_multiplier * float(reward)
             self.option_multiplier *= self.hp.gamma
 
@@ -93,6 +122,7 @@ class OptionQLearningAgent(QLearningAgent):
                     reward=self.option_cumulative_reward,
                     terminated=terminated,
                     truncated=truncated,
+                    effective_discount=self.option_multiplier,
                     call_back=call_back
                 )
                 # Clear option state
@@ -102,6 +132,7 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_multiplier = 1.0
 
         else:
+            call_back.option_log(option_running=False)
             self.policy.update(
                 last_state=self.last_state,
                 last_action=self.last_action,
@@ -109,6 +140,7 @@ class OptionQLearningAgent(QLearningAgent):
                 reward=float(reward),
                 terminated=bool(terminated),
                 truncated=bool(truncated),
+                effective_discount=self.hp.gamma,
                 call_back=call_back
             )
     
@@ -122,7 +154,6 @@ class OptionQLearningAgent(QLearningAgent):
 
         self.last_state = None
         self.last_action = None
-        
     
     def save(self, file_path=None):
         """
