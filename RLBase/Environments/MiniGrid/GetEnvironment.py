@@ -85,6 +85,8 @@ MINIGRID_ENV_LST = [
     "MiniGrid-UnlockPickup-v0",
 
     "MiniGrid-Playground-v0",
+
+    "SequentialFourRooms-v0"
 ]
 
 def get_single_env(env_name, max_steps=500, render_mode=None, env_params={}, wrapping_lst=None, wrapping_params=[]):
