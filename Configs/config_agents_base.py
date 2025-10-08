@@ -6,7 +6,7 @@ from RLBase.Agents.Utils import (
     TabularSymbolicFeature,
     HyperParameters,
 )
-from RLBase.Agents.HumanAgent import HumanAgent
+from RLBase.Agents.HumanAgent import HumanAgent, ContinualHumanAgent
 from RLBase.Agents.RandomAgent import RandomAgent, OptionRandomAgent
 from RLBase.Agents.TabularAgent import (
     QLearningAgent,
@@ -14,6 +14,7 @@ from RLBase.Agents.TabularAgent import (
     SarsaAgent,
     DoubleQLearningAgent,
     OptionQLearningAgent,
+    ContinualOptionQLearningAgent,
 )
 from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
@@ -31,6 +32,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
 )
 from RLBase.Options.Utils import load_options_list
 from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption
+from RLBase.Options.ContinualOptions import TabularContinualOptionLearner
 from Configs.networks import NETWORKS
 import torch
 
@@ -70,6 +72,15 @@ AGENT_DICT = {
         #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
         device=device
     ),
+    ContinualHumanAgent.name: lambda env, info: ContinualHumanAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
+        get_num_envs(env),
+        MirrorFeature,
+        option_learner_class=TabularContinualOptionLearner,
+        device=device
+    ),
     RandomAgent.name: lambda env, info: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
@@ -107,11 +118,28 @@ AGENT_DICT = {
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.001),
             epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
-            discount_option_flag=info.get("discount_option_flag", True)
+            discount_option_flag=info.get("discount_option_flag", True),
+            update_action_within_option_flag=info.get("update_action_within_option_flag", False),
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
-        options_lst=[FindKeyOption(option_len=100), OpenDoorOption(option_len=100), FindGoalOption(option_len=100)], 
+        options_lst=[FindKeyOption(option_len=info.get("option_len")), OpenDoorOption(option_len=info.get("option_len")), FindGoalOption(option_len=info.get("option_len"))], 
+    ),
+    ContinualOptionQLearningAgent.name: lambda env, info: ContinualOptionQLearningAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            step_size=info.get("step_size", 0.2),
+            gamma=info.get("gamma", 0.99),
+            epsilon_start=info.get("epsilon_start", 1.0),
+            epsilon_end=info.get("epsilon_end", 0.001),
+            epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
+            discount_option_flag=info.get("discount_option_flag", True),
+            update_action_within_option_flag=info.get("update_action_within_option_flag", False),
+        ),
+        get_num_envs(env),
+        TabularSymbolicFeature,
+        option_learner_class=TabularContinualOptionLearner, 
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 

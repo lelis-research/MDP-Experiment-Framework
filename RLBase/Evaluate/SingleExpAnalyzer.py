@@ -13,7 +13,7 @@ plt.rcParams.update({
     # "axes.labelsize": 16,       # x and y labels
     # "xtick.labelsize": 14,      # x tick labels
     # "ytick.labelsize": 14,      # y tick labels
-    "legend.fontsize": 14,      # legend
+    "legend.fontsize": 16,      # legend
     "figure.titlesize": 24      # overall figure title
 })
 
@@ -183,6 +183,7 @@ class SingleExpAnalyzer:
                 run_returns = np.array(ep_returns[i], dtype=float)
                 run_steps = np.array(steps[i], dtype=float)
             
+            
             # Get the cumulative steps
             cum_steps = np.cumsum(run_steps)
             interpolated_run_returns = np.interp(x_common, cum_steps, run_returns)
@@ -280,10 +281,10 @@ class SingleExpAnalyzer:
                 handles, labels = ax.get_legend_handles_labels()
                 
                 # Create one legend for the entire figure.
-                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.965))
-                fig.tight_layout(rect=[0, 0, 1.0, 0.95])
-            else:
-                fig.tight_layout()
+                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.96))
+                fig.tight_layout(rect=[0, 0, 1.0, 0.96])
+            # else:
+            #     fig.tight_layout()
 
         
             
@@ -422,7 +423,7 @@ class SingleExpAnalyzer:
             file.writelines(seed_lst)
 
     def generate_video(self, run_number, episode_number, video_type="gif", name_tag="",
-                       fps=15, ansi_font_size=14, ansi_scale=2):
+                       fps=5, ansi_font_size=14, ansi_scale=2):
         """
         Generate a video (currently only GIF supported) from stored frames.
         

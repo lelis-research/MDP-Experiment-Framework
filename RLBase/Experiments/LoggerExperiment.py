@@ -75,6 +75,9 @@ class LoggerExperiment(BaseExperiment):
 
             while not (terminated or truncated):
                 action = agent.act(observation, greedy=not self._train)
+                if hasattr(agent, 'log'):
+                    agent_logs.append(agent.log())
+                    
                 next_observation, reward, terminated, truncated, info = env.step(action)
                 infos.append(info)
 
@@ -94,8 +97,7 @@ class LoggerExperiment(BaseExperiment):
                 elif env.render_mode == "ansi":
                     frames.append(env.render())
                     
-                if hasattr(agent, 'log'):
-                    agent_logs.append(agent.log())
+                
                 
 
             if env.render_mode == "rgb_array_list":
@@ -189,7 +191,9 @@ class LoggerExperiment(BaseExperiment):
             while not (terminated or truncated):
                 # Agent selects action
                 action = agent.act(observation, greedy=not self._train)
-                
+                if hasattr(agent, 'log'):
+                    agent_logs.append(agent.log())
+                    
                 # Environment steps
                 next_observation, reward, terminated, truncated, info = env.step(action)
                 infos.append(info)
@@ -221,8 +225,7 @@ class LoggerExperiment(BaseExperiment):
                 elif env.render_mode == "ansi":
                     frames.append(env.render())
                 
-                if hasattr(agent, 'log'):
-                    agent_logs.append(agent.log())
+                
                 
             # Collect frames from the environment if needed
             if env.render_mode == "rgb_array_list":

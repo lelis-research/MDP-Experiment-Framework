@@ -1,1 +1,2 @@
-from .human import HumanAgent
+from .Human import HumanAgent
+from .ContinualHuman import ContinualHumanAgent

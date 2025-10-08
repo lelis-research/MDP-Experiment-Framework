@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
-#SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-01:00      # time (DD-HH:MM)
+#SBATCH --mem=4G          # memory per node
+#SBATCH --time=0-01:30      # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -33,7 +33,7 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
 AGENT="QLearning"
-ENV="MiniGrid-DoorKey-5x5-v0"
+ENV="MiniGrid-DoorKey-8x8-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
@@ -46,7 +46,7 @@ NUM_WORKERS=1
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -54,11 +54,13 @@ RENDER_MODE=""           # options: human, rgb_array_list, or leave empty for no
 STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
-  "epilon_decay_steps": 100000,
+  "discount_option_flag": false,
+  "epilon_decay_steps": 400000,
   "epsilon_end": 0.01,
-  "epsilon_start": 0.5,
+  "epsilon_start": 1.0,
   "gamma": 0.99,
-  "step_size": 0.01
+  "option_len": 1,
+  "step_size": 0.1
 }'  
   # "actor_eps": 1e-05,
   # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",

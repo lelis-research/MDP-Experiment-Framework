@@ -22,8 +22,6 @@ def parse():
     parser.add_argument("--seed", type=int, default=123123, help="Random seed for reproducibility")
     # Number of runs
     parser.add_argument("--num_runs", type=int, default=1, help="number of runs")
-    # Number of episodes per run
-    parser.add_argument("--num_episodes", type=int, default=3, help="number of episodes in each run")
     # Maximum steps per episode
     parser.add_argument("--episode_max_steps", type=int, default=None, help="maximum number of steps in each episode")
     # Render mode for the environment
@@ -42,7 +40,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniGrid-DoorKey-5x5-v0_/SymbolicObs/QLearning/_seed[123123]"
+    exp_name = "MiniGrid-DoorKey-8x8-v0_/FullyObs_FixedSeed(seed-10)/OptionQLearning/Effective_Discount-true_option_len-1_47_seed[47]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -71,14 +69,12 @@ if __name__ == "__main__":
         wrapping_lst=exp_args.env_wrapping,
         wrapping_params=exp_args.wrapping_params,
     )
-    agent = load_agent(os.path.join(train_path, "Run1_Best_agent.t"))
+    agent = lambda x: load_agent(os.path.join(train_path, "Run1_Best_agent.t"))
 
     experiment = BaseExperiment(env, agent, test_path, train=False, args=exp_args)
-    print(args.num_episodes, args.num_runs)
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, seed_offset=args.seed)
+    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=1, seed_offset=args.seed)
     
     analyzer = SingleExpAnalyzer(exp_path=test_path)
     for r in range(1, args.num_runs+1):
-        for e in range(1, args.num_episodes+1):
-            analyzer.generate_video(r, e)
+        analyzer.generate_video(r, 1)
     analyzer.save_seeds(test_path)

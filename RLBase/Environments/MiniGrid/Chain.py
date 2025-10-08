@@ -56,7 +56,7 @@ class ChainEnv(MiniGridEnv):
         self.mission = "Traverse the chain from left to right."
     
 
-class ChainEnv2(MiniGridEnv):
+class ChainEnvDoor(MiniGridEnv):
     def __init__(
         self,
         chain_length=5,
@@ -184,8 +184,8 @@ register(
 )
 
 register(
-    id='MiniGrid-ChainEnv-v1',
-    entry_point='RLBase.Environments.MiniGrid.Chain:ChainEnv2', 
+    id='MiniGrid-ChainEnvDoor-v0',
+    entry_point='RLBase.Environments.MiniGrid.Chain:ChainEnvDoor', 
     # kwargs={"chain_length": 5},
 )
 register(

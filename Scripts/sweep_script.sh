@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep-OptionQLearning
+#SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=3
-#SBATCH --mem=1G          # memory per node
-#SBATCH --time=0-00:30    # time (DD-HH:MM)
+#SBATCH --mem=4G          # memory per node
+#SBATCH --time=0-01:30    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -31,26 +31,29 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionQLearning"
-ENV="MiniGrid-DoorKey-5x5-v0"
+AGENT="QLearning"
+ENV="MiniGrid-DoorKey-8x8-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
-ENV_WRAPPING='["SymbolicObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
+ENV_WRAPPING='["FullyObs"]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{},{"seed":10}]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
+WRAPPING_PARAMS='[{}]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
 NUM_RUNS=3
 NUM_WORKERS=3 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=500_000
+TOTAL_STEPS=300_000
 EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="EffectiveDiscount"
+NAME_TAG="Effective_Discount-false_option_len-1"
 INFO='{
-  "gamma": 0.99
+  "gamma": 0.99,
+  "discount_option_flag": false,
+  "option_len": 1,
+  "update_action_within_option_flag": true,
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 

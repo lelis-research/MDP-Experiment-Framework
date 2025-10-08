@@ -3,4 +3,5 @@ from .DecWholeOptions import *
 from .FineTuneOptions import *
 from .MaskedOptions import *
 from .ManualSymbolicOptions import *
+from .ContinualOptions import *
 from .Utils import *

@@ -31,10 +31,10 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1000))
-ENV="MiniGrid-DoorKey-5x5-v0"
+ENV="MiniGrid-ChainEnv-v0"
 ENV_WRAPPING='["ImgObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]' ,"FixedRandomDistractor"
 WRAPPING_PARAMS='[{}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]' ,{"num_distractors": 5, "seed": 100}
-ENV_PARAMS='{}'
+ENV_PARAMS='{"chain_length":100}'
 NAME_TAG="" #"$seed"
 # ------------------------------
 

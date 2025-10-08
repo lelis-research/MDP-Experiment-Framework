@@ -3,4 +3,4 @@ from .NStepQLearning import NStepQLearningAgent, NStepQLearningPolicy
 from .QLearning import QLearningAgent, QLearningPolicy
 from .Sarsa import SarsaAgent, SarsaPolicy
 from .OptionQLearning import OptionQLearningAgent, OptionQLearningPolicy
-# from .MaskedQLearning import MaskedQLearningAgent, MaskedQLearningPolicy
+from .ContinualOptionQLearning import ContinualOptionQLearningAgent, ContinualOptionQLearningPolicy

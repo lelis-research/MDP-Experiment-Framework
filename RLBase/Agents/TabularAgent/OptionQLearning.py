@@ -95,19 +95,19 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_multiplier = 1.0
                 action = self.options_lst[self.running_option_index].select_action(observation)
 
+        # print(f"Agent -> Option: {self.running_option_index}, Action: {action}")
 
         self.last_state = state
         self.last_action = action
         return action
     
-    def update(self, observation, reward, terminated, truncated,call_back=None):
+    def update(self, observation, reward, terminated, truncated, call_back=None):
         """
         After env.step, update Q-values.
         - If inside an option, accumulate discounted reward and do a single SMDP update on option termination.
         - If primitive, do the usual 1-step Q-learning update (parent policy already supports it).
         """
         state = self.feature_extractor(observation)
-
         if self.running_option_index is not None:
             # Accumulate SMDP return while option runs
             self.option_cumulative_reward += self.option_multiplier * float(reward)
@@ -129,6 +129,19 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_start_state = None
                 self.option_cumulative_reward = 0.0
                 self.option_multiplier = 1.0
+            
+            
+            if self.hp.update_action_within_option_flag:
+                self.policy.update(
+                last_state=self.last_state,
+                last_action=self.last_action,
+                state=state,
+                reward=float(reward),
+                terminated=bool(terminated),
+                truncated=bool(truncated),
+                effective_discount=self.hp.gamma,
+                call_back=call_back
+            )
 
         else:
             self.policy.update(

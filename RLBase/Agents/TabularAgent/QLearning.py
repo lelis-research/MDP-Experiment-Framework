@@ -98,6 +98,7 @@ class QLearningPolicy(BasePolicy):
         """
         checkpoint = {
             'q_table': self.q_table,
+            'epsilon': self.epsilon,
             'hyper_params': self.hp,
 
             'action_space': self.action_space,
@@ -124,8 +125,8 @@ class QLearningPolicy(BasePolicy):
         instance = cls(checkpoint['action_space'], checkpoint['hyper_params'])
         
         instance.reset(seed)
-
         instance.q_table = checkpoint.get('q_table')
+        instance.epsilon = checkpoint.get('epsilon')
         return instance
     
     def load_from_checkpoint(self, checkpoint):
@@ -136,6 +137,7 @@ class QLearningPolicy(BasePolicy):
             file_path (str): File path from which to load the checkpoint.
         """
         self.q_table = checkpoint.get('q_table')
+        self.epsilon = checkpoint.get('epsilon')
 
         self.action_space = checkpoint.get('action_space')
         self.hp = checkpoint.get('hyper_params')

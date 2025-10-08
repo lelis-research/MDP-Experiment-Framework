@@ -175,7 +175,7 @@ def main(exp_dir, ratio):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-DoorKey-5x5-v0_/SymbolicObs_FixedSeed(seed-10)/OptionQLearning/_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-DoorKey-8x8-v0_/FullyObs_FixedSeed(seed-10)/QLearning/1_seed[1]"
     ratio   = 0.5
     # ---------------------
 
