@@ -32,7 +32,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
 AGENT="QLearning"
-ENV="MiniGrid-DoorKey-5x5-v0"
+ENV="SequentialDiagonalGoalsEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
@@ -48,7 +48,7 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="discount-true_option_len-20_update_actions-false"
+NAME_TAG=""
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
