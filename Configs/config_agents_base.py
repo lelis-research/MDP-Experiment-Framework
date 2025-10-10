@@ -30,7 +30,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     OptionPPOAgent,
 )
 from RLBase.Options.Utils import load_options_list
-from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption
+from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption, GoToLocationOption
 from RLBase.Options.ContinualOptions import TabularContinualOptionLearner
 from Configs.networks import NETWORKS
 import torch
@@ -67,7 +67,13 @@ AGENT_DICT = {
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         MirrorFeature,
-        options_lst=[FindKeyOption(option_len=100), OpenDoorOption(option_len=100), FindGoalOption(option_len=100)], 
+        options_lst=[GoToLocationOption(option_len=100, goal_pos=(2,2)), 
+                     GoToLocationOption(option_len=100, goal_pos=(3,3)),
+                     GoToLocationOption(option_len=100, goal_pos=(4,4)),
+                     GoToLocationOption(option_len=100, goal_pos=(5,5)), 
+                     FindKeyOption(option_len=100), 
+                     OpenDoorOption(option_len=100), 
+                     FindGoalOption(option_len=100)], 
         #load_options_list("Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_0/selected_options_10.t"),
         device=device
     ),
