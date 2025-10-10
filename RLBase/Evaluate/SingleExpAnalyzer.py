@@ -40,16 +40,12 @@ class SingleExpAnalyzer:
         
         self.exp_path = exp_path
         self.metrics = metrics
-        self.calculate_rewards_steps()
         
     
     @property
     def num_runs(self):
         return len(self.metrics)
-    
-    def calculate_rewards_steps(self):
-        self.ep_returns = [[episode.get("ep_return") for episode in run] for run in self.metrics]
-        self.ep_lengths = [[episode.get("ep_length") for episode in run] for run in self.metrics]
+            
     
     # def _smooth(self, data, window_size):
     #     """Apply centered moving average with window size self.window_size"""
@@ -79,151 +75,6 @@ class SingleExpAnalyzer:
         print(f"  Average Episode Return: {avg_return:.2f} ± {std_return:.2f}")
         print(f"  Average Episode Length:  {avg_steps:.2f} ± {std_steps:.2f}")
     
-    def _plot_reward_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
-        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
-        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        ax.set_aspect('auto')
-        if ignore_last: # sometimes the last episode is not complete
-            ep_return = np.array([run[:num_episodes - 1] for run in self.ep_returns])
-            episodes = np.arange(1, num_episodes)
-        else:
-            ep_return = np.array([run[:num_episodes] for run in self.ep_returns])
-            episodes = np.arange(1, num_episodes + 1)
-        if plot_each:
-            for each_return in ep_return:
-                smooth_return = self._smooth(each_return, window_size)
-                ax.plot(episodes, smooth_return, color=color, alpha=min(4/(len(ep_return)), 0.15))
-        
-        mean_returns = np.mean(ep_return, axis=0)
-        smooth_returns = self._smooth(mean_returns, window_size)
-        ax.plot(episodes, smooth_returns, marker, color=color, label=label, markevery=50)
-        
-        # Optional confidence interval
-        if show_ci and ep_return.shape[0] >= 2:
-            n = ep_return.shape[0]
-
-            # sample std with ddof=1 -> unbiased; then standard error
-            se = np.std(ep_return, axis=0, ddof=1) / np.sqrt(n)
-            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
-
-            lower = mean_returns - ci
-            upper = mean_returns + ci
-
-            # smooth mean and bounds consistently
-            lower_s = self._smooth(lower, window_size)
-            upper_s = self._smooth(upper, window_size)
-            ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
-            
-        # ax.set_title("Sum Reward per Episode")
-        ax.set_xlabel("Episode Number")
-        ax.set_ylabel("Return")
-        # ax.legend()
-        ax.grid(True)
-
-    def _plot_steps_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
-        ax.set_aspect('auto')
-        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
-        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        
-        if ignore_last: # sometimes the last episode is not complete
-            steps = np.array([run[:num_episodes - 1] for run in self.ep_lengths])
-            episodes = np.arange(1, num_episodes)
-        else:
-            steps = np.array([run[:num_episodes] for run in self.ep_lengths])
-            episodes = np.arange(1, num_episodes + 1)
-
-        if plot_each:
-            for each_step in steps:
-                smooth_step = self._smooth(each_step, window_size)
-                ax.plot(episodes, smooth_step, color=color, alpha=min(4/(len(steps)), 0.15))
-        
-        
-        
-        mean_steps = np.mean(steps, axis=0)
-        smooth_steps = self._smooth(mean_steps, window_size)
-        ax.plot(episodes, smooth_steps, marker, color=color, label=label, markevery=50)
-                
-        if show_ci and steps.shape[0] >= 2:
-            n = steps.shape[0]
-            
-            # standard error with unbiased std (ddof=1)
-            se = np.std(steps, axis=0, ddof=1) / np.sqrt(n)
-            ci = 1.96 * se # ~95% normal approx; for small n consider Student-t
-
-            lower = mean_steps - ci
-            upper = mean_steps + ci
-
-            lower_s = self._smooth(lower, window_size)
-            upper_s = self._smooth(upper, window_size)
-
-            ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
-            
-        # ax.set_title("Steps per Episode")
-        ax.set_xlabel("Episode Number")
-        ax.set_ylabel("Environment Steps")
-        # ax.legend()
-        ax.grid(True)
-    
-    def _plot_reward_per_steps(self, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
-        ax.set_aspect('auto')
-        ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
-        ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        ep_returns = self.ep_returns
-        steps = self.ep_lengths    
-        x_common = np.linspace(0, num_steps, 1000)      
-        returns_interpolation = []
-        
-        # Build arrays for each run
-        for i in range(len(ep_returns)):
-            # Convert to numeric arrays
-            if ignore_last: # sometimes the last episode is not complete
-                run_returns = np.array(ep_returns[i], dtype=float)[:-1]
-                run_steps = np.array(steps[i], dtype=float)[:-1]
-            else:
-                run_returns = np.array(ep_returns[i], dtype=float)
-                run_steps = np.array(steps[i], dtype=float)
-            
-            
-            # Get the cumulative steps
-            cum_steps = np.cumsum(run_steps)
-            interpolated_run_returns = np.interp(x_common, cum_steps, run_returns)
-            
-            
-            if plot_each:
-                # Plot each run’s line and points (faint)
-                smooth_return = self._smooth(interpolated_run_returns, window_size)
-                ax.plot(x_common, smooth_return, marker='o', alpha=min(4/(len(ep_returns)), 0.15), color=color, markersize=1)
-
-            # Interpolate the reward to fine in between values
-            returns_interpolation.append(interpolated_run_returns)
-
-        returns_interpolation = np.asarray(returns_interpolation)
-        mean_returns = np.mean(returns_interpolation, axis=0)
-        smooth_returns = self._smooth(mean_returns, window_size)
-        ax.plot(x_common, smooth_returns, marker, color=color, label=label, markevery=50)
-        
-        # Optional confidence interval (quantile-based)
-        if show_ci and returns_interpolation.shape[0] >= 2:
-            n = returns_interpolation.shape[0]
-
-            # sample std with ddof=1 -> unbiased; then standard error
-            se = np.std(returns_interpolation, axis=0, ddof=1) / np.sqrt(n)
-            ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
-
-            lower = mean_returns - ci
-            upper = mean_returns + ci
-
-            # smooth mean and bounds consistently
-            lower_s = self._smooth(lower, window_size)
-            upper_s = self._smooth(upper, window_size)
-            ax.fill_between(x_common, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
-        
-        # ax.set_title("Sum Rewards per Steps")
-        ax.set_xlabel("Environment Steps")
-        ax.set_ylabel("Return")
-        # ax.legend()
-        ax.grid(True)
-
     def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', marker='-',
                       label="", show_legend=True, window_size=1, plot_each=True, show_ci=True, 
                       title="", ignore_last=False, plt_configs=["r_e", "r_s", "s_e"]):
@@ -238,47 +89,72 @@ class SingleExpAnalyzer:
             save_dir (str, optional): Directory to save the plot.
             show (bool): Whether to display the plot.
         """
-        assert all(c in {"r_e", "r_s", "s_e", "ou_s", "ou_e"} for c in plt_configs), \
+        assert all(c in {"r_e", "r_s", "s_e", "ou_s", "ou_e", "no_s", "no_e"} for c in plt_configs), \
         f"Invalid entries in plt_configs: {plt_configs}"
 
         if fig is None or axs is None:
             fig, axs = plt.subplots(len(plt_configs), 1, figsize=(10, 6*len(plt_configs)), constrained_layout=True)
 
-        # find minimum number of episodes across runs
-        num_episodes = min([len(run) for run in self.ep_returns])
-        num_steps = min([sum(steps) for steps in self.ep_lengths])
+        ep_returns = [[episode.get("ep_return") for episode in run] for run in self.metrics]
+        ep_lengths = [[episode.get("ep_length") for episode in run] for run in self.metrics]
         
-        ax_counter = 0
-        if "r_e" in plt_configs:
-            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_reward_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
-            ax_counter += 1
-        if "r_s" in plt_configs:
-            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_reward_per_steps(ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last)
-            ax_counter += 1
-        if "s_e" in plt_configs:
-            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_steps_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
-            ax_counter += 1
-        if "ou_s" in plt_configs:
-            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_option_usage_per_step(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
-            ax_counter += 1
-        if "ou_e" in plt_configs:
-            ax = axs[ax_counter] if len(plt_configs) > 1 else axs
-            self._plot_option_usage_per_episode(ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last)
-            ax_counter += 1
+        # find minimum number of episodes across runs
+        num_episodes = min([len(run) for run in ep_returns])
+        num_steps = min([sum(steps) for steps in ep_lengths])
+        
+        for i, config in enumerate(plt_configs):
+            ax = axs[i] if len(plt_configs) > 1 else axs
+            if config == "r_e":
+                self._plot_data_per_episode(ep_returns, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last, 
+                                        x_label="Episode Number", y_label="Return")
+            elif config == "r_s":
+                 self._plot_data_per_steps(ep_returns, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                        x_label="Environment Steps", y_label="Return")
+            elif config == "s_e":
+                self._plot_data_per_episode(ep_lengths, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                        x_label="Episode Number", y_label="Episode Length")
+            elif config == "ou_s":
+                option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+                            if ep.get("agent_logs") else 0.0
+                            for ep in run]
+                            for run in self.metrics]
+                self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                    x_label="Environmnet Steps", y_label="Option Usage")
+            elif config == "ou_e":
+                option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+                            if ep.get("agent_logs") else 0.0
+                            for ep in run]
+                            for run in self.metrics]
+                self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                            x_label="Episode Number", y_label="Option Usage")
+
+            elif config == "no_s":
+                num_options = [[sum(item["NumOptions"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+                            if ep.get("agent_logs") else 0.0
+                            for ep in run]
+                            for run in self.metrics]
+                self._plot_data_per_steps(num_options, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                      x_label="Environment Steps", y_label="Number of Options")
+                
+            elif config == "no_e":
+                num_options = [[sum(item["NumOptions"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
+                            if ep.get("agent_logs") else 0.0
+                            for ep in run]
+                            for run in self.metrics]
+                self._plot_data_per_episode(num_options, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                        x_label="Episode Number", y_label="Number of Options")
+        
+            
 
         if title:
             fig.suptitle(title)
         
         if len(plt_configs) == 1:
-            ax.legend(loc="best", frameon=True)
+            axs.legend(loc="best", frameon=True)
         else:
             if show_legend:
                 # Retrieve handles and labels from one of the subplots.
-                handles, labels = ax.get_legend_handles_labels()
+                handles, labels = axs[0].get_legend_handles_labels()
                 
                 # Create one legend for the entire figure.
                 fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.96))
@@ -296,41 +172,37 @@ class SingleExpAnalyzer:
 
         return fig, axs
     
-    
-    def _plot_option_usage_per_episode(self, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+
+    def _plot_data_per_episode(self, all_runs_data, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, 
+                               ignore_last=False, x_label="", y_label=""):
         ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
         ax.set_aspect('auto')
-        option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-            if ep.get("agent_logs") else 0.0
-            for ep in run]
-            for run in self.metrics]
-        
         if ignore_last: # sometimes the last episode is not complete
-            option_usage = np.array([run[:num_episodes - 1] for run in option_usage])
+            ep_data = np.array([run[:num_episodes - 1] for run in all_runs_data])
             episodes = np.arange(1, num_episodes)
         else:
-            option_usage = np.array([run[:num_episodes] for run in option_usage])
+            ep_data = np.array([run[:num_episodes] for run in all_runs_data])
             episodes = np.arange(1, num_episodes + 1)
         if plot_each:
-            for each_option_usage in option_usage:
-                smooth_option_usage = self._smooth(each_option_usage, window_size)
-                ax.plot(episodes, smooth_option_usage, color=color, alpha=min(4/(len(option_usage)), 0.15))
+            for each_data in ep_data:
+                smooth_each_data = self._smooth(each_data, window_size)
+                ax.plot(episodes, smooth_each_data, color=color, alpha=min(4/(len(ep_data)), 0.15))
         
-        mean_option_usage = np.mean(option_usage, axis=0)
-        smooth_mean_option_usage = self._smooth(mean_option_usage, window_size)
-        ax.plot(episodes, smooth_mean_option_usage, marker, color=color, label=label, markevery=50)
+        mean_data = np.mean(ep_data, axis=0)
+        smooth_data = self._smooth(mean_data, window_size)
+        ax.plot(episodes, smooth_data, marker, color=color, label=label, markevery=50)
         
         # Optional confidence interval
-        if show_ci and option_usage.shape[0] >= 2:
-            n = option_usage.shape[0]
+        if show_ci and ep_data.shape[0] >= 2:
+            n = ep_data.shape[0]
 
             # sample std with ddof=1 -> unbiased; then standard error
-            se = np.std(option_usage, axis=0, ddof=1) / np.sqrt(n)
+            se = np.std(ep_data, axis=0, ddof=1) / np.sqrt(n)
             ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
 
-            lower = mean_option_usage - ci
-            upper = mean_option_usage + ci
+            lower = mean_data - ci
+            upper = mean_data + ci
 
             # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
@@ -338,61 +210,59 @@ class SingleExpAnalyzer:
             ax.fill_between(episodes, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
             
         # ax.set_title("Sum Reward per Episode")
-        ax.set_xlabel("Episode Number")
-        ax.set_ylabel("Option Usage")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
         # ax.legend()
         ax.grid(True)
-        
-    def _plot_option_usage_per_step(self, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last=False):
+    
+    def _plot_data_per_steps(self, all_runs_data, all_runs_ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, 
+                             ignore_last=False, x_label="", y_label=""):
         ax.set_aspect('auto')
         ax.xaxis.set_major_formatter(mticker.ScalarFormatter(useMathText=True))
         ax.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
-        option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-            if ep.get("agent_logs") else 0.0
-            for ep in run]
-            for run in self.metrics]
-        steps = self.ep_lengths    
+        steps = all_runs_ep_lengths   
         x_common = np.linspace(0, num_steps, 1000)      
-        option_usage_interpolation = []
+        data_interpolation = []
         
         # Build arrays for each run
-        for i in range(len(option_usage)):
+        for i in range(len(all_runs_data)):
             # Convert to numeric arrays
             if ignore_last: # sometimes the last episode is not complete
-                run_option_usage = np.array(option_usage[i], dtype=float)[:-1]
+                run_data = np.array(all_runs_data[i], dtype=float)[:-1]
                 run_steps = np.array(steps[i], dtype=float)[:-1]
             else:
-                run_option_usage = np.array(option_usage[i], dtype=float)
+                run_data = np.array(all_runs_data[i], dtype=float)
                 run_steps = np.array(steps[i], dtype=float)
+            
             
             # Get the cumulative steps
             cum_steps = np.cumsum(run_steps)
-            interpolated_run_option_usage = np.interp(x_common, cum_steps, run_option_usage)
+            interpolated_run_data = np.interp(x_common, cum_steps, run_data)
             
             
             if plot_each:
                 # Plot each run’s line and points (faint)
-                smooth_option_usage = self._smooth(interpolated_run_option_usage, window_size)
-                ax.plot(x_common, smooth_option_usage, marker='o', alpha=min(4/(len(option_usage)), 0.15), color=color, markersize=1)
+                smooth_each_data = self._smooth(interpolated_run_data, window_size)
+                ax.plot(x_common, smooth_each_data, marker='o', alpha=min(4/(len(all_runs_data)), 0.15), color=color, markersize=1)
 
             # Interpolate the reward to fine in between values
-            option_usage_interpolation.append(interpolated_run_option_usage)
+            data_interpolation.append(interpolated_run_data)
 
-        option_usage_interpolation = np.asarray(option_usage_interpolation)
-        mean_option_usage = np.mean(option_usage_interpolation, axis=0)
-        smooth_option_usage = self._smooth(mean_option_usage, window_size)
-        ax.plot(x_common, smooth_option_usage, marker, color=color, label=label, markevery=50)
+        data_interpolation = np.asarray(data_interpolation)
+        mean_data = np.mean(data_interpolation, axis=0)
+        smooth_data = self._smooth(mean_data, window_size)
+        ax.plot(x_common, smooth_data, marker, color=color, label=label, markevery=50)
         
         # Optional confidence interval (quantile-based)
-        if show_ci and option_usage_interpolation.shape[0] >= 2:
-            n = option_usage_interpolation.shape[0]
+        if show_ci and data_interpolation.shape[0] >= 2:
+            n = data_interpolation.shape[0]
 
             # sample std with ddof=1 -> unbiased; then standard error
-            se = np.std(option_usage_interpolation, axis=0, ddof=1) / np.sqrt(n)
+            se = np.std(data_interpolation, axis=0, ddof=1) / np.sqrt(n)
             ci = 1.96 * se   # ~95% CI (normal approx). For very small n, consider t-crit.
 
-            lower = mean_option_usage - ci
-            upper = mean_option_usage + ci
+            lower = mean_data - ci
+            upper = mean_data + ci
 
             # smooth mean and bounds consistently
             lower_s = self._smooth(lower, window_size)
@@ -400,11 +270,11 @@ class SingleExpAnalyzer:
             ax.fill_between(x_common, lower_s, upper_s, alpha=0.2, color=color, linewidth=0)
         
         # ax.set_title("Sum Rewards per Steps")
-        ax.set_xlabel("Environment Steps")
-        ax.set_ylabel("Option Usage")
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
         # ax.legend()
-        ax.grid(True)  
-
+        ax.grid(True)
+        
     def save_seeds(self, save_dir):
         """
         Save the seed information for each episode to a text file.

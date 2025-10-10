@@ -108,11 +108,11 @@ class OptionA2CAgent(BaseAgent):
         print(f"Number of options: {len(options_lst)}")
 
         # Augment action space with options
-        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
+        action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
 
         # Policy over (actions + options)
         self.policy = OptionA2CPolicyDiscrete(
-            self.action_space,
+            action_option_space,
             self.feature_extractor.features_dim,
             hyper_params,
             device=device

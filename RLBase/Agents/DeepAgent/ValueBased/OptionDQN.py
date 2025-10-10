@@ -38,14 +38,14 @@ class OptionDQNAgent(DQNAgent):
         self.options_lst = options_lst
         print(f"Number of options: {len(options_lst)}")
         # action space includes actions and options
-        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
+        action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
 
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
 
         # Create DQNPolicy using the feature extractor's feature dimension.
         self.policy = OptionDQNPolicy(
-            self.action_space, 
+            action_option_space, 
             self.feature_extractor.features_dim, 
             hyper_params,
             device=device

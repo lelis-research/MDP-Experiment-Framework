@@ -11,6 +11,32 @@ def calculate_n_step_returns(rollout_rewards, bootstrap_value, gamma):
         returns.insert(0, G)
     return returns
 
+def calculate_n_step_returns_with_discounts(rollout_rewards, bootstrap_value, discounts):
+    """
+    Compute discounted n-step returns given per-step or per-option discounts.
+
+    Args:
+        rollout_rewards (list[float]): Rewards for each step/option.
+        bootstrap_value (float): Bootstrap value for the final state.
+        discounts (list[float]): Discount factors for each step/option,
+                                 e.g. [γ_1, γ_2, ..., γ_T]
+
+    Returns:
+        list[float]: Discounted returns aligned with rollout_rewards.
+    """
+    assert len(rollout_rewards) == len(discounts), \
+        "rollout_rewards and discounts must have the same length."
+
+    returns = []
+    G = bootstrap_value
+    # Walk backward through rewards/discounts
+    for r, d in zip(reversed(rollout_rewards), reversed(discounts)):
+        G = r + d * G
+        returns.insert(0, G)
+    return returns
+
+
+
 def calculate_gae(
     rollout_rewards,         # list of length T
     values,          # tensor [T] of V(s_t)

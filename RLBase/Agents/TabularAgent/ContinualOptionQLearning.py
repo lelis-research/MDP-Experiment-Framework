@@ -24,10 +24,10 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         self.options_lst = []
         
         # Replace action_space with extended (primitive + options)
-        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
+        action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
 
         # Swap policy with OptionQLearningPolicy (shares same interface)
-        self.policy = ContinualOptionQLearningPolicy(self.action_space, hyper_params)
+        self.policy = ContinualOptionQLearningPolicy(action_option_space, hyper_params)
 
         # Option execution bookkeeping
         self.running_option_index = None       # index into options_lst (or None)
@@ -56,7 +56,7 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         - If primitive, do the usual 1-step Q-learning update (parent policy already supports it).
         """
         if self.option_learner.evaluate_option_trigger(self.last_observation, self.last_action, observation, reward, self.options_lst):
-            self.options_lst = self.option_learner.extract_options(self.options_lst)
+            self.option_learner.extract_options(self.options_lst)
             self.option_learner.init_options(self.policy)
             
         super().update(observation, reward, terminated, truncated, call_back)
@@ -65,3 +65,9 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
     def reset(self, seed):
         super().reset(seed)
         self.option_learner.reset()
+        
+    def log(self):
+        if self.running_option_index is None:
+            return {"OptionUsageLog": False, "NumOptions":len(self.options_lst)}
+        else:
+            return {"OptionUsageLog": True, "NumOptions":len(self.options_lst)}

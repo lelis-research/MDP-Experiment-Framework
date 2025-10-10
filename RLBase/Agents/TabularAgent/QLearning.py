@@ -2,7 +2,7 @@ import numpy as np
 import random
 import torch
 
-from ..Utils import BaseAgent, BasePolicy
+from ..Utils import BaseAgent, BasePolicy, BasicBuffer, calculate_n_step_returns
 from ...registry import register_agent, register_policy
 
 
@@ -17,6 +17,7 @@ class QLearningPolicy(BasePolicy):
         - epilon_decay_steps (int)
         - gamma (float)
         - step_size (float)
+        - n_steps (int)
     
     Args:
         action_space (gym.spaces.Discrete): Action space.
@@ -27,6 +28,7 @@ class QLearningPolicy(BasePolicy):
         self.action_dim = int(action_space.n)
         self.epsilon = self.hp.epsilon_start
         self.step_counter = 0
+        self.rollout_buffer = BasicBuffer(np.inf)  # Buffer is used for n-step
         
     def select_action(self, state, greedy=False):
         """
@@ -62,20 +64,57 @@ class QLearningPolicy(BasePolicy):
         """
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
-
-        #Update Value Function
-        target = reward if terminated else reward + self.hp.gamma * np.max(self.q_table[state])
-        td_error = target - self.q_table[last_state][last_action]
-        self.q_table[last_state][last_action] += self.hp.step_size * td_error
-        
-        #Update Epsilon
-        frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
-        self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+        if last_state not in self.q_table:
+            self.q_table[last_state] = np.zeros(self.action_dim)
             
-        if call_back is not None:
-            call_back({"value_loss": td_error,
-                       "epsilon": self.epsilon,
-                       })
+        transition = (last_state, last_action, reward)
+        self.rollout_buffer.add_single_item(transition)
+
+        if self.rollout_buffer.size >= self.hp.n_steps:
+            rollout = self.rollout_buffer.get_all()  # All transitions in the buffer
+            # Unpack transitions (states and actions not used directly here).
+            rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+            
+            # Use the max Q-value from the current state as bootstrap, unless terminated.
+            bootstrap_value = np.max(self.q_table[state]) if not terminated else 0.0
+            
+            # Compute n-step return (only the first value is used for the oldest transition).
+            target = calculate_n_step_returns(rollout_rewards, bootstrap_value, self.hp.gamma)[0]
+            
+            #Update Value Function
+            # Remove the oldest transition from the buffer and update its Q-value.
+            s, a, _ = self.rollout_buffer.remove_oldest()
+            td_error = target - self.q_table[s][a]
+            self.q_table[s][a] += self.hp.step_size * td_error
+            
+            #Update Epsilon
+            frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+            self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+                
+            if call_back is not None:
+                call_back({"value_loss": td_error,
+                        "epsilon": self.epsilon,
+                        })
+        
+        # At episode end, flush any remaining transitions in the buffer.
+        if terminated or truncated:
+            while self.rollout_buffer.size > 0:
+                rollout = self.rollout_buffer.get_all()
+                rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+                bootstrap_value = np.max(self.q_table[state]) if not terminated else 0.0
+                target = calculate_n_step_returns(rollout_rewards, bootstrap_value, self.hp.gamma)[0]
+                s, a, _ = self.rollout_buffer.remove_oldest()
+                td_error = target - self.q_table[s][a]
+                self.q_table[s][a] += self.hp.step_size * td_error
+                
+                #Update Epsilon
+                frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+                self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+                
+                if call_back is not None:
+                    call_back({"value_loss": td_error,
+                        "epsilon": self.epsilon,
+                        })
 
     def reset(self, seed):
         """
@@ -88,6 +127,7 @@ class QLearningPolicy(BasePolicy):
         self.q_table = {}
         self.epsilon = self.hp.epsilon_start
         self.step_counter = 0
+        self.rollout_buffer = BasicBuffer(np.inf)  # Buffer with infinite capacity
 
     def save(self, file_path=None):
         """

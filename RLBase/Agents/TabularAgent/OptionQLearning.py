@@ -3,7 +3,7 @@ import random
 import torch
 from gymnasium.spaces import Discrete
 
-from ..Utils import BaseAgent, BasePolicy
+from ..Utils import BaseAgent, BasePolicy, calculate_n_step_returns_with_discounts
 from .QLearning import QLearningAgent, QLearningPolicy
 from ...registry import register_agent, register_policy
 from ...Options.Utils import load_options_list, save_options_list
@@ -25,20 +25,60 @@ class OptionQLearningPolicy(QLearningPolicy):
         """
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
-
-        #Update Value Function
-        target = reward if terminated else reward + effective_discount * np.max(self.q_table[state])
-        td_error = target - self.q_table[last_state][last_action]
-        self.q_table[last_state][last_action] += self.hp.step_size * td_error
-        
-        #Update Epsilon
-        frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
-        self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+        if last_state not in self.q_table:
+            self.q_table[last_state] = np.zeros(self.action_dim)
             
-        if call_back is not None:
-            call_back({"value_loss": td_error,
-                       "epsilon": self.epsilon,
-                       })
+        transition = (last_state, last_action, reward, effective_discount)
+        self.rollout_buffer.add_single_item(transition)
+
+        
+        if self.rollout_buffer.size >= self.hp.n_steps:
+            rollout = self.rollout_buffer.get_all()  # All transitions in the buffer
+            # Unpack transitions (states and actions not used directly here).
+            rollout_states, rollout_actions, rollout_rewards, rollout_discounts = zip(*rollout)
+            
+            # Use the max Q-value from the current state as bootstrap, unless terminated.
+            bootstrap_value = np.max(self.q_table[state]) if not terminated else 0.0
+            
+            # Compute n-step return (only the first value is used for the oldest transition).
+            target = calculate_n_step_returns_with_discounts(rollout_rewards, bootstrap_value, rollout_discounts)[0]
+            
+            
+            #Update Value Function
+            s, a, _ = self.rollout_buffer.remove_oldest()
+            td_error = target - self.q_table[s][a]
+            self.q_table[s][a] += self.hp.step_size * td_error
+            
+            #Update Epsilon
+            frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+            self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+                
+            if call_back is not None:
+                call_back({"value_loss": td_error,
+                        "epsilon": self.epsilon,
+                        })
+        # At episode end, flush any remaining transitions in the buffer.
+        if terminated or truncated:
+            while self.rollout_buffer.size > 0:
+                rollout = self.rollout_buffer.get_all()
+                rollout_states, rollout_actions, rollout_rewards, rollout_discounts = zip(*rollout)
+                
+                bootstrap_value = np.max(self.q_table[state]) if not terminated else 0.0
+                
+                target = calculate_n_step_returns_with_discounts(rollout_rewards, bootstrap_value, rollout_discounts)[0]
+                
+                s, a, _ = self.rollout_buffer.remove_oldest()
+                td_error = target - self.q_table[s][a]
+                self.q_table[s][a] += self.hp.step_size * td_error
+                
+                #Update Epsilon
+                frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+                self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
+                
+                if call_back is not None:
+                    call_back({"value_loss": td_error,
+                        "epsilon": self.epsilon,
+                        })
 
 @register_agent
 class OptionQLearningAgent(QLearningAgent):
@@ -52,10 +92,10 @@ class OptionQLearningAgent(QLearningAgent):
         print(f"Number of options: {len(options_lst)}")
         
         # Replace action_space with extended (primitive + options)
-        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
+        action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
 
         # Swap policy with OptionQLearningPolicy (shares same interface)
-        self.policy = OptionQLearningPolicy(self.action_space, hyper_params)
+        self.policy = OptionQLearningPolicy(action_option_space, hyper_params)
 
         # Option execution bookkeeping
         self.running_option_index = None       # index into options_lst (or None)

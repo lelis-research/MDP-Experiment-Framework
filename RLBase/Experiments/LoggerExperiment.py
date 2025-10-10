@@ -264,8 +264,8 @@ class LoggerExperiment(BaseExperiment):
             })
             
             # Checkpointing if desired
-            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and episode_idx % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{run_idx}_E{episode_idx}")
+            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and steps_so_far % self._checkpoint_freq == 0:
+                path = os.path.join(self.exp_dir, f"Run{run_idx}_S{steps_so_far}")
                 agent.save(path)
         pbar.close()
         return all_metrics, best_agent
