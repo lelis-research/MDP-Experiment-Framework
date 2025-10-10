@@ -525,7 +525,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-DoorKey-5x5-v0_/FullyObs_FixedSeed(seed-10)/QLearning/discount-true_option_len-20_update_actions-false_seed[1]"
+    exp_dir = "Runs/Sweep/SequentialDiagonalGoalsEnv-v0_/FullyObs_FixedSeed(seed-10)/QLearning/_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------
@@ -538,5 +538,5 @@ if __name__ == '__main__':
         exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
         center_stat="mean",
         legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
-        max_legend=18
+        max_legend=100
     )

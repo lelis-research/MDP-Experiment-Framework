@@ -40,7 +40,7 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "MiniGrid-DoorKey-8x8-v0_/FullyObs_FixedSeed(seed-10)/OptionQLearning/Discount-true_Option-len-20_Update-action-false_1_seed[1]"
+    exp_name = "SequentialDiagonalGoalsEnv-v0_/FullyObs_FixedSeed(seed-10)/QLearning/n_steps-20_0_seed[0]"
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 

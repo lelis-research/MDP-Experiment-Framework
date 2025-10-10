@@ -33,9 +33,7 @@ class SequentialDiagonalGoalsEnv(MiniGridEnv):
         self.goal_index: int = 0
         self.current_goal: Goal | None = None
 
-        mission_space = MissionSpace(
-            mission_func=lambda: "Collect goals along the diagonal in order until the opposite corner."
-        )
+        mission_space = MissionSpace(mission_func=self._gen_mission)
 
         # follow parent signature; don't pass agent_start_* (not supported here)
         super().__init__(
@@ -45,6 +43,10 @@ class SequentialDiagonalGoalsEnv(MiniGridEnv):
             **kwargs,  # may include max_steps, render_mode, etc.
         )
 
+    @staticmethod
+    def _gen_mission():
+        return "Collect goals along the diagonal in order until the opposite corner."
+    
     # --- required by MiniGridEnv; must set grid, agent_pos, agent_dir ---
     def _gen_grid(self, width: int, height: int):
         # empty grid with outer walls already created in MiniGridEnv.__init__,

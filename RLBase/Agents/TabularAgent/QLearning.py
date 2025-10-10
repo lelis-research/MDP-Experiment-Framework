@@ -101,8 +101,11 @@ class QLearningPolicy(BasePolicy):
             while self.rollout_buffer.size > 0:
                 rollout = self.rollout_buffer.get_all()
                 rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+                
                 bootstrap_value = np.max(self.q_table[state]) if not terminated else 0.0
+                
                 target = calculate_n_step_returns(rollout_rewards, bootstrap_value, self.hp.gamma)[0]
+                
                 s, a, _ = self.rollout_buffer.remove_oldest()
                 td_error = target - self.q_table[s][a]
                 self.q_table[s][a] += self.hp.step_size * td_error

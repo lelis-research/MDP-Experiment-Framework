@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=debug-train
+#SBATCH --job-name=train
 #SBATCH --cpus-per-task=1   # maximum CPU cores per GPU request: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=4G          # memory per node
 #SBATCH --time=0-01:30      # time (DD-HH:MM)
@@ -32,14 +32,14 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="OptionQLearning"
-ENV="MiniGrid-DoorKey-8x8-v0"
+AGENT="QLearning"
+ENV="SequentialDiagonalGoalsEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{},{"seed":10}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="Discount-true_Option-len-20_Update-action-false_again_$IDX" #"Test_$IDX"
+NAME_TAG="n_steps-1_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
@@ -55,12 +55,13 @@ STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
   "discount_option_flag": true,
-  "epilon_decay_steps": 50000,
+  "epilon_decay_steps": 100000,
   "epsilon_end": 0.01,
   "epsilon_start": 1.0,
   "gamma": 0.99,
+  "n_steps": 1,
   "option_len": 20,
-  "step_size": 0.001,
+  "step_size": 0.1,
   "update_action_within_option_flag": false
 }'  
   # "actor_eps": 1e-05,
