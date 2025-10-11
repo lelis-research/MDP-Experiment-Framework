@@ -87,6 +87,7 @@ MINIGRID_ENV_LST = [
 
     "SequentialFourRooms-v0",
     "SequentialDiagonalGoalsEnv-v0",
+    "PhasedOptionEnv-v0",
 ]
 
 def get_single_env(env_name, max_steps=500, render_mode=None, env_params={}, wrapping_lst=None, wrapping_params=[]):
