@@ -13,19 +13,24 @@ from multiprocessing import Pool
 import os
 import numpy as np
 import shutil
-from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
+from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX, COLOR_TO_IDX
 
 @register_option
 class FindGoalOption(BaseOption):
     """
     Specifically works for minigrid
     """
-    def __init__(self, option_len):
+    def __init__(self, option_len, goal_color=None):
         self.agent_id = OBJECT_TO_IDX["agent"]
         self.goal_id = OBJECT_TO_IDX["goal"]
         self.wall_id = OBJECT_TO_IDX["wall"]
         self.option_len = option_len
         self.step_counter = 0
+
+        if goal_color is not None:
+            self.goal_color = COLOR_TO_IDX[goal_color]
+        else:
+            self.goal_color = None
         
 
     # ----------------------- Option API -----------------------
@@ -34,7 +39,11 @@ class FindGoalOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
-        goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
+        if self.goal_color is not None:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id and img[..., 1] == self.goal_color) 
+        else:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id)
+
         agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
        
         if len(goal_pos) > 0:
@@ -63,7 +72,11 @@ class FindGoalOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
+        if self.goal_color is not None:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id and img[..., 1] == self.goal_color) 
+        else:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
+        
         if len(goal_pos) == 0 or self.step_counter >= self.option_len:
             # no keys are in the observation
             self.step_counter = 0
