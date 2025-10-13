@@ -15,7 +15,7 @@ class SequentialFourRooms(MiniGridEnv):
         self._agent_default_pos = agent_pos
         self._goal_default_pos = goal_pos
 
-        self.size = 19
+        self.size = 11
         mission_space = MissionSpace(mission_func=self._gen_mission)
         
         self.state = 0
