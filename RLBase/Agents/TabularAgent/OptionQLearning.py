@@ -45,7 +45,7 @@ class OptionQLearningPolicy(QLearningPolicy):
             
             
             #Update Value Function
-            s, a, _ = self.rollout_buffer.remove_oldest()
+            s, a, _, _ = self.rollout_buffer.remove_oldest()
             td_error = target - self.q_table[s][a]
             self.q_table[s][a] += self.hp.step_size * td_error
             
@@ -67,7 +67,7 @@ class OptionQLearningPolicy(QLearningPolicy):
                 
                 target = calculate_n_step_returns_with_discounts(rollout_rewards, bootstrap_value, rollout_discounts)[0]
                 
-                s, a, _ = self.rollout_buffer.remove_oldest()
+                s, a, _, _ = self.rollout_buffer.remove_oldest()
                 td_error = target - self.q_table[s][a]
                 self.q_table[s][a] += self.hp.step_size * td_error
                 
@@ -208,9 +208,9 @@ class OptionQLearningAgent(QLearningAgent):
     
     def log(self):
         if self.running_option_index is None:
-            return {"OptionUsageLog": False}
+            return {"OptionUsageLog": False, "OptionIndex": self.running_option_index}
         else:
-            return {"OptionUsageLog": True}
+            return {"OptionUsageLog": True, "OptionIndex": self.running_option_index}
         
     def save(self, file_path=None):
         """

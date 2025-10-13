@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import imageio
 import math
 import matplotlib.ticker as mticker
+from PIL import Image, ImageDraw, ImageFont
 from .Utils import get_mono_font, normalize_ansi_frames, render_fixed_ansi
 
 plt.rcParams.update({
@@ -114,35 +115,48 @@ class SingleExpAnalyzer:
                 self._plot_data_per_episode(ep_lengths, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
                                         x_label="Episode Number", y_label="Episode Length")
             elif config == "ou_s":
-                option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-                            if ep.get("agent_logs") else 0.0
-                            for ep in run]
-                            for run in self.metrics]
-                self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
-                                    x_label="Environmnet Steps", y_label="Option Usage")
+                option_usage = [[sum(item.get("OptionUsageLog", 0) for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", []))
+                                if ep.get("agent_logs") and any("OptionUsageLog" in i for i in ep["agent_logs"]) else 0.0
+                                for ep in run] 
+                                for run in self.metrics]
+                if any(any(run) for run in option_usage):
+                    self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each,
+                                            show_ci, ignore_last, x_label="Environment Steps", y_label="Option Usage")
+                else:
+                    print("OptionUsageLog doesn't exist — skipping plot.")
+                
             elif config == "ou_e":
-                option_usage = [[sum(item["OptionUsageLog"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-                            if ep.get("agent_logs") else 0.0
-                            for ep in run]
-                            for run in self.metrics]
-                self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
-                                            x_label="Episode Number", y_label="Option Usage")
+                option_usage = [[sum(item.get("OptionUsageLog", 0) for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", []))
+                                if ep.get("agent_logs") and any("OptionUsageLog" in i for i in ep["agent_logs"]) else 0.0
+                                for ep in run] 
+                                for run in self.metrics]
+                if any(any(run) for run in option_usage):
+                    self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                                x_label="Episode Number", y_label="Option Usage")
+                else:
+                    print("OptionUsageLog doesn't exist — skipping plot.")
 
             elif config == "no_s":
-                num_options = [[sum(item["NumOptions"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-                            if ep.get("agent_logs") else 0.0
-                            for ep in run]
-                            for run in self.metrics]
-                self._plot_data_per_steps(num_options, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
-                                      x_label="Environment Steps", y_label="Number of Options")
+                num_options = [[sum(item.get("NumOptions", 0) for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", []))
+                                if ep.get("agent_logs") and any("NumOptions" in i for i in ep["agent_logs"]) else 0.0
+                                for ep in run] 
+                                for run in self.metrics]
+                if any(any(run) for run in num_options):
+                    self._plot_data_per_steps(num_options, ep_lengths, ax, num_steps, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                            x_label="Environment Steps", y_label="Number of Options")
+                else:
+                    print("NumOptions doesn't exist — skipping plot.")
                 
             elif config == "no_e":
-                num_options = [[sum(item["NumOptions"] for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", [])) 
-                            if ep.get("agent_logs") else 0.0
-                            for ep in run]
-                            for run in self.metrics]
-                self._plot_data_per_episode(num_options, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
-                                        x_label="Episode Number", y_label="Number of Options")
+                num_options = [[sum(item.get("NumOptions", 0) for item in ep.get("agent_logs", [])) / len(ep.get("agent_logs", []))
+                                if ep.get("agent_logs") and any("NumOptions" in i for i in ep["agent_logs"]) else 0.0
+                                for ep in run] 
+                                for run in self.metrics]
+                if any(any(run) for run in num_options):
+                    self._plot_data_per_episode(num_options, ax, num_episodes, color, marker, label, window_size, plot_each, show_ci, ignore_last,
+                                            x_label="Episode Number", y_label="Number of Options")
+                else:
+                    print("NumOptions doesn't exist — skipping plot.")
         
             
 
@@ -303,6 +317,12 @@ class SingleExpAnalyzer:
             video_type (str): "gif" or "mp4" (only "gif" is implemented).
         """
         frames = self.metrics[run_number - 1][episode_number - 1]['frames']
+        actions = self.metrics[run_number - 1][episode_number - 1]['actions']
+        if "agent_logs" in self.metrics[run_number - 1][episode_number - 1]:
+            options = self.metrics[run_number - 1][episode_number - 1]['agent_logs']
+            options_index = [option['OptionIndex'] for option in options]
+        else:
+            options_index = [None for i in range(len(actions))]
         
         if self.exp_path is not None:
             filename = os.path.join(self.exp_path, f"run_{run_number}_ep_{episode_number}_{name_tag}")
@@ -336,6 +356,44 @@ class SingleExpAnalyzer:
             #     return pad
             # img_frames = [_pad(f) for f in img_frames]
 
+        
+        # --- Overlay actions and options ---
+        def _to_pil(img):
+            return Image.fromarray(img) if isinstance(img, np.ndarray) else img
+
+        def _overlay_label(img, text, pad=6, alpha=140, font_size=18):
+            img = _to_pil(img)
+            draw = ImageDraw.Draw(img, "RGBA")
+            try:
+                font = ImageFont.truetype("DejaVuSansMono.ttf", font_size)
+            except Exception:
+                font = ImageFont.load_default()
+            tw, th = draw.textbbox((0, 0), text, font=font)[2:]
+            box_w, box_h = tw + 2 * pad, th + 2 * pad
+            draw.rectangle([(0, 0), (box_w, box_h)], fill=(0, 0, 0, alpha))
+            draw.text((pad, pad), text, fill=(255, 255, 255, 255), font=font)
+            return img
+
+        T = len(img_frames)
+        A = len(actions)
+        O = len(options_index)
+        annotated = []
+
+        for t, frame in enumerate(img_frames):
+            timestep = t
+            
+            if t == 0:
+                text = "START"
+            else:
+                ai = min(t - 1, A - 1) if A > 0 else None
+                oi = min(t - 1, O - 1) if O > 0 else None
+                a_val = actions[ai] if A > 0 else "NA"
+                o_val = options_index[oi] if O > 0 else "NA"
+                text = f"t:{timestep} | a:{a_val} | opt:{o_val}"
+            annotated.append(np.array(_overlay_label(frame, text)))
+
+        img_frames = annotated
+    
         
         if video_type == "gif":
             filename = f"{filename}.gif"

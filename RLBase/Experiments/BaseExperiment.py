@@ -52,6 +52,7 @@ class BaseExperiment:
 
         self._dump_transitions = False
         self._checkpoint_freq = None
+        self._dump_actions = True
         self._train = train
 
     def _single_run_episodes(self, env, agent, num_episodes, seed, run_idx):
@@ -81,6 +82,7 @@ class BaseExperiment:
             terminated = False
             truncated = False
             transitions = []
+            actions_log = []
             
             while not (terminated or truncated):
                 action = agent.act(observation, greedy=not self._train)
@@ -88,6 +90,9 @@ class BaseExperiment:
                 
                 if self._dump_transitions:
                     transitions.append((observation, action, reward, terminated, truncated))
+                if self._dump_actions:
+                    actions_log.append(action)
+                    
                 if self._train:
                     agent.update(next_observation, reward, terminated, truncated)
                 
@@ -110,6 +115,7 @@ class BaseExperiment:
                 "frames": frames,
                 # "env_seed": ep_seed,
                 "transitions": transitions,
+                "actions": actions_log,
                 "agent_seed": seed,
                 "episode_index": episode_idx,
             }
@@ -173,6 +179,7 @@ class BaseExperiment:
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
+            actions_log = []
             terminated = False
             truncated = False
             
@@ -196,6 +203,8 @@ class BaseExperiment:
                 # Optionally store transitions
                 if self._dump_transitions:
                     transitions.append((observation, action, reward, terminated, truncated))
+                if self._dump_actions:
+                    actions_log.append(action)
                 
                 # Train the agent if needed
                 if self._train:
@@ -223,6 +232,7 @@ class BaseExperiment:
                 "frames": frames,
                 # "env_seed": ep_seed,
                 "transitions": transitions,
+                "actions": actions_log,
                 "agent_seed": seed,
                 "episode_index": episode_idx
             }

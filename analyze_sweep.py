@@ -214,6 +214,7 @@ def print_info_for_best_trial(exp_dir, ratio, auc_type, sort_keys=True, indent=2
         return
     pretty = json.dumps(info_dict, indent=indent, sort_keys=sort_keys)
     print(pretty)
+    
 
 
 def collect_trial_records(exp_dir, ratio, auc_type):
@@ -521,11 +522,29 @@ def main(exp_dir, ratio, auc_type):
 
     # 3) Print INFO dict for copy-paste
     print_info_for_best_trial(exp_dir, ratio, auc_type)
+    
+    # 4) Dump the info and the trial name, run_avgs, overall_avg
+    trial_dir = os.path.join(exp_dir, trial_name)
+    best_info_dict = get_info_dict_from_trial(trial_dir)
+    summary = {
+        "_comment": "Summary of the best trial automatically generated for reference.",
+        "trial_name": trial_name,
+        "agent_details": agent_str,
+        "overall_avg_reward": overall_avg,
+        "run_average_rewards": run_avgs,
+        "info": best_info_dict,
+    }
+
+    summary_path = os.path.join(exp_dir, "best_trial_summary.json")
+    with open(summary_path, "w") as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+
+    print(f"\nBest trial summary saved to: {summary_path}")
 
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/SequentialDiagonalGoalsEnv-v0_/FullyObs_FixedSeed(seed-10)/QLearning/_seed[1]"
+    exp_dir = "Runs/Sweep/TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/ContinualOptionQLearning/_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------

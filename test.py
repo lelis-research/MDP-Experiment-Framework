@@ -3,13 +3,15 @@ import argcomplete
 import argparse
 import json
 
-from RLBase.Experiments import BaseExperiment
+from RLBase.Experiments import BaseExperiment, LoggerExperiment
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from RLBase import load_policy, load_agent
 
 def parse():
     parser = argparse.ArgumentParser()
+    # Environment name
+    parser.add_argument("--exp_dir", type=str, default=None, help="which exp")
     # Environment name
     parser.add_argument("--env", type=str, default=None, choices=ENV_LST, help="which environment")
     # List of wrappers for the environment
@@ -40,7 +42,11 @@ def parse():
 if __name__ == "__main__":
     args = parse()
     
-    exp_name = "SequentialDiagonalGoalsEnv-v0_/FullyObs_FixedSeed(seed-10)/QLearning/n_steps-20_0_seed[0]"
+    if args.exp_dir is None:
+        exp_name = "TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/OptionQLearning/9_seed[9]"
+    else:
+        exp_name = args.exp_dir
+
     train_path = f"Runs/Train/{exp_name}"
     test_path = f"Runs/Test/{exp_name}"
 
@@ -70,11 +76,12 @@ if __name__ == "__main__":
         wrapping_params=exp_args.wrapping_params,
     )
     agent = lambda x: load_agent(os.path.join(train_path, "Run1_Best_agent.t"))
-
-    experiment = BaseExperiment(env, agent, test_path, train=False, args=exp_args)
+    
+    experiment = LoggerExperiment(env, agent, test_path, train=False, args=exp_args)
     metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=1, seed_offset=args.seed)
     
     analyzer = SingleExpAnalyzer(exp_path=test_path)
     for r in range(1, args.num_runs+1):
         analyzer.generate_video(r, 1)
     analyzer.save_seeds(test_path)
+    analyzer.plot_combined(save_dir=test_path)

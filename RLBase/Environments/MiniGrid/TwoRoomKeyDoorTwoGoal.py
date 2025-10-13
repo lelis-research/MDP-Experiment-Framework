@@ -79,7 +79,7 @@ class TwoRoomKeyDoorTwoGoalEnv(MiniGridEnv):
         self.grid.set(mid_x, door_y, self.door)
 
         # Place key in room 1 (left side)
-        key_x, key_y = 2, height // 2
+        key_x, key_y = 3, height // 2 + 2
         self.grid.set(key_x, key_y, Key(self.key_color))
 
         # Place Goal A (+1) in room 1 (top-left corner area)
@@ -88,7 +88,7 @@ class TwoRoomKeyDoorTwoGoalEnv(MiniGridEnv):
         self.grid.set(g1x, g1y, self.goal1)
 
         # Place Goal B (+10) in room 2 (far right)
-        g2x, g2y = width - 3, height // 2
+        g2x, g2y = width - 3, height // 2 + 2
         self.goal2 = RewardGoal(reward_value=10.0, is_terminal=True, color="green")
         self.grid.set(g2x, g2y, self.goal2)
 

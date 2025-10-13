@@ -31,7 +31,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
 )
 from RLBase.Options.Utils import load_options_list
 from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption, GoToLocationOption
-from RLBase.Options.ContinualOptions import TabularContinualOptionLearner
+from RLBase.Options.ContinualOptions import TabularContinualOptionLearner, CounterTabularContinualOptionLearner
 from Configs.networks import NETWORKS
 import torch
 
@@ -126,6 +126,7 @@ AGENT_DICT = {
             epilon_decay_steps=info.get("epilon_decay_steps", 400_000),
             discount_option_flag=info.get("discount_option_flag", True),
             update_action_within_option_flag=info.get("update_action_within_option_flag", False),
+            n_steps=info.get("n_steps", 1),
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
@@ -142,10 +143,11 @@ AGENT_DICT = {
             epilon_decay_steps=info.get("epilon_decay_steps", 100_000),
             discount_option_flag=info.get("discount_option_flag", True),
             update_action_within_option_flag=info.get("update_action_within_option_flag", False),
+            n_steps=info.get("n_steps", 1),
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
-        option_learner_class=TabularContinualOptionLearner, 
+        option_learner_class=CounterTabularContinualOptionLearner, 
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 

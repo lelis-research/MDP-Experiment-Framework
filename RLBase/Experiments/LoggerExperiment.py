@@ -72,6 +72,7 @@ class LoggerExperiment(BaseExperiment):
             terminated = False
             truncated = False
             transitions = []
+            actions_log = []
 
             while not (terminated or truncated):
                 action = agent.act(observation, greedy=not self._train)
@@ -83,6 +84,9 @@ class LoggerExperiment(BaseExperiment):
 
                 if self._dump_transitions:
                     transitions.append((observation, action, reward, terminated, truncated))
+                if self._dump_actions:
+                    actions_log.append(action)
+                    
                 if self._train:
                     # Pass history to callback
                     agent.update(next_observation, reward, terminated, truncated,
@@ -111,6 +115,7 @@ class LoggerExperiment(BaseExperiment):
                 "infos": infos,
                 # "env_seed":     ep_seed,
                 "transitions":  transitions,
+                "actions": actions_log,
                 "agent_seed": seed,
                 "episode_index": episode_idx,
                 "agent_logs": agent_logs,
@@ -183,6 +188,7 @@ class LoggerExperiment(BaseExperiment):
             ep_return = 0.0
             steps_in_episode = 0
             transitions = []
+            actions_log = []
             infos = []
             terminated = False
             truncated = False
@@ -210,6 +216,8 @@ class LoggerExperiment(BaseExperiment):
                 # Optionally store transitions
                 if self._dump_transitions:
                     transitions.append((observation, action, reward, terminated, truncated))
+                if self._dump_actions:
+                    actions_log.append(action)
                 
                 # Train the agent if needed
                 if self._train:
@@ -239,6 +247,7 @@ class LoggerExperiment(BaseExperiment):
                 "infos": infos,
                 # "env_seed": ep_seed,
                 "transitions": transitions,
+                "actions": actions_log,
                 "agent_seed": seed,
                 "episode_index": episode_idx,
                 "agent_logs": agent_logs,

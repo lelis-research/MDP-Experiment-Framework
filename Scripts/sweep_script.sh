@@ -31,12 +31,12 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="QLearning"
-ENV="SequentialDiagonalGoalsEnv-v0"
+AGENT="ContinualOptionQLearning"
+ENV="TwoRoomKeyDoorTwoGoalEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
-WRAPPING_PARAMS='[{},{"seed":10}]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
+WRAPPING_PARAMS='[{},{"seed":1}]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}, {}]'
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
@@ -48,7 +48,7 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG=""
+NAME_TAG="reset"
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
