@@ -134,6 +134,7 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_cumulative_reward = 0.0
                 self.option_multiplier = 1.0
                 action = self.options_lst[self.running_option_index].select_action(observation)
+                
 
         # print(f"Agent -> Option: {self.running_option_index}, Action: {action}")
 

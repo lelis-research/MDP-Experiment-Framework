@@ -48,14 +48,15 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="reset"
+NAME_TAG="reset_reset_epsilon"
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
   "option_len": 20,
   "update_action_within_option_flag": false,
   "epsilon_start": 1.0,
-  "epilon_decay_steps": 100000
+  "epilon_decay_steps": 100000,
+  "option_init_mode": "reset"
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 

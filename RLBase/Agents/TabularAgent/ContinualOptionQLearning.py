@@ -57,7 +57,7 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         """
         if self.option_learner.evaluate_option_trigger(self.last_observation, self.last_action, observation, reward, self.options_lst):
             self.option_learner.extract_options(self.options_lst)
-            self.option_learner.init_options(self.policy)
+            self.option_learner.init_options(self.policy, mode=self.hp.option_init_mode)
             
         super().update(observation, reward, terminated, truncated, call_back)
         
@@ -68,6 +68,6 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         
     def log(self):
         if self.running_option_index is None:
-            return {"OptionUsageLog": False, "NumOptions":len(self.options_lst)}
+            return {"OptionUsageLog": False, "NumOptions":len(self.options_lst), "OptionIndex": self.running_option_index}
         else:
-            return {"OptionUsageLog": True, "NumOptions":len(self.options_lst)}
+            return {"OptionUsageLog": True, "NumOptions":len(self.options_lst), "OptionIndex": self.running_option_index}

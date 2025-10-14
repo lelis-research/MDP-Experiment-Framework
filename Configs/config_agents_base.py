@@ -144,6 +144,7 @@ AGENT_DICT = {
             discount_option_flag=info.get("discount_option_flag", True),
             update_action_within_option_flag=info.get("update_action_within_option_flag", False),
             n_steps=info.get("n_steps", 1),
+            option_init_mode=info.get("option_init_mode", "reset")
         ),
         get_num_envs(env),
         TabularSymbolicFeature,

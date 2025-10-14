@@ -53,12 +53,13 @@ def plot_experiments(agent_dict, save_dir, name="", window_size=10, plot_each=Fa
 
     name = generated_name if name == "" else name
     path = os.path.join(save_dir, f"{name}.png")
-    fig.savefig(path, format="png")
+
+    fig.savefig(path, format="png", dpi=200, bbox_inches="tight", pad_inches=0.1)
 
 
 def gather_experiments(exp_dir, name_string_conditions=[], name_string_anti_conditions=[]):
     '''
-    Search for the experiments in this directory for the names that includes name_string_conditions
+    Search for the experiments in this directory for the names that includes name_string_conditions j
     and return the metrics
     '''
     run_counter = 0

@@ -32,14 +32,14 @@ export FLEXIBLAS=imkl
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 # ---------------Configs--------- 
 CONFIG="config_agents_base"
-AGENT="OptionQLearning"
+AGENT="ContinualOptionQLearning"
 ENV="TwoRoomKeyDoorTwoGoalEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{},{"seed":1}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="$IDX" #"Test_$IDX"
+NAME_TAG="reset_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
@@ -56,37 +56,15 @@ CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoin
 INFO='{
   "discount_option_flag": true,
   "epilon_decay_steps": 100000,
-  "epsilon_end": 0.0001,
+  "epsilon_end": 0.1,
   "epsilon_start": 1.0,
   "gamma": 0.99,
-  "n_steps": 20,
+  "n_steps": 1,
+  "option_init_mode": "reset",
   "option_len": 20,
-  "step_size": 0.001,
+  "step_size": 0.0005,
   "update_action_within_option_flag": false
 }'  
-  # "actor_eps": 1e-05,
-  # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input-l1_Regularized-0.01_'"$SLURM_ARRAY_TASK_ID"'/selected_options_10.t",
-  # "target_kl": 0.01,
-  # "total_steps": 1000000
-  # "max_grad_norm": 0.5,
-  # "mini_batch_size": 64,
-  # "norm_adv_flag": true,
-  # "anneal_clip_range_actor": false,
-  # "anneal_clip_range_critic": false,
-  # "anneal_step_size_flag": false,
-  # "clip_range_critic_init": null,
-  # "critic_coef": 0.5,
-  # "critic_eps": 1e-05,
-  # "num_epochs": 5,
-  # "clip_range_actor_init": 0.2,
-  # "entropy_coef": 0.0,
-  # "actor_network": "fc_network_1",
-  # "actor_step_size": 0.001,
-  # "critic_network": "fc_network_1",
-  # "critic_step_size": 0.001,
-  # "gamma": 0.99,
-  # "lamda": 0.95,
-  # "rollout_steps": 10,
 # ------------------------------
 
 if [ -n "$RENDER_MODE" ]; then
