@@ -1,3 +1,2 @@
 from .BaseOptionLearner import BaseContinualOptionLearner
-from .TabularOptionLearner import TabularContinualOptionLearner
-from .CounterTabularOptionLearner import CounterTabularContinualOptionLearner
+from .ManualOptionLearner import ManualContinualOptionLearner

@@ -1,19 +1,34 @@
+import torch
 
 class BaseContinualOptionLearner():
-    name="BaseContinualOptionLearner"
+    name = "BaseContinualOptionLearner"
     
-    def evaluate_option_trigger(self, last_observation, last_action, observation, reward, options_lst):
+    def __init__(self):
         pass
     
-    def extract_options(self, options_lst):
-        pass
-    
-    def init_options(self, policy):
-        pass
-    
-    def reset(self):
+    def update(self):
+        # get necessary data from the agent
         pass
 
-  
-
+        
     
+    def learn(self):
+        # return a new set of options
+        pass
+    
+        
+    
+    def reset(self, seed):
+       pass
+   
+    
+    def save(self, file_path=None):
+        checkpoint = {}
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_option_learner.t")
+        
+        return checkpoint
+
+   
+    def load_from_checkpoint(self, checkpoint):
+       pass

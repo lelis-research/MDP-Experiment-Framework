@@ -62,7 +62,6 @@ class PPOPolicyDiscrete(BasePolicy):
         """
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-        self.action_dim = int(action_space.n) #Only for discrete actions
 
     def reset(self, seed):
         """
@@ -284,7 +283,6 @@ class PPOPolicyDiscrete(BasePolicy):
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
             
-            'action_dim': self.action_dim,            
             'policy_class': self.__class__.__name__,
         }
         if file_path is not None:
@@ -328,7 +326,6 @@ class PPOPolicyContinuous(BasePolicy):
             "PPOPolicyContinuous supports 1D Box action spaces."
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-        self.action_dim   = int(action_space.shape[0])
     
     def reset(self, seed):
         """
@@ -500,7 +497,6 @@ class PPOPolicyContinuous(BasePolicy):
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
 
-            'action_dim': self.action_dim,
             'policy_class': self.__class__.__name__,
         }
         if file_path is not None:

@@ -39,7 +39,6 @@ class A2CPolicyDiscrete(BasePolicy):
         """
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-        self.action_dim = int(action_space.n) #Only for discrete actions
 
     def reset(self, seed):
         """
@@ -234,7 +233,6 @@ class A2CPolicyContinuous(BasePolicy):
             "A2CPolicyContinuous supports 1D Box action spaces."
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-        self.action_dim   = int(action_space.shape[0])
             
     def reset(self, seed):
         super().reset(seed)

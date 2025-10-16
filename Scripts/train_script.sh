@@ -39,14 +39,14 @@ ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{},{"seed":1}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="reset_$IDX" #"Test_$IDX"
+NAME_TAG="250K_reset_$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=150_000
+TOTAL_STEPS=250_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -55,14 +55,14 @@ STORE_TRANSITIONS=false  # true / false
 CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoints, 0 for only last
 INFO='{
   "discount_option_flag": true,
-  "epilon_decay_steps": 100000,
-  "epsilon_end": 0.1,
+  "epilon_decay_steps": 50000,
+  "epsilon_end": 0.01,
   "epsilon_start": 1.0,
   "gamma": 0.99,
-  "n_steps": 1,
+  "n_steps": 20,
   "option_init_mode": "reset",
   "option_len": 20,
-  "step_size": 0.0005,
+  "step_size": 0.01,
   "update_action_within_option_flag": false
 }'  
 # ------------------------------

@@ -31,7 +31,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
 )
 from RLBase.Options.Utils import load_options_list
 from RLBase.Options.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption, GoToLocationOption
-from RLBase.Options.ContinualOptions import TabularContinualOptionLearner, CounterTabularContinualOptionLearner
+from RLBase.Options.ContinualOptions import ManualContinualOptionLearner
 from Configs.networks import NETWORKS
 import torch
 
@@ -83,7 +83,7 @@ AGENT_DICT = {
         HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
         get_num_envs(env),
         MirrorFeature,
-        option_learner_class=TabularContinualOptionLearner,
+        option_learner_class=ManualContinualOptionLearner,
         device=device
     ),
     RandomAgent.name: lambda env, info: RandomAgent(
@@ -144,11 +144,14 @@ AGENT_DICT = {
             discount_option_flag=info.get("discount_option_flag", True),
             update_action_within_option_flag=info.get("update_action_within_option_flag", False),
             n_steps=info.get("n_steps", 1),
-            option_init_mode=info.get("option_init_mode", "reset")
+            option_init_mode=info.get("option_init_mode", "reset"),
+            uncertainty_mode=info.get("uncertainty_mode", "entropy"),
+            uncertainty_tau=info.get("uncertainty_tau", 1.0),
+            uncertainty_kappa=info.get("uncertainty_mode", 1.0),
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
-        option_learner_class=CounterTabularContinualOptionLearner, 
+        initial_options_lst=[],
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(
         get_env_action_space(env), 

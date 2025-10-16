@@ -36,9 +36,9 @@ class ContinualHumanAgent(HumanAgent):
         return action
     
     def update(self, observation, reward, terminated, truncated, call_back):
-        if self.option_learner.evaluate_option_trigger(self.last_observation, self.last_action, observation, reward, self.options_lst):
-            self.option_learner.extract_options(self.options_lst)
-            # self.option_learner.init_options(self.policy)
+        if self.counter > 100:
+            learned_options = self.option_learner.learn()
+            self.options_lst += learned_options
             
         if truncated or terminated:
             self.running_option_index = None

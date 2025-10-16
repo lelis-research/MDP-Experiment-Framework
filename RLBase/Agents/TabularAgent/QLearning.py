@@ -25,9 +25,8 @@ class QLearningPolicy(BasePolicy):
     """       
     def __init__(self, action_space, hyper_params=None, device='cpu'):
         super().__init__(action_space, hyper_params, device)
-        self.action_dim = int(action_space.n)
         self.epsilon = self.hp.epsilon_start
-        self.step_counter = 0
+        self.epsilon_step_counter = 0
         self.rollout_buffer = BasicBuffer(np.inf)  # Buffer is used for n-step
         
     def select_action(self, state, greedy=False):
@@ -40,14 +39,18 @@ class QLearningPolicy(BasePolicy):
         Returns:
             int: Selected action.
         """ 
-        self.step_counter += 1       
+        self.epsilon_step_counter += 1       
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
         
         if random.random() < self.epsilon and not greedy:
             return self.action_space.sample()
-        else:
-            return int(np.argmax(self.q_table[state]))
+            
+        q_values = self.q_table[state]
+        max_actions = np.flatnonzero(q_values == np.max(q_values))
+        return int(np.random.choice(max_actions))
+
+        # return int(np.argmax(self.q_table[state]))
     
     def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
         """
@@ -88,7 +91,7 @@ class QLearningPolicy(BasePolicy):
             self.q_table[s][a] += self.hp.step_size * td_error
             
             #Update Epsilon
-            frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+            frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
             self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
                 
             if call_back is not None:
@@ -111,7 +114,7 @@ class QLearningPolicy(BasePolicy):
                 self.q_table[s][a] += self.hp.step_size * td_error
                 
                 #Update Epsilon
-                frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+                frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
                 self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
                 
                 if call_back is not None:
@@ -129,7 +132,7 @@ class QLearningPolicy(BasePolicy):
         super().reset(seed)
         self.q_table = {}
         self.epsilon = self.hp.epsilon_start
-        self.step_counter = 0
+        self.epsilon_step_counter = 0
         self.rollout_buffer = BasicBuffer(np.inf)  # Buffer with infinite capacity
 
     def save(self, file_path=None):
@@ -145,9 +148,6 @@ class QLearningPolicy(BasePolicy):
             'hyper_params': self.hp,
 
             'action_space': self.action_space,
-            'hyper_params': self.hp,
-
-            'action_dim': self.action_dim,  
             'policy_class': self.__class__.__name__,
 
         }
@@ -166,10 +166,8 @@ class QLearningPolicy(BasePolicy):
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         instance = cls(checkpoint['action_space'], checkpoint['hyper_params'])
-        
         instance.reset(seed)
-        instance.q_table = checkpoint.get('q_table')
-        instance.epsilon = checkpoint.get('epsilon')
+        instance.load_from_checkpoint(checkpoint)
         return instance
     
     def load_from_checkpoint(self, checkpoint):

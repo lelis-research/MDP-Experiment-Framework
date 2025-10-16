@@ -1,4 +1,4 @@
-from .BaseClasses import BaseAgent, BasePolicy, BaseFeature
+from .BaseClasses import BaseAgent, BasePolicy, BaseFeature, BaseContiualPolicy
 from .Buffer import *
 from .FeatureExtractor import *
 from .HelperFunctions import *

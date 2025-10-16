@@ -91,7 +91,6 @@ class SarsaPolicy(BasePolicy):
             'action_space': self.action_space,
             'hyper_params': self.hp,
 
-            'action_dim': self.action_dim,  
             'policy_class': self.__class__.__name__,
 
         }

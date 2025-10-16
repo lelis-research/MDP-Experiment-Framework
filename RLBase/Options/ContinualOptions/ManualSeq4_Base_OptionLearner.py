@@ -44,7 +44,6 @@ class ManualSeq4_Base_OptionLearner():
 
     def init_options(self, policy, init_epsilon):
         policy.action_space = Discrete(policy.action_space.n + len(self.new_options))
-        policy.action_dim = int(policy.action_space.n)
 
         policy.reset()
 

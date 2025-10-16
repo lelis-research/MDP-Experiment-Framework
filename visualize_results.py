@@ -13,12 +13,14 @@ if __name__ == "__main__":
     QLearning_TwoGoals = "Runs/Train/TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/QLearning"
     
     agent_dict = {
-       "QLearning": gather_experiments(QLearning_TwoGoals, name_string_conditions=[], name_string_anti_conditions=[]),
-       "OptionQLearning": gather_experiments(OptionQLearning_TwoGoals, name_string_conditions=[], name_string_anti_conditions=[]),
-       "ContinualOptionQLearning_avg": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_avg_"], name_string_anti_conditions=[]),
-       "ContinualOptionQLearning_max": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_max_"], name_string_anti_conditions=[]),
-       "ContinualOptionQLearning_zero": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_zero_"], name_string_anti_conditions=[]),
-       "ContinualOptionQLearning_reset": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["reset_"], name_string_anti_conditions=[]),
+       "QLearning": gather_experiments(QLearning_TwoGoals, name_string_conditions=["250K_"], name_string_anti_conditions=[]),
+       "OptionQLearning": gather_experiments(OptionQLearning_TwoGoals, name_string_conditions=["250K_"], name_string_anti_conditions=[]),
+       "ContinualOptionQLearning_avg": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["250K_init_avg_"], name_string_anti_conditions=[]),
+       "ContinualOptionQLearning_max": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["250K_init_max_"], name_string_anti_conditions=[]),
+       "ContinualOptionQLearning_zero": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["250K_init_zero_"], name_string_anti_conditions=[]),
+       "ContinualOptionQLearning_reset": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["250K_reset_"], name_string_anti_conditions=[]),
+       
+       
        
         # "QLearning_1": gather_experiments(QLearning_Seq, name_string_conditions=["n_steps-1_"], name_string_anti_conditions=[]),
         # "QLearning_5": gather_experiments(QLearning_Seq, name_string_conditions=["n_steps-5_"], name_string_anti_conditions=[]),
@@ -26,6 +28,6 @@ if __name__ == "__main__":
         # "QLearning_20": gather_experiments(QLearning_Seq, name_string_conditions=["n_steps-20_"], name_string_anti_conditions=[]),    
     }
 
-    plot_experiments(agent_dict, "Runs/Figures", name=f"TwoGoals_result", window_size=1, show_ci=True, ignore_last=True, 
+    plot_experiments(agent_dict, "Runs/Figures", name=f"TwoGoals_result_250K", window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s", "ou_s", "no_s"], plot_each=False)
  

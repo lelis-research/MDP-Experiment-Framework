@@ -127,7 +127,6 @@ class ReinforceWithBaselinePolicy(BasePolicy):
             'features_dim': self.features_dim,
             'hyper_params': self.hp,
             
-            'action_dim': self.action_dim,            
             'policy_class': self.__class__.__name__,
         }
         if file_path is not None:

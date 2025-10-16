@@ -50,7 +50,7 @@ class OptionQLearningPolicy(QLearningPolicy):
             self.q_table[s][a] += self.hp.step_size * td_error
             
             #Update Epsilon
-            frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+            frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
             self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
                 
             if call_back is not None:
@@ -72,7 +72,7 @@ class OptionQLearningPolicy(QLearningPolicy):
                 self.q_table[s][a] += self.hp.step_size * td_error
                 
                 #Update Epsilon
-                frac = 1.0 - (self.step_counter / self.hp.epilon_decay_steps)
+                frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
                 self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
                 
                 if call_back is not None:

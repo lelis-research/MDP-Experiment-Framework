@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep
+#SBATCH --job-name=sweep_countinual
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=6G          # memory per node
 #SBATCH --time=0-01:30    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-99      # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-199      # check HP_SEARCH_SPACE to calculate the space size
 
 ########SBATCH --gres=gpu:1
 
@@ -31,7 +31,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="ContinualOptionQLearning"
+AGENT="ContinualOptionQLearning" 
 ENV="TwoRoomKeyDoorTwoGoalEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
@@ -43,19 +43,18 @@ SEED=1
 NUM_RUNS=5
 NUM_WORKERS=5 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=150_000
+TOTAL_STEPS=250_000
 EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="reset_reset_epsilon"
+NAME_TAG="250k_reset_reset_epsilon"
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
   "option_len": 20,
   "update_action_within_option_flag": false,
   "epsilon_start": 1.0,
-  "epilon_decay_steps": 100000,
   "option_init_mode": "reset"
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
@@ -63,7 +62,8 @@ INFO='{
 HP_SEARCH_SPACE='{
   "step_size": [0.1, 0.01, 0.001, 0.0005, 0.0001],
   "epsilon_end":[0.1, 0.01, 0.001, 0.0005, 0.0001],
-  "n_steps": [1, 5, 10, 20]
+  "n_steps": [1, 5, 10, 20],
+  "epilon_decay_steps": [50000, 100000]
 }'
 # "mini_batch_size":  [32, 64]
 

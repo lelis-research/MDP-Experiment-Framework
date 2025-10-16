@@ -4,7 +4,7 @@ import torch
 from gymnasium.spaces import Discrete
 
 from .OptionDQN import OptionDQNAgent, OptionDQNPolicy
-from ...registry import register_agent, register_policy
+from ....registry import register_agent, register_policy
 
 @register_policy
 class ContinualOptionDQNPolicy(OptionDQNPolicy):

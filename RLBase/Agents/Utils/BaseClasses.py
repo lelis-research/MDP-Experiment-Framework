@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import torch
+from copy import copy
 
 class BaseFeature:
     def __init__(self, observation_space, device='cpu'):
@@ -45,9 +46,18 @@ class BasePolicy:
     """Abstract base class for policies."""
     def __init__(self, action_space, hyper_params=None, device='cpu'):
         self.action_space = action_space
-        # self.action_dim = int(action_space.n)
         self.device = device
         self.set_hp(hyper_params)
+    
+    @property
+    def action_dim(self):
+        """Number of discrete actions available to the policy."""
+        if hasattr(self.action_space, 'n'):
+            return self.action_space.n # discrete action space
+        elif hasattr(self.action_space, 'shape'):
+            return self.action_space.shape[0] # continuous action space
+        else:
+            raise ValueError("Action dim is not defined in this action space")
             
     def select_action(self, observation):
         # Must be implemented by subclasses.
@@ -113,7 +123,7 @@ class BaseAgent:
         self.policy.set_hp(hp)
        
     def save(self, file_path=None):
-        policy_checkpoint = self.policy.save(file_path)
+        policy_checkpoint = self.policy.save(file_path=None)
         feature_extractor_checkpoint = None if self.feature_extractor is None else self.feature_extractor.save()
 
         checkpoint = {
@@ -148,3 +158,65 @@ class BaseAgent:
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.hp})"
+    
+class BaseContiualPolicy(BasePolicy):
+    def trigger_option_learner(self):
+        raise NotImplementedError("This method should be implemented by subclasses.")
+    
+    def init_options(self):
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+# class BaseContinualAgent(BaseAgent):
+#     def __init__(self, action_space, observation_space=None, hyper_params=None, num_envs=None, feature_extractor_class=None, 
+#                  option_learner_class=None, initial_options_lst=[], device='cpu'):
+#         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device)
+#         self.option_learner = option_learner_class()
+#         self.options_lst = initial_options_lst
+#         self.initial_options_lst = copy(initial_options_lst)
+    
+#     def reset(self, seed):
+#         self.policy.reset(seed)
+#         self.option_learner.reset(seed)
+        
+#     def save(self, file_path=None):
+#         policy_checkpoint = self.policy.save(file_path=None)
+#         feature_extractor_checkpoint = None if self.feature_extractor is None else self.feature_extractor.save()
+#         option_learner_checkpoint = None if self.option_learner is None else self.option_learner.save()
+#         checkpoint = {
+#             'action_space': self.action_space,
+#             'observation_space': self.observation_space,
+#             'hyper_params': self.hp,
+#             'num_envs': self.num_envs,
+#             'feature_extractor_class': self.feature_extractor.__class__,
+#             'option_learner_class': self.option_learner.__class__,
+#             'initial_options_lst': self.initial_options_lst,
+
+#             'policy': policy_checkpoint,
+#             'feature_extractor': feature_extractor_checkpoint,
+#             'option_learner': option_learner_checkpoint,
+            
+
+#             'agent_class': self.__class__.__name__,
+#         }
+#         if file_path is not None:
+#             torch.save(checkpoint, f"{file_path}_agent.t")
+#         return checkpoint
+
+#     @classmethod
+#     def load_from_file(cls, file_path, seed=0, checkpoint=None):
+#         if checkpoint is None:
+#             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+#         instance = cls(checkpoint['action_space'], checkpoint['observation_space'], 
+#                        checkpoint['hyper_params'], checkpoint['num_envs'],
+#                        checkpoint['feature_extractor_class'], checkpoint['option_learner_class'],
+#                        checkpoint['initial_options_lst'])
+#         instance.reset(seed)
+
+#         instance.feature_extractor.load_from_checkpoint(checkpoint['feature_extractor'])
+#         instance.policy.load_from_checkpoint(checkpoint['policy'])
+#         instance.option_learner.load_from_checkpoint(checkpoint['option_learner'])
+        
+#         return instance
+
+    
+    

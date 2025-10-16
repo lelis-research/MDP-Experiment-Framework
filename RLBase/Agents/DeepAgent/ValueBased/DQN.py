@@ -35,7 +35,6 @@ class DQNPolicy(BasePolicy):
     def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-        self.action_dim = int(action_space.n) #Only for discrete actions
 
          
     def select_action(self, state, greedy=False):

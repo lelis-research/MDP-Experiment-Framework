@@ -2,7 +2,7 @@
 #SBATCH --job-name=test
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
-#SBATCH --time=0-00:01
+#SBATCH --time=0-00:05
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -28,7 +28,7 @@ export FLEXIBLAS=imkl
 
 # ----------------- sweep vars -----------------
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
-EXP_DIR_REL="TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/OptionQLearning/"$IDX"_seed["$IDX"]"
+EXP_DIR_REL="TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/ContinualOptionQLearning/250K_reset_"$IDX"_seed["$IDX"]"
 
 
 # These flags only matter if you override the env 
