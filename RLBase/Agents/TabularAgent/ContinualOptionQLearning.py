@@ -3,6 +3,7 @@ import random
 import torch
 from gymnasium.spaces import Discrete
 from copy import copy
+from collections import defaultdict
 
 from ..Utils import BaseContiualPolicy
 from .OptionQLearning import OptionQLearningAgent, OptionQLearningPolicy
@@ -11,16 +12,33 @@ from ...Options.Utils import load_options_list, save_options_list
 
 @register_policy
 class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):
+    def __init__(self, action_space, hyper_params):
+        super().__init__(action_space, hyper_params)
+        self.initial_action_space = action_space
+        self.new_option_inds = []                # indices of latest-added options
+        self.trials = defaultdict(lambda: None)     # state -> np.ndarray[int] length=action_space.n
+            
+    def reset(self, seed):
+        super().reset(seed)
+        self.option_step_counter = 0
+        
+        self.new_option_inds = []  
+        self.trials = defaultdict(lambda: None)
+        self.action_space = self.initial_action_space
         
     def trigger_option_learner(self):
-        pass
+        self.option_step_counter += 1
+        if self.option_step_counter >= 100_000:
+            self.option_step_counter = 0
+            return True
+        return False
     
     def init_options(self, new_options):
         num_new_options = len(new_options)
         if num_new_options == 0:
             return 
         
-        old_n = self.action_space.n
+        old_n = self.action_dim
         new_n = old_n + num_new_options
         self.action_space = Discrete(new_n)
         
@@ -58,16 +76,67 @@ class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):
                 max_values  = float(np.max(q_values))    if old_n > 0 else median_values
                 uncertainty = self._uncertainty(q_values)  # in [0,1]
 
-                interpolation = median_values + self.hp.beta * uncertainty * (max_values - median_values)
+                interpolation = median_values + self.hp.uncertainty_beta * uncertainty * (max_values - median_values)
                 new_vals = np.full(num_new_options, interpolation, dtype=np.float32)
 
             else:
                 raise NotImplementedError(f"Unknown option_init_mode: {mode}")
             
             self.q_table[s] = np.concatenate([q_values, new_vals]).astype(np.float32)
+        
+        self.new_option_inds = list(range(old_n, new_n))
+
+        # ensure trials rows match new action count
+        for s in self.q_table.keys():
+            self._ensure_trial_row(s)
             
-            
-            
+    def select_action(self, state, greedy=False):
+        """
+        π'(·|s) combining:
+          (1) Trial-budget scheduling over new options
+          (2) ε'-greedy over new options
+          (3) standard ε-greedy over all actions
+        """
+        
+        # Ensure trial row exists/padded (preserve counts, add zeros for new options)
+        self._ensure_trial_row(state)
+
+        # ---------- Trial-budget scheduling ----------
+        under_budget_options = [option for option in self.new_option_inds if self.trials[state][option] < self.hp.sch_budget]
+        if (not greedy) and self.hp.option_explore_mode == "schedule" and self.new_option_inds and random.random() < self.hp.sch_rho and under_budget_options:
+            action = random.choice(under_budget_options)
+
+        # ---------- ε'-greedy over new options ----------
+        elif (not greedy) and self.hp.option_explore_mode == "e_greedy" and self.new_option_inds and random.random() < self.epsilon:
+            action = random.choice(self.new_option_inds)
+
+        # ---------- fallback: standard ε-greedy over ALL actions ----------
+        else:
+            action = super().select_action(state, greedy)
+        
+        if action in self.new_option_inds:
+            self.trials[state][action] += 1
+        
+        return action
+         
+    def _ensure_trial_row(self, state):
+        """
+        Ensure per-(s,·) counter array exists and matches current action_dim.
+        - Preserve existing counts.
+        - Append zeros ONLY for newly added options.
+        """
+        row = self.trials.get(state, None)
+
+        if row is None:
+            # first time we see this state → start with zeros for all actions
+            self.trials[state] = np.zeros(self.action_dim, dtype=np.int32)
+            return
+
+        if len(row) < self.action_dim:
+            # append zeros for NEW actions only
+            pad = np.zeros(self.action_dim - len(row), dtype=row.dtype)
+            self.trials[state] = np.concatenate([row, pad])
+       
     
     def _softmax(self, x, tau: float):
         # stable softmax with temperature
@@ -98,7 +167,7 @@ class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):
             # top-2
             idx = np.argsort(q_values)[::-1]
             q1, q2 = q_values[idx[0]], q_values[idx[1]]
-            gap = (q1 - q2) / max(self.uncertainty_kappa, 1e-8)
+            gap = (q1 - q2) / max(self.hp.uncertainty_kappa, 1e-8)
             sigma = 1.0 / (1.0 + np.exp(-gap))
             return float(1.0 - sigma)
 
@@ -130,7 +199,7 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
        
         self.last_observation = observation
         action = super().act(observation, greedy)
-        
+            
         return action
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
@@ -141,7 +210,7 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         """
         self.option_learner.update()
         if self.policy.trigger_option_learner():
-            learned_options = self.option_learner.learn()
+            learned_options = self.option_learner.learn(self.options_lst)
             self.options_lst += learned_options
             self.policy.init_options(learned_options)
             
@@ -150,7 +219,7 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
     
     def reset(self, seed):
         super().reset(seed)
-        self.option_learner.reset()
+        self.option_learner.reset(seed)
         self.options_lst = self.initial_options_lst
         
     def log(self):

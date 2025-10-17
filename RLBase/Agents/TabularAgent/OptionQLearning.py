@@ -23,6 +23,8 @@ class OptionQLearningPolicy(QLearningPolicy):
             truncated (bool): True if the episode was truncated.
             call_back (function, optional): Callback for tracking training progress.
         """
+        td_error_lst = []
+        
         if state not in self.q_table:
             self.q_table[state] = np.zeros(self.action_dim)
         if last_state not in self.q_table:
@@ -48,6 +50,7 @@ class OptionQLearningPolicy(QLearningPolicy):
             s, a, _, _ = self.rollout_buffer.remove_oldest()
             td_error = target - self.q_table[s][a]
             self.q_table[s][a] += self.hp.step_size * td_error
+            td_error_lst.append(td_error)
             
             #Update Epsilon
             frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
@@ -70,6 +73,7 @@ class OptionQLearningPolicy(QLearningPolicy):
                 s, a, _, _ = self.rollout_buffer.remove_oldest()
                 td_error = target - self.q_table[s][a]
                 self.q_table[s][a] += self.hp.step_size * td_error
+                td_error_lst.append(td_error)
                 
                 #Update Epsilon
                 frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
@@ -79,6 +83,10 @@ class OptionQLearningPolicy(QLearningPolicy):
                     call_back({"value_loss": td_error,
                         "epsilon": self.epsilon,
                         })
+        
+        info = {
+            "td_error_lst": td_error_lst}
+        return info
 
 @register_agent
 class OptionQLearningAgent(QLearningAgent):

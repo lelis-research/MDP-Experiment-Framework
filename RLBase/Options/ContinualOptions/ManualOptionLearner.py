@@ -8,17 +8,8 @@ import torch
 
 class ManualContinualOptionLearner(BaseContinualOptionLearner):
     name = "ManualContinualOptionLearner"
-    
-    def __init__(self):
-        self.counter = 0
-    
-    def update(self):
-        self.counter += 1
-
         
-    
-    def learn(self, options_lst):
-        
+    def learn(self, options_lst):        
         if not any(isinstance(opt, FindKeyOption) for opt in options_lst):
             option = FindKeyOption(option_len=20)
             return [option]
@@ -26,9 +17,7 @@ class ManualContinualOptionLearner(BaseContinualOptionLearner):
         elif not any(isinstance(opt, OpenDoorOption) for opt in options_lst):
             option = OpenDoorOption(option_len=20)
             return [option]
-    
         
-    
-    def reset(self):
-       pass
+        return []
+
    

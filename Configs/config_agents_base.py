@@ -144,13 +144,20 @@ AGENT_DICT = {
             discount_option_flag=info.get("discount_option_flag", True),
             update_action_within_option_flag=info.get("update_action_within_option_flag", False),
             n_steps=info.get("n_steps", 1),
+            
             option_init_mode=info.get("option_init_mode", "reset"),
             uncertainty_mode=info.get("uncertainty_mode", "entropy"),
-            uncertainty_tau=info.get("uncertainty_tau", 1.0),
-            uncertainty_kappa=info.get("uncertainty_mode", 1.0),
+            uncertainty_beta= float(info.get("uncertainty_beta", 1.0)),
+            uncertainty_tau=float(info.get("uncertainty_tau", 1.0)),
+            uncertainty_kappa=float(info.get("uncertainty_kappa", 1.0)),
+            
+            option_explore_mode=info.get("option_explore_mode", "none"), # none, e_greedy, schedule
+            sch_budget=info.get("sch_budget", 2),
+            sch_rho=info.get("sch_rho", 0.5),            
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
+        ManualContinualOptionLearner,
         initial_options_lst=[],
     ),
     SarsaAgent.name: lambda env, info: SarsaAgent(

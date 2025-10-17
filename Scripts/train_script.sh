@@ -39,14 +39,14 @@ ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{},{"seed":1}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="250K_reset_$IDX" #"Test_$IDX"
+NAME_TAG="reset-explore_schedule-$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=250_000
+TOTAL_STEPS=30_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
@@ -56,13 +56,20 @@ CHECKPOINT_FREQ=0         # integer (e.g. 1000), or leave empty for no checkpoin
 INFO='{
   "discount_option_flag": true,
   "epilon_decay_steps": 50000,
-  "epsilon_end": 0.01,
+  "epsilon_end": 0.0001,
   "epsilon_start": 1.0,
   "gamma": 0.99,
-  "n_steps": 20,
+  "n_steps": 10,
+  "option_explore_mode": "schedule",
   "option_init_mode": "reset",
   "option_len": 20,
-  "step_size": 0.01,
+  "sch_budget": 2,
+  "sch_rho": 0.5,
+  "step_size": 0.1,
+  "uncertainty_beta": 0.0,
+  "uncertainty_kappa": 1.0,
+  "uncertainty_mode": "margin",
+  "uncertainty_tau": 1.0,
   "update_action_within_option_flag": false
 }'  
 # ------------------------------
