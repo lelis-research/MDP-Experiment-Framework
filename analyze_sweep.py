@@ -553,9 +553,9 @@ if __name__ == '__main__':
     main(exp_dir, ratio, auc_type)
 
     # Plot sensitivities for all keys found in info:
-    plot_all_param_sensitivities(
-        exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
-        center_stat="mean",
-        legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
-        max_legend=100
-    )
+    # plot_all_param_sensitivities(
+    #     exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
+    #     center_stat="mean",
+    #     legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
+    #     max_legend=100
+    # )

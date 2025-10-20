@@ -39,14 +39,14 @@ ENV_WRAPPING='["FullyObs", "FixedSeed"]' #'["RGBImgPartialObs", "FixedSeed"]'
 #'[{}, {}, {}, {}]' #'[{"agent_view_size":9},{},{"seed":5000},{"num_distractors": 40, "seed": 100}]'
 WRAPPING_PARAMS='[{},{"seed":1}]' #'[{"tile_size":7}, {"seed":5000}]'
 ENV_PARAMS='{}' #'{"reward_win":1.0, "reward_lose": 0.0, "penalty_step": 0.0}' #'{"continuing_task":False}'
-NAME_TAG="reset-explore_schedule-$IDX" #"Test_$IDX"
+NAME_TAG="reset_explore-schedule-$IDX" #"Test_$IDX"
 SEED=$IDX
 NUM_WORKERS=1
 
 
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=30_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=300
 
