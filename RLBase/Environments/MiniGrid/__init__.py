@@ -5,4 +5,4 @@ from .SequentialDiagonalGoals import SequentialDiagonalGoalsEnv
 from .SequentialFourRooms import SequentialFourRooms
 from .SequentialPhase import PhasedOptionEnv
 from .TwoRoomKeyDoorTwoGoal import TwoRoomKeyDoorTwoGoalEnv
-from .CurriculumRooms import CurriculumRoomsEnv
+from .CurriculumRooms import BigCurriculumEnv

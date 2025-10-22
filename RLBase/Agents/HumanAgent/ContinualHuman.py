@@ -69,15 +69,13 @@ class ContinualHumanAgent(HumanAgent):
         print("")
         print("****** Observation Description ******")
         
-        img = observation["image"]
-        print(f"img shape: {img.shape}")
+        # img = observation["image"]
+        # print(f"img shape: {img.shape}")
        
-        agent_id = OBJECT_TO_IDX["agent"]
+        # agent_id = OBJECT_TO_IDX["agent"]
                 
-        agent_pos = np.argwhere(img[..., 0] == agent_id)
-        agent_direction = DIR_TO_VEC[observation["direction"]]
-        print(agent_pos)
-        print(observation.keys())
+        # agent_pos = np.argwhere(img[..., 0] == agent_id)
+        # agent_direction = DIR_TO_VEC[observation["direction"]]
         
         
         

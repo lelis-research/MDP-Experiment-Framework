@@ -29,6 +29,7 @@ class HumanAgent(BaseAgent):
         self.options_lst = options_lst
 
         print(f"Number of options: {len(self.options_lst)}")
+        print(f"Observation space: {observation_space}")
         # action space includes actions and options
         self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
 
@@ -83,7 +84,7 @@ class HumanAgent(BaseAgent):
         if truncated or terminated:
             self.running_option_index = None
 
-        
+        print("Reward: ", reward)
           
     def reset(self, seed):
         """
@@ -109,12 +110,20 @@ class HumanAgent(BaseAgent):
         img = observation["image"]
         print(f"img shape: {img.shape}")
        
-        agent_id = OBJECT_TO_IDX["agent"]
-                
-        agent_pos = np.argwhere(img[..., 0] == agent_id)
-        agent_direction = DIR_TO_VEC[observation["direction"]]
-        print(agent_pos)
-        print(observation.keys())
+        agent_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["agent"])
+        key_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["key"])
+        door_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["door"])
+        ball_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["ball"])
+        box_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["box"])
+        goal_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["goal"])
+
+        print("Agent pos:", agent_pos)
+        print("Key pos:", key_pos)
+        print("Door pos:", door_pos)
+        print("Ball pos:", ball_pos)
+        print("Box pos:", box_pos)
+        print("Goal pos:", goal_pos)
+        # print(observation.keys())
         
         
         
