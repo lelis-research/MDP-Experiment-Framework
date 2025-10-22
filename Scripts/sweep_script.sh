@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep_countinual
+#SBATCH --job-name=sweep_countinual-egreedy
 #SBATCH --cpus-per-task=5
 #SBATCH --mem=6G          # memory per node
 #SBATCH --time=0-02:30    # time (DD-HH:MM)
@@ -48,19 +48,19 @@ EPISODE_MAX_STEPS=300
 NUM_ENVS=1
 
 
-NAME_TAG="reset-explore_e_greedy"
+NAME_TAG="init_uncertainty-margin-beta0-explore_schedule"
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
   "option_len": 20,
   "update_action_within_option_flag": false,
   "epsilon_start": 1.0,
-  "option_init_mode": "reset",
+  "option_init_mode": "init_uncertainty",
   "uncertainty_mode": "margin",
   "uncertainty_beta": 0.0,
   "uncertainty_tau": 1.0,
   "uncertainty_kappa": 1.0,
-  "option_explore_mode": "e_greedy",
+  "option_explore_mode": "schedule",
   "sch_budget": 2,
   "sch_rho": 0.5
 

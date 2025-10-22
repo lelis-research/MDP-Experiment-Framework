@@ -108,6 +108,7 @@ class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):
 
         # ---------- ε'-greedy over new options ----------
         elif (not greedy) and self.hp.option_explore_mode == "e_greedy" and self.new_option_inds and random.random() < self.epsilon:
+            self.epsilon_step_counter += 1
             action = random.choice(self.new_option_inds)
 
         # ---------- fallback: standard ε-greedy over ALL actions ----------
