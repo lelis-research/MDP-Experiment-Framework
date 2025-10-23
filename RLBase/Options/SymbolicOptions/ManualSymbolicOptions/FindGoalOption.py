@@ -1,31 +1,29 @@
 from ..Utils import BaseOption
-from ..Utils import discrete_levin_loss_on_trajectory
-from ...registry import register_option
-from ...loaders import load_policy, load_feature_extractor
-from ..Utils import save_options_list, load_options_list
+from ....registry import register_option
 
-import random
 import torch
 import numpy as np
-from tqdm import tqdm
-import copy
-from multiprocessing import Pool
 import os
 import numpy as np
 import shutil
-from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
+from minigrid.core.constants import COLOR_NAMES, IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX, COLOR_TO_IDX
 
 @register_option
-class GoToLocationOption(BaseOption):
+class FindGoalOption(BaseOption):
     """
     Specifically works for minigrid
     """
-    def __init__(self, option_len, goal_pos):
+    def __init__(self, option_len, goal_color=None):
         self.agent_id = OBJECT_TO_IDX["agent"]
+        self.goal_id = OBJECT_TO_IDX["goal"]
         self.wall_id = OBJECT_TO_IDX["wall"]
-        self.goal_pos = goal_pos
         self.option_len = option_len
         self.step_counter = 0
+
+        if goal_color is not None:
+            self.goal_color = COLOR_TO_IDX[goal_color]
+        else:
+            self.goal_color = None
         
 
     # ----------------------- Option API -----------------------
@@ -34,12 +32,20 @@ class GoToLocationOption(BaseOption):
         self.step_counter += 1
         img = observation["image"]
         
+        if self.goal_color is not None:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id and img[..., 1] == self.goal_color) 
+        else:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id)
+
         agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
-        
-        if np.array_equal(agent_pos, self.goal_pos):
+       
+        if len(goal_pos) > 0:
+            # more than 0 goal exists
+            goal_pos = goal_pos[0]
+        else:
             return 6 # action done (do nothing because there is no goal!)
         
-        goal_direction = self.goal_pos - agent_pos
+        goal_direction = goal_pos - agent_pos
         agent_direction = DIR_TO_VEC[observation["direction"]]
         
         if np.array_equal(goal_direction, agent_direction):
@@ -59,9 +65,12 @@ class GoToLocationOption(BaseOption):
 
     def is_terminated(self, observation):
         img = observation["image"]
-        agent_pos = np.argwhere(img[..., 0] == self.agent_id)[0] 
-
-        if np.array_equal(agent_pos, self.goal_pos) or self.step_counter >= self.option_len:
+        if self.goal_color is not None:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id and img[..., 1] == self.goal_color) 
+        else:
+            goal_pos = np.argwhere(img[..., 0] == self.goal_id) 
+        
+        if len(goal_pos) == 0 or self.step_counter >= self.option_len:
             # no keys are in the observation
             self.step_counter = 0
             return True

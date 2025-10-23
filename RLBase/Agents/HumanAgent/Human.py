@@ -1,137 +1,128 @@
 import numpy as np
-import random
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from gymnasium.spaces import Discrete
+from ..Utils import BaseAgent
+from minigrid.core.constants import OBJECT_TO_IDX, DIR_TO_VEC
 
-from ..Utils import (
-    BasicBuffer,
-    BaseAgent,
-)
-from minigrid.core.constants import IDX_TO_OBJECT, DIR_TO_VEC, OBJECT_TO_IDX
+A_LEFT, A_RIGHT, A_FORWARD, A_PICKUP, A_DROP, A_TOGGLE, A_DONE = 0, 1, 2, 3, 4, 5, 6
 
 class HumanAgent(BaseAgent):
     """
-    Deep Q-Network (DQN) agent that uses experience replay and target networks.
-    
-    Args:
-        action_space (gym.spaces.Discrete): The environment's action space.
-        observation_space: The environment's observation space.
-        hyper_params: Hyper-parameters container (see DQNPolicy).
-        num_envs (int): Number of parallel environments.
-        feature_extractor_class: Class to extract features from observations.
+    Human-in-the-loop agent that can run primitive actions or high-level options.
+    Adds detailed logging so we can debug option behavior end-to-end.
     """
     name = "Human"
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, options_lst, device="cpu"):
+
+    def __init__(self, action_space, observation_space, hyper_params, num_envs,
+                 feature_extractor_class, options_lst, device="cpu", verbose_obs=False):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.atomic_action_space = action_space
         self.options_lst = options_lst
+        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
+        self.running_option_index = None
+        self.verbose_obs = verbose_obs
 
         print(f"Number of options: {len(self.options_lst)}")
         print(f"Observation space: {observation_space}")
-        # action space includes actions and options
-        self.action_space = Discrete(self.atomic_action_space.n + len(self.options_lst)) 
-
-
-        self.running_option_index = None
         
+        self.option_info = []
+
     def act(self, observation, greedy=False):
-        """
-        Select an action based on the current observation.
-        
-        Args:
-            observation (np.array or similar): Raw observation from the environment.
-        
-        Returns:
-            int: Selected action.
-        """
-        self.analyze_obs(observation)
+        """Select either an atomic action or continue a running option."""
+        self._analyze_obs(observation)
 
+        # You still run your feature extractor; no behavior change
         state = self.feature_extractor(observation)
-         # If an options is running currently
+
+        # 1) If we have a running option, continue it unless it has just terminated
         if self.running_option_index is not None:
-            # Check if the option should terminate.
-            if self.options_lst[self.running_option_index].is_terminated(observation):
+            opt = self.options_lst[self.running_option_index]
+            if opt.is_terminated(observation):
+                
+                print(f"Option {self.running_option_index} info: {self.option_info}")
+                self.option_info = []
+                
                 self.running_option_index = None
             else:
-                # Continue executing the currently running option.
-                action = self.options_lst[self.running_option_index].select_action(observation)
-                print(action, end=",")
-        if self.running_option_index is None:
-            self.print_action_menu()
-            action = int(input("Action:"))
-            if action >= self.atomic_action_space.n:
-                self.running_option_index = action - self.atomic_action_space.n
-                action = self.options_lst[self.running_option_index].select_action(observation)
-                print(action, end=",")
+                action = opt.select_action(observation)
+                self.option_info.append(action)
+                
+                self.last_state, self.last_action = state, action
+                return action
 
-        self.last_state = state
-        self.last_action = action
-        return action
-    
-    def update(self, observation, reward, terminated, truncated, call_back):
-        """
-        Store the transition and, if enough samples are available, perform a learning step.
+        # 2) No running option: show menu and take user choice
+        self.print_action_menu()
+        action = self._read_user_action()
+
+        # Atomic action
+        if action < self.atomic_action_space.n:
+            self.last_state, self.last_action = state, action
+            return action
+
+        # Start an option
+        self.running_option_index = action - self.atomic_action_space.n
+        opt = self.options_lst[self.running_option_index]
+        action = opt.select_action(observation)
         
-        Args:
-            observation (np.array or similar): New observation after action.
-            reward (float): Reward received.
-            terminated (bool): True if the episode has terminated.
-            truncated (bool): True if the episode was truncated.
-            call_back (function): Callback function to track training progress.
-        """
+        self.option_info = [action]
+
+        self.last_state, self.last_action = state, action
+        return action
+
+    def update(self, observation, reward, terminated, truncated, call_back):
+        """Keep your current behavior; just add a tiny log."""
         if truncated or terminated:
             self.running_option_index = None
+        print("Reward:", reward)
 
-        print("Reward: ", reward)
-          
     def reset(self, seed):
-        """
-        Reset the agent's learning state, including feature extractor and replay buffer.
-        
-        Args:
-            seed (int): Seed for reproducibility.
-        """
         super().reset(seed)
         self.feature_extractor.reset(seed)
+        # If an option was mid-flight last episode, drop it cleanly
+        self.running_option_index = None
+
+    # ---------------- UI & logs ----------------
 
     def print_action_menu(self):
-        print("")
-        print("****** Available Actions ******")
+        print("\n" + "=" * 35)
+        print("🌟  Available Actions  🌟")
+        print("=" * 35)
         print("Atomic actions:", [i for i in self.hp.actions_enum])
-        print("Options:", list(range(self.atomic_action_space.n, self.atomic_action_space.n+len(self.options_lst))))
+        print("\nOptions:")
+        base = self.atomic_action_space.n
+        line_elems = []
+        for i, opt in enumerate(self.options_lst):
+            item = f"{base + i:02d}: {opt}"
+            line_elems.append(item)
+            if len(line_elems) == 3:
+                print("   " + " | ".join(line_elems)); line_elems = []
+        if line_elems:
+            print("   " + " | ".join(line_elems))
+        print("=" * 40 + "\n")
 
-    def analyze_obs(self, observation):
-        print("")
-        print("")
-        print("****** Observation Description ******")
-        
+    def _read_user_action(self):
+        while True:
+            a = input("Action: ")
+            try:
+                a = int(a)
+                if 0 <= a < self.action_space.n:
+                    return a
+            except Exception:
+                if a == "q":
+                    exit(0)
+            print(f"Please enter an integer in [0, {self.action_space.n - 1}]")
+
+
+
+    def _analyze_obs(self, observation):
+        print("\n\n****** Observation Description ******")
         img = observation["image"]
-        print(f"img shape: {img.shape}")
-       
+        # if self.verbose_obs:
+        #     print("Observation img:\n", img)
+        # print(f"img shape: {img.shape}")
         agent_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["agent"])
-        key_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["key"])
-        door_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["door"])
-        ball_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["ball"])
-        box_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["box"])
-        goal_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["goal"])
-
         print("Agent pos:", agent_pos)
-        print("Key pos:", key_pos)
-        print("Door pos:", door_pos)
-        print("Ball pos:", ball_pos)
-        print("Box pos:", box_pos)
-        print("Goal pos:", goal_pos)
-        # print(observation.keys())
         
-        
-        
-    def save(self, file_path=None):
-        pass
-
-    @classmethod
-    def load_from_file(cls, file_path, seed=0, checkpoint=None):
-        pass
-        
-
+        # Keep the rest commented unless you need them:
+        # key_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["key"])
+        # door_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["door"])
+        # goal_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["goal"])

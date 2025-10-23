@@ -16,7 +16,7 @@ from ...Utils import (
 )
 from .PPO import PPOAgent, PPOPolicyDiscrete
 from ....registry import register_agent, register_policy
-from ....Options.Utils import load_options_list, save_options_list
+from ....Options import load_options_list, save_options_list
 
 @register_policy
 class OptionPPOPolicyDiscrete(PPOPolicyDiscrete):

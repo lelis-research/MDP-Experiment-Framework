@@ -6,7 +6,7 @@ from gymnasium.spaces import Discrete
 from ..Utils import BaseAgent, BasePolicy, calculate_n_step_returns_with_discounts
 from .QLearning import QLearningAgent, QLearningPolicy
 from ...registry import register_agent, register_policy
-from ...Options.Utils import load_options_list, save_options_list
+from ...Options import load_options_list, save_options_list
 
 @register_policy
 class OptionQLearningPolicy(QLearningPolicy):

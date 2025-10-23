@@ -8,7 +8,7 @@ from collections import defaultdict
 from ..Utils import BaseContiualPolicy
 from .OptionQLearning import OptionQLearningAgent, OptionQLearningPolicy
 from ...registry import register_agent, register_policy
-from ...Options.Utils import load_options_list, save_options_list
+from ...Options import load_options_list, save_options_list
 
 @register_policy
 class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):

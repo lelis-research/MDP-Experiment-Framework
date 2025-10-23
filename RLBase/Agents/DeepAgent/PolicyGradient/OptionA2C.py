@@ -17,7 +17,7 @@ from ...Utils import (
 )
 from .A2C import A2CAgent, A2CPolicyDiscrete
 from ....registry import register_agent, register_policy
-from ....Options.Utils import load_options_list, save_options_list
+from ....Options import load_options_list, save_options_list
 
 @register_policy
 class OptionA2CPolicyDiscrete(A2CPolicyDiscrete):

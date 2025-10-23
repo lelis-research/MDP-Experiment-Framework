@@ -1,4 +1,4 @@
-from ...loaders import load_policy, load_feature_extractor
+from ....loaders import load_policy, load_feature_extractor
 import torch
 
 class BaseOption:
@@ -45,3 +45,5 @@ class BaseOption:
         instance = cls(feature_extractor, policy)
 
         return instance
+    
+    def __repr__(self): return f"{self.__class__.__name__}(len={self.option_len})"

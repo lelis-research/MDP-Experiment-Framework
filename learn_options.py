@@ -9,7 +9,7 @@ import yaml
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 from RLBase import load_option, load_agent, load_policy
-from RLBase.Options.Utils import save_options_list, load_options_list
+from RLBase.Options import save_options_list, load_options_list
 from Configs.loader import load_config
 
 

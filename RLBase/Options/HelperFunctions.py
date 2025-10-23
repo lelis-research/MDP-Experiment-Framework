@@ -1,4 +1,4 @@
-from ...loaders import load_option
+from ..loaders import load_option
 
 import torch
 

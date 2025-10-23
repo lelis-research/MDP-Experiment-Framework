@@ -3,13 +3,13 @@ import random
 from torch import nn
 from torch.distributions import Categorical
 
-from ...registry import register_policy
-from ...Agents.DeepAgent.ValueBased import (
+from ....registry import register_policy
+from ....Agents.DeepAgent.ValueBased import (
     DQNPolicy, 
     DoubleDQNPolicy,
     NStepDQNPolicy
 )
-from ...Agents.DeepAgent.PolicyGradient import (
+from ....Agents.DeepAgent.PolicyGradient import (
     ReinforcePolicy,
     ReinforceWithBaselinePolicy,
     PPOPolicyDiscrete,
