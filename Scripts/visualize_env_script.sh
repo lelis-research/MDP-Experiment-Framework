@@ -31,7 +31,7 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1))
-ENV="TwoRoomKeyDoorTwoGoalEnv-v0"
+ENV="BigCurriculumEnv-v0"
 ENV_WRAPPING='["FullyObs","FixedSeed"]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]' ,"FixedRandomDistractor"
 WRAPPING_PARAMS='[{},{"seed":'$seed'}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]' ,{"num_distractors": 5, "seed": 100}
 ENV_PARAMS='{}'

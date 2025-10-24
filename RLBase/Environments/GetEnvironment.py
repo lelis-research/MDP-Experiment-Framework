@@ -7,7 +7,7 @@ ENV_LST = MINIGRID_ENV_LST + MINIHACK_ENV_LST + MUJOCO_ENV_LST
 
 def get_env(env_name,
             num_envs=1, 
-            max_steps=500, 
+            max_steps=None, 
             render_mode=None,
             env_params={}, 
             wrapping_lst=None, 

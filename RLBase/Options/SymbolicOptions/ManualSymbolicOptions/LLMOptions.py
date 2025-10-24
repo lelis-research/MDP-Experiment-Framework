@@ -840,11 +840,11 @@ ALL_OPTIONS = [
     OpenNearestBoxAndPickupIfItemRevealed,
     DropHere,
     
-    # 6) Goals
+    # # 6) Goals
     FaceAndStepIntoGoal,
     GoToNearestGoal,
 ]
 
-def create_all_options(option_len=10):
+def create_all_options(option_len=20):
     """Convenience factory."""
     return [opt(option_len) for opt in ALL_OPTIONS]

@@ -368,18 +368,19 @@ class BigCurriculumEnv(MiniGridEnv):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, max_steps: int = MAX_STEPS, **kwargs: Any):
         total_w = ROOMS_PER_ROW * ROOM_INNER_W + (ROOMS_PER_ROW + 1) * WALL_T
         total_h = ROOM_ROWS * ROOM_INNER_H + (ROOM_ROWS + 1) * WALL_T
         mission_space = MissionSpace(mission_func=self._gen_mission)
+            
         super().__init__(
             mission_space=mission_space,
             width=total_w,
             height=total_h,
-            max_steps=MAX_STEPS,
+            max_steps=max_steps,
             **kwargs
         )
-
+ 
         # Observation is the full room including walls: (7+2, 7+2, 3) = (9,9,3)
         self.observation_space = spaces.Dict({
             "image": spaces.Box(
@@ -981,22 +982,6 @@ class BigCurriculumEnv(MiniGridEnv):
             draw_line_with_gap("v")
             draw_line_with_gap("h")
 
-# ---------- registration ----------
-def make_big_curriculum_env(**kwargs):
-    return BigCurriculumEnv(**kwargs)
 
-register(id="BigCurriculumEnv-v0", entry_point=make_big_curriculum_env)
 
-if __name__ == "__main__":
-    env = gym.make("BigCurriculumEnv-v0", render_mode="human")
-    obs, info = env.reset()
-    done = False
-    while not done:
-        env.render()
-        a = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(a)
-        if reward:
-            print("reward:", reward)
-        done = terminated or truncated
-    env.close()
-    print("Finished random rollout.")
+register(id="BigCurriculumEnv-v0", entry_point=BigCurriculumEnv)

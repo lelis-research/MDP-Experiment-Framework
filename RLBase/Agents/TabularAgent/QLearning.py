@@ -146,6 +146,7 @@ class QLearningPolicy(BasePolicy):
             'q_table': self.q_table,
             'epsilon': self.epsilon,
             'hyper_params': self.hp,
+            'epsilon_step_counter': self.epsilon_step_counter,
 
             'action_space': self.action_space,
             'policy_class': self.__class__.__name__,
@@ -179,6 +180,7 @@ class QLearningPolicy(BasePolicy):
         """
         self.q_table = checkpoint.get('q_table')
         self.epsilon = checkpoint.get('epsilon')
+        self.epsilon_step_counter = checkpoint.get('epsilon_step_counter')
 
         self.action_space = checkpoint.get('action_space')
         self.hp = checkpoint.get('hyper_params')

@@ -544,7 +544,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/ContinualOptionQLearning/reset-explore_schedule_seed[1]"
+    exp_dir = "Runs/Sweep/BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/ContinualOptionQLearning/reset_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------

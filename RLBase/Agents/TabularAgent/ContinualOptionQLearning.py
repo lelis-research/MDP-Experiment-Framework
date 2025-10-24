@@ -28,7 +28,7 @@ class ContinualOptionQLearningPolicy(OptionQLearningPolicy, BaseContiualPolicy):
         
     def trigger_option_learner(self):
         self.option_step_counter += 1
-        if self.option_step_counter >= 100_000:
+        if self.option_step_counter >= 10_000:
             self.option_step_counter = 0
             return True
         return False
@@ -225,9 +225,19 @@ class ContinualOptionQLearningAgent(OptionQLearningAgent):
         
     def log(self):
         if self.running_option_index is None:
-            return {"OptionUsageLog": False, "NumOptions":len(self.options_lst), "OptionIndex": self.running_option_index}
+            return {
+                "OptionUsageLog": False,
+                "NumOptions": len(self.options_lst),
+                "OptionIndex": None,
+                "OptionClass": None,
+            }
         else:
-            return {"OptionUsageLog": True, "NumOptions":len(self.options_lst), "OptionIndex": self.running_option_index}
+            return {
+                "OptionUsageLog": True,
+                "NumOptions": len(self.options_lst),
+                "OptionIndex": self.running_option_index,
+                "OptionClass": self.options_lst[self.running_option_index].__class__,
+            }
         
     def save(self, file_path=None):
         """

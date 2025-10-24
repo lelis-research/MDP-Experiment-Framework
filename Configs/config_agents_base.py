@@ -30,7 +30,7 @@ from RLBase.Agents.DeepAgent.PolicyGradient import (
     OptionPPOAgent,
 )
 from RLBase.Options import load_options_list
-from RLBase.Options.SymbolicOptions.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, FindGoalOption, GoToLocationOption, create_all_options
+from RLBase.Options.SymbolicOptions.ManualSymbolicOptions import FindKeyOption, OpenDoorOption, create_all_options
 from RLBase.Options.SymbolicOptions.ContinualOptions import ManualContinualOptionLearner
 from Configs.networks import NETWORKS
 import torch
@@ -124,7 +124,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         TabularSymbolicFeature,
-        options_lst=[FindKeyOption(option_len=info.get("option_len")), OpenDoorOption(option_len=info.get("option_len"))], 
+        options_lst=create_all_options(), 
     ),
     ContinualOptionQLearningAgent.name: lambda env, info: ContinualOptionQLearningAgent(
         get_env_action_space(env), 
