@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-80      # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-242      # check HP_SEARCH_SPACE to calculate the space size
 
 ########SBATCH --gres=gpu:1
 
@@ -63,7 +63,8 @@ HP_SEARCH_SPACE='{
   "step_size": [0.01, 0.001, 0.0001],
   "epsilon_end":[0.1, 0.01, 0.001],
   "epsilon_decay_steps": [10000, 50000, 100000],
-  "batch_size": [32, 128, 512]
+  "batch_size": [32, 128, 512],
+  "n_steps": [1, 5, 10]
 }'
 # "mini_batch_size":  [32, 64]
 
