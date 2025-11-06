@@ -155,7 +155,6 @@ class OptionDQNAgent(DQNAgent):
         if self.n_step_buffer.size >= self.hp.n_steps or terminated or truncated:
             rollout = self.n_step_buffer.get_all()
             states, actions, rewards, next_states, dones, discounts, steps = zip(*rollout)
-            
             # Compute n-step returns using the accumulated rewards.
             returns = calculate_n_step_returns_with_discounts(rewards, 0.0, discounts)
             all_steps = sum(steps)
