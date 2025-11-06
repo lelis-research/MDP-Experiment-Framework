@@ -19,7 +19,6 @@ from RLBase.Agents.TabularAgent import (
 from RLBase.Agents.DeepAgent.ValueBased import (
     DQNAgent,
     DoubleDQNAgent,
-    NStepDQNAgent,
     OptionDQNAgent,
 )
 from RLBase.Agents.DeepAgent.PolicyGradient import (
@@ -189,6 +188,7 @@ AGENT_DICT = {
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.001),
             epsilon_decay_steps=info.get("epsilon_decay_steps", 400_000),
+            n_steps=info.get("n_steps", 1),
             replay_buffer_cap=info.get("replay_buffer_cap", 10000),
             batch_size=info.get("batch_size", 128),
             target_update_freq=info.get("target_update_freq", 20),
@@ -227,23 +227,6 @@ AGENT_DICT = {
             replay_buffer_cap=info.get("replay_buffer_cap", 100000),
             batch_size=info.get("batch_size", 128),
             target_update_freq=info.get("target_update_freq", 20),
-            value_network=NETWORKS[info.get("value_network", "fc_network_1")],
-        ),
-        get_num_envs(env),
-        FLattenFeature,
-        device=device
-    ),
-    NStepDQNAgent.name: lambda env, info: NStepDQNAgent(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(
-            step_size=info.get("step_size", 0.001),
-            gamma=info.get("gamma", 0.99),
-            epsilon=info.get("epsilon", 0.01),
-            replay_buffer_cap=info.get("replay_buffer_cap", 100000),
-            batch_size=info.get("batch_size", 128),
-            target_update_freq=info.get("target_update_freq", 20),
-            n_steps=info.get("n_steps", 10),
             value_network=NETWORKS[info.get("value_network", "fc_network_1")],
         ),
         get_num_envs(env),

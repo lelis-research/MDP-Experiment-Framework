@@ -93,7 +93,7 @@ class DQNPolicy(BasePolicy):
         self.epsilon_step_counter = 0
         
         
-    def update(self, states, actions, rewards, next_states, dones, call_back=None):
+    def update(self, states, actions, n_step_returns, next_states, dones, n_steps, call_back=None):
         """
         Update the Q-network using a batch of transitions.
         
@@ -107,16 +107,18 @@ class DQNPolicy(BasePolicy):
         """
         states_t = torch.cat(states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(states[0]) else torch.tensor(np.array(states), dtype=torch.float32, device=self.device)
         next_states_t = torch.cat(next_states).to(dtype=torch.float32, device=self.device) if torch.is_tensor(next_states[0]) else torch.tensor(np.array(next_states), dtype=torch.float32, device=self.device)
-        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1)
-        rewards_t = torch.tensor(np.array(rewards), dtype=torch.float32, device=self.device).unsqueeze(1)
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1) # if n is 1 then it is rewards
+        n_step_returns_t = torch.tensor(np.array(n_step_returns), dtype=torch.float32, device=self.device).unsqueeze(1)
         dones_t = torch.tensor(np.array(dones), dtype=torch.float32, device=self.device).unsqueeze(1)
+        n_steps_t = torch.tensor(np.array(n_steps), dtype=torch.float32, device=self.device).unsqueeze(1)
         # Compute Q-values for actions taken.
         qvalues_t = self.network(states_t).gather(1, actions_t)
 
         with torch.no_grad():
             # Use target network for bootstrap.
             bootstrap_value_t = self.target_network(next_states_t).max(1)[0].unsqueeze(1)
-            target_t = rewards_t + self.hp.gamma * (1 - dones_t) * bootstrap_value_t
+            discount = self.hp.gamma ** n_steps_t
+            target_t = n_step_returns_t + discount * (1 - dones_t) * bootstrap_value_t
         
         loss = self.loss_fn(qvalues_t, target_t)
         
@@ -217,6 +219,9 @@ class DQNAgent(BaseAgent):
             device=device
         )
         
+        # Buffer to accumulate n-step transitions.
+        self.n_step_buffer = BasicBuffer(hyper_params.n_steps)
+        
     def act(self, observation, greedy=False):
         """
         Select an action based on the current observation.
@@ -246,12 +251,31 @@ class DQNAgent(BaseAgent):
         """
         state = self.feature_extractor(observation)
         transition = (self.last_state, self.last_action, reward, state, terminated)
-        self.replay_buffer.add_single_item(transition)
+        self.n_step_buffer.add_single_item(transition)
+        
+        # If enough transitions are accumulated or if episode ends:
+        if self.n_step_buffer.size >= self.hp.n_steps or terminated or truncated:
+            rollout = self.n_step_buffer.get_all()
+            states, actions, rewards, next_states, dones = zip(*rollout)
+            # Compute n-step returns using the accumulated rewards.
+            returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
+            if terminated or truncated:
+                # For episode end, flush all transitions.
+                for i in range(self.n_step_buffer.size):
+                    trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], self.n_step_buffer.size - i)
+                    self.replay_buffer.add_single_item(trans)
+                self.n_step_buffer.reset()
+            else:
+                # Otherwise, add only the oldest transition.
+                trans = (states[0], actions[0], returns[0], next_states[-1], dones[-1], self.n_step_buffer.size)
+                self.replay_buffer.add_single_item(trans)
+                self.n_step_buffer.remove_oldest()
+        
         
         if self.replay_buffer.size >= self.hp.batch_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, rewards, next_states, dones = zip(*batch)
-            self.policy.update(states, actions, rewards, next_states, dones, call_back=call_back)
+            states, actions, rewards, next_states, dones, n_steps = zip(*batch)
+            self.policy.update(states, actions, rewards, next_states, dones, n_steps, call_back=call_back)
           
     def reset(self, seed):
         """
@@ -263,6 +287,7 @@ class DQNAgent(BaseAgent):
         super().reset(seed)
         self.feature_extractor.reset(seed)
         self.replay_buffer.reset()
+        self.n_step_buffer.reset()
         
         self.last_state = None
         self.last_action = None
