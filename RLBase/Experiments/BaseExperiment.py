@@ -69,9 +69,9 @@ class BaseExperiment:
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         for episode_idx in pbar:
             frames = []
-            # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
-            #                           (each episode is reproducible but maybe too specific)          
-            observation, info = env.reset() #seed=ep_seed
+            ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
+                                        #   (each episode is reproducible but maybe too specific)          
+            observation, info = env.reset(seed=ep_seed)
             if env.render_mode == "human":
                 env.render()
             elif env.render_mode == "ansi":
@@ -113,7 +113,7 @@ class BaseExperiment:
                 "ep_return": ep_return,
                 "ep_length": steps,
                 "frames": frames,
-                # "env_seed": ep_seed,
+                "env_seed": ep_seed,
                 "transitions": transitions,
                 "actions": actions_log,
                 "agent_seed": seed,
@@ -168,9 +168,9 @@ class BaseExperiment:
             frames = []
             
             # Initialize an episode
-            # ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
-            #                           (each episode is reproducible but maybe too specific)    
-            observation, info = env.reset() # seed=ep_seed
+            ep_seed = episode_idx + seed # If you want each episode to have specific seeds 
+                                            #   (each episode is reproducible but maybe too specific)    
+            observation, info = env.reset(seed=ep_seed)
             if env.render_mode == "human":
                 env.render()
             elif env.render_mode == "ansi":
@@ -230,7 +230,7 @@ class BaseExperiment:
                 "ep_return": ep_return,
                 "ep_length": steps_in_episode,
                 "frames": frames,
-                # "env_seed": ep_seed,
+                "env_seed": ep_seed,
                 "transitions": transitions,
                 "actions": actions_log,
                 "agent_seed": seed,

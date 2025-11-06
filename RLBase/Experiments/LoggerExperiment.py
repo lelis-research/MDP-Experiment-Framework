@@ -60,8 +60,8 @@ class LoggerExperiment(BaseExperiment):
             infos = []
             agent_logs = []
             # Use a seed to ensure reproducibility.
-            # ep_seed = episode_idx + seed
-            observation, info = env.reset() # seed=ep_seed
+            ep_seed = episode_idx + seed
+            observation, info = env.reset(seed=ep_seed)
             if env.render_mode == "human":
                 env.render()
             elif env.render_mode == "ansi":
@@ -113,7 +113,7 @@ class LoggerExperiment(BaseExperiment):
                 "ep_length":    steps,
                 "frames":       frames,
                 "infos": infos,
-                # "env_seed":     ep_seed,
+                "env_seed":     ep_seed,
                 "transitions":  transitions,
                 "actions": actions_log,
                 "agent_seed": seed,
@@ -178,8 +178,8 @@ class LoggerExperiment(BaseExperiment):
 
             
             # Initialize an episode
-            # ep_seed = episode_idx + seed
-            observation, info = env.reset() #seed=ep_seed)
+            ep_seed = episode_idx + seed
+            observation, info = env.reset(seed=ep_seed)
             if env.render_mode == "human":
                 env.render()
             elif env.render_mode == "ansi":
@@ -245,7 +245,7 @@ class LoggerExperiment(BaseExperiment):
                 "ep_length": steps_in_episode,
                 "frames": frames,
                 "infos": infos,
-                # "env_seed": ep_seed,
+                "env_seed": ep_seed,
                 "transitions": transitions,
                 "actions": actions_log,
                 "agent_seed": seed,

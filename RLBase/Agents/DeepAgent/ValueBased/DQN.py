@@ -57,11 +57,14 @@ class DQNPolicy(BasePolicy):
             state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = self.network(state_t)
-                
-            max_val = torch.max(q_values)
-            max_actions = (q_values == max_val).nonzero(as_tuple=False).flatten()
-            action_idx = max_actions[torch.randint(len(max_actions), (1,))].item()
-            return int(action_idx)
+        
+            # for ties
+            max_actions = (q_values == torch.max(q_values)).nonzero()[:, 1] #the indexing gets rid of the batch dim
+            action = int(np.random.choice(max_actions))
+            
+            # has no ties
+            # action = torch.argmax(q_values).item()
+            return action
     
     def reset(self, seed):
         """
@@ -107,7 +110,6 @@ class DQNPolicy(BasePolicy):
         actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1)
         rewards_t = torch.tensor(np.array(rewards), dtype=torch.float32, device=self.device).unsqueeze(1)
         dones_t = torch.tensor(np.array(dones), dtype=torch.float32, device=self.device).unsqueeze(1)
-        
         # Compute Q-values for actions taken.
         qvalues_t = self.network(states_t).gather(1, actions_t)
 
