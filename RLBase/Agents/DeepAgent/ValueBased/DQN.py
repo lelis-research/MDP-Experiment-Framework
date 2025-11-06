@@ -10,6 +10,7 @@ from ...Utils import (
     BasicBuffer,
     NetworkGen,
     prepare_network_config,
+    calculate_n_step_returns,
 )
 from ....registry import register_agent, register_policy
 
@@ -35,7 +36,8 @@ class DQNPolicy(BasePolicy):
     def __init__(self, action_space, features_dim, hyper_params, device="cpu"):
         super().__init__(action_space, hyper_params, device=device)
         self.features_dim = features_dim
-
+        self.epsilon_step_counter = 0
+        self.epsilon = self.hp.epsilon_start
          
     def select_action(self, state, greedy=False):
         """
@@ -46,14 +48,20 @@ class DQNPolicy(BasePolicy):
         
         Returns:
             int: Selected action.
-        """            
-        if random.random() < self.hp.epsilon and not greedy:
+        """         
+        
+        self.epsilon_step_counter += 1      
+        if random.random() < self.epsilon and not greedy:
             return self.action_space.sample()
         else:
             state_t = state.to(dtype=torch.float32, device=self.device) if torch.is_tensor(state) else torch.tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 q_values = self.network(state_t)
-            return int(torch.argmax(q_values, dim=1).item())
+                
+            max_val = torch.max(q_values)
+            max_actions = (q_values == max_val).nonzero(as_tuple=False).flatten()
+            action_idx = max_actions[torch.randint(len(max_actions), (1,))].item()
+            return int(action_idx)
     
     def reset(self, seed):
         """
@@ -63,8 +71,9 @@ class DQNPolicy(BasePolicy):
             seed (int): Seed for reproducibility.
         """
         super().reset(seed)
-        self.update_counter = 0
+        self.target_update_counter = 0
         # Prepare network configuration using the value network description.
+        
         network_description = prepare_network_config(
             self.hp.value_network,
             input_dim=self.features_dim,
@@ -76,6 +85,10 @@ class DQNPolicy(BasePolicy):
 
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
         self.loss_fn = nn.MSELoss()
+        
+        self.epsilon = self.hp.epsilon_start
+        self.epsilon_step_counter = 0
+        
         
     def update(self, states, actions, rewards, next_states, dones, call_back=None):
         """
@@ -109,12 +122,17 @@ class DQNPolicy(BasePolicy):
         loss.backward()
         self.optimizer.step()
 
-        self.update_counter += 1
-        if self.update_counter % self.hp.target_update_freq == 0:
+        self.target_update_counter += 1
+        if self.target_update_counter % self.hp.target_update_freq == 0:
             self.target_network.load_state_dict(self.network.state_dict())
+            
+        #Update Epsilon
+        frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
+        self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
 
         if call_back is not None:
-            call_back({"value_loss": loss.item()})
+            call_back({"value_loss": loss.item(),
+                       "epsilon": self.epsilon})
             
     def save(self, file_path=None):
         """
@@ -133,6 +151,10 @@ class DQNPolicy(BasePolicy):
             'hyper_params': self.hp,
             
             'policy_class': self.__class__.__name__,
+            
+            'epsilon_step_counter': self.epsilon_step_counter,
+            'epsilon': self.epsilon,
+
         }
         if file_path is not None:
             torch.save(checkpoint, f"{file_path}_policy.t")
@@ -145,9 +167,7 @@ class DQNPolicy(BasePolicy):
         instance = cls(checkpoint['action_space'], checkpoint['features_dim'], checkpoint['hyper_params'])
 
         instance.reset(seed)
-        instance.network.load_state_dict(checkpoint['network_state_dict'])
-        instance.target_network.load_state_dict(checkpoint['target_network_state_dict'])
-        instance.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        instance.load_from_checkpoint(checkpoint)
         
         return instance
 
@@ -165,6 +185,9 @@ class DQNPolicy(BasePolicy):
         self.action_space = checkpoint.get('action_space')
         self.features_dim = checkpoint.get('features_dim')
         self.hp = checkpoint.get('hyper_params')
+        
+        self.epsilon = checkpoint.get('epsilon')
+        self.epsilon_step_counter=checkpoint.get('epsilon_step_counter')
 
 @register_agent
 class DQNAgent(BaseAgent):
@@ -181,10 +204,9 @@ class DQNAgent(BaseAgent):
     name = "DQN"
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
-
         # Experience Replay Buffer
         self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)  
-
+        
         # Create DQNPolicy using the feature extractor's feature dimension.
         self.policy = DQNPolicy(
             action_space, 
@@ -239,3 +261,6 @@ class DQNAgent(BaseAgent):
         super().reset(seed)
         self.feature_extractor.reset(seed)
         self.replay_buffer.reset()
+        
+        self.last_state = None
+        self.last_action = None

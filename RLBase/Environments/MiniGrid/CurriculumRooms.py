@@ -96,9 +96,6 @@ class OrderedStrictDoor(StrictDoor):
 rooms_spec: List[Dict[str, Any]] = [
     # ----------------------------- Phase A (1–5): Navigate & subgoals ------------------------------
     {"id": 1, "subgoal": True,
-    "lava": {"count": 2},
-    "keys": [{"color": "purple"}],
-
      "exit_door": {"locked": False},
      "requirements": {"open_exit": "none"}},
     
@@ -921,7 +918,7 @@ class BigCurriculumEnv(MiniGridEnv):
             # Paint the agent marker (like FullyObsWrapper does)
             img[lx, ly] = np.array([OBJECT_TO_IDX["agent"],
                                     COLOR_TO_IDX["red"],   # any color you prefer
-                                    self.agent_dir], dtype=img.dtype)
+                                    0], dtype=img.dtype)
 
         # Carrying as a compact vector (Markov)
         if self.carrying is not None:

@@ -53,7 +53,7 @@ class BasePolicy:
     def action_dim(self):
         """Number of discrete actions available to the policy."""
         if hasattr(self.action_space, 'n'):
-            return self.action_space.n # discrete action space
+            return int(self.action_space.n) # discrete action space
         elif hasattr(self.action_space, 'shape'):
             return self.action_space.shape[0] # continuous action space
         else:

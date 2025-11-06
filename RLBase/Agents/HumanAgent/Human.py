@@ -127,5 +127,5 @@ class HumanAgent(BaseAgent):
         # door_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["door"])
         # goal_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["goal"])
     
-    def save(self):
+    def save(self, file_path=None):
         pass

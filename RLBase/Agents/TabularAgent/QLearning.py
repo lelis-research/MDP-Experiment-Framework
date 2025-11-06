@@ -50,7 +50,6 @@ class QLearningPolicy(BasePolicy):
         max_actions = np.flatnonzero(q_values == np.max(q_values))
         return int(np.random.choice(max_actions))
 
-        # return int(np.argmax(self.q_table[state]))
     
     def update(self, last_state, last_action, state, reward, terminated, truncated, call_back=None):
         """

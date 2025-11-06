@@ -2,6 +2,8 @@ import numpy as np
 import torch 
 import gymnasium as gym
 from collections.abc import Mapping
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+import torch.nn.functional as F
 
 from ...registry import register_feature_extractor
 from .BaseClasses import BaseFeature
@@ -47,6 +49,145 @@ class FLattenFeature(BaseFeature):
         batch_size = observation.shape[0]
         observation = observation.reshape(batch_size, -1)
         return observation
+
+
+
+
+@register_feature_extractor
+class MiniGridOneHotFlatWithDirCarryFeature(BaseFeature):
+    """
+    Output (always batched): (N, features_dim)
+      features = [ onehot(image) , onehot(direction) , onehot(carry_type) , onehot(carry_color) ]
+
+    Accepts single obs dict or batch dict:
+      - image: (W,H,3) or (N,W,H,3)
+      - direction: () or (N,)
+      - carrying: (2,) or (N,2) with -1 meaning "none"
+    """
+
+    def __init__(self, observation_space, device="cpu"):
+        super().__init__(observation_space, device=device)
+
+        if not isinstance(observation_space, gym.spaces.Dict):
+            raise TypeError("Expected a Dict observation space.")
+
+        # Validate image
+        if "image" not in observation_space.spaces:
+            raise KeyError("Observation space must contain 'image'.")
+        img_space = observation_space.spaces["image"]
+        if not isinstance(img_space, gym.spaces.Box) or len(img_space.shape) != 3:
+            raise ValueError("obs['image'] must be a 3D Box (W,H,3).")
+        W, H, C = img_space.shape
+        if C != 3:
+            raise ValueError(f"Expected image channels=3 (type,color,state); got {C}.")
+        self.W, self.H = int(W), int(H)
+
+        # Required keys
+        if "direction" not in observation_space.spaces:
+            raise KeyError("Observation space must contain 'direction' (Discrete(4)).")
+        if "carrying" not in observation_space.spaces:
+            raise KeyError("Observation space must contain 'carrying' (2-vector).")
+
+        # Vocab sizes from MiniGrid
+        self.num_obj   = len(OBJECT_TO_IDX)
+        self.num_color = len(COLOR_TO_IDX)
+        self.num_state = len(STATE_TO_IDX)
+        self.num_bits  = self.num_obj + self.num_color + self.num_state
+
+        # Direction and carry
+        self.num_dir = 4
+        self.carry_type_dim  = self.num_obj
+        self.carry_color_dim = self.num_color
+
+        # Precompute total features
+        self._features_dim = (
+            self.W * self.H * self.num_bits  # image one-hot flattened
+            + self.num_dir                   # direction one-hot
+            + self.carry_type_dim            # carry type one-hot
+            + self.carry_color_dim           # carry color one-hot
+        )
+
+    @property
+    def features_dim(self) -> int:
+        return self._features_dim
+
+    # --------- helpers ---------
+    def _ensure_batch_img(self, img: torch.Tensor) -> torch.Tensor:
+        # Accept (W,H,3) or (N,W,H,3), return (N,W,H,3)
+        if img.dim() == 3:
+            return img.unsqueeze(0)
+        if img.dim() == 4:
+            return img
+        raise ValueError(f"Expected image rank 3 or 4, got {img.dim()}.")
+
+    def _ensure_batch_dir(self, d: torch.Tensor) -> torch.Tensor:
+        # Accept scalar () or (N,), return (N,)
+        if d.dim() == 0:
+            return d.unsqueeze(0)
+        if d.dim() == 1:
+            return d
+        raise ValueError(f"Expected direction rank 0 or 1, got {d.dim()}.")
+
+    def _ensure_batch_carry(self, c: torch.Tensor) -> torch.Tensor:
+        # Accept (2,) or (N,2), return (N,2)
+        if c.dim() == 1:
+            if c.numel() != 2:
+                raise ValueError("carrying must have length 2.")
+            return c.unsqueeze(0)
+        if c.dim() == 2 and c.shape[-1] == 2:
+            return c
+        raise ValueError(f"Expected carrying shape (2,) or (N,2), got {tuple(c.shape)}.")
+
+    def _safe_one_hot(self, idx_t: torch.Tensor, num_classes: int) -> torch.Tensor:
+        """
+        Robust one-hot that tolerates invalid indices (e.g., -1, 255).
+        Invalid positions become all-zeros.
+        """
+        idx_t = idx_t.to(torch.long)
+        valid = (idx_t >= 0) & (idx_t < num_classes)
+        sanitized = idx_t.clamp(min=0, max=max(0, num_classes - 1))
+        oh = F.one_hot(sanitized, num_classes=num_classes).to(torch.float32)
+        return oh * valid.unsqueeze(-1).to(torch.float32)
+
+    # --------- main ---------
+    def __call__(self, observation):
+        # ---- IMAGE ----
+        img = observation["image"]
+        img_t = torch.as_tensor(img, device=self.device)  # int dtype ok
+        if img_t.shape[-1] != 3:
+            raise ValueError(f"Expected image last dim=3, got {img_t.shape[-1]}.")
+        img_t = self._ensure_batch_img(img_t).to(torch.long)           # (N,W,H,3)
+
+        # Split channels
+        type_idx  = img_t[..., 0]                                      # (N,W,H)
+        color_idx = img_t[..., 1]                                      # (N,W,H)
+        state_idx = img_t[..., 2]                                      # (N,W,H)
+
+        # One-hot per cell, then concat channels
+        type_oh  = self._safe_one_hot(type_idx,  self.num_obj)         # (N,W,H,num_obj)
+        color_oh = self._safe_one_hot(color_idx, self.num_color)       # (N,W,H,num_color)
+        state_oh = self._safe_one_hot(state_idx, self.num_state)       # (N,W,H,num_state)
+
+        onehot_img = torch.cat([type_oh, color_oh, state_oh], dim=-1).to(torch.float32)  # (N,W,H,num_bits)
+        N = onehot_img.shape[0]
+        flat_img = onehot_img.view(N, -1)                              # (N, W*H*num_bits)
+
+        # ---- DIRECTION ----
+        dir_val = torch.as_tensor(observation["direction"], device=self.device)
+        dir_val = self._ensure_batch_dir(dir_val).to(torch.long)       # (N,)
+        dir_oh  = self._safe_one_hot(dir_val, self.num_dir).to(torch.float32)  # (N,4)
+
+        # ---- CARRYING ----
+        carry = torch.as_tensor(observation["carrying"], device=self.device)
+        carry = self._ensure_batch_carry(carry).to(torch.long)         # (N,2)
+        carry_type_idx  = carry[:, 0]
+        carry_color_idx = carry[:, 1]
+        carry_type_oh   = self._safe_one_hot(carry_type_idx,  self.carry_type_dim)   # (N, |OBJ|)
+        carry_color_oh  = self._safe_one_hot(carry_color_idx, self.carry_color_dim)  # (N, |COLOR|)
+
+        # ---- CONCAT ----
+        feats = torch.cat([flat_img, dir_oh, carry_type_oh, carry_color_oh], dim=1)  # (N, features_dim)
+        return feats
     
 @register_feature_extractor
 class ImageFeature(BaseFeature):
