@@ -127,7 +127,7 @@ class DQNPolicy(BasePolicy):
             self.target_network.load_state_dict(self.network.state_dict())
             
         #Update Epsilon
-        frac = 1.0 - (self.epsilon_step_counter / self.hp.epilon_decay_steps)
+        frac = 1.0 - (self.epsilon_step_counter / self.hp.epsilon_decay_steps)
         self.epsilon = self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac
 
         if call_back is not None:
