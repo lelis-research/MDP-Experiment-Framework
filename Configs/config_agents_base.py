@@ -195,7 +195,7 @@ AGENT_DICT = {
             value_network=NETWORKS[info.get("value_network", "fc_network_relu")],
         ),
         get_num_envs(env),
-        MiniGridOneHotFlatWithDirCarryFeature,
+        FLattenFeature, #MiniGridOneHotFlatWithDirCarryFeature,
         device=device,
     ),
     

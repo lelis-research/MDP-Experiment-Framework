@@ -11,7 +11,6 @@
 ########SBATCH --gres=gpu:1
 
 set -euo pipefail
-
 cd ~/scratch/MDP-Experiment-Framework
 
 # Load modules & env
@@ -31,7 +30,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="DQN" 
+AGENT="OptionDQN" 
 ENV="BigCurriculumEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
@@ -40,8 +39,8 @@ WRAPPING_PARAMS='[]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
-NUM_RUNS=3
-NUM_WORKERS=3 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
+NUM_RUNS=2
+NUM_WORKERS=2 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
 TOTAL_STEPS=400_000
 EPISODE_MAX_STEPS=2500
@@ -55,7 +54,7 @@ INFO='{
   "option_len": 20,
   "epsilon_start": 1.0,
   "target_update_freq": 20,
-  "replay_buffer_cap": 500000
+  "replay_buffer_cap": 100000
 }'  
 # "option_path": "Runs/Options/MaskedOptionLearner/MaxLen-20_Mask-input_Regularized-0.01_NumDistractors-25_0/selected_options_10.t"
 
