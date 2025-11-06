@@ -355,7 +355,11 @@ class SingleExpAnalyzer:
                 if ep.get("agent_logs") and any("OptionClass" in it for it in ep["agent_logs"]) else 0.0
                 for ep in run
             ] for run in self.metrics]
-
+            
+            if not any(any(run) for run in series):
+                print(f"OptionClass '{getattr(target_cls, '__name__', target_cls)}' doesn't exist — skipping plot.")
+                continue
+                
             if x_type == "e":
                 self._plot_data_per_episode(
                     series, ax, num_episodes, color, marker, label,
