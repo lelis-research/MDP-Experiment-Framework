@@ -7,7 +7,6 @@ from ....registry import register_policy
 from ....Agents.DeepAgent.ValueBased import (
     DQNPolicy, 
     DoubleDQNPolicy,
-    NStepDQNPolicy
 )
 from ....Agents.DeepAgent.PolicyGradient import (
     ReinforcePolicy,
