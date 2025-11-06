@@ -120,9 +120,12 @@ class HumanAgent(BaseAgent):
         #     print("Observation img:\n", img)
         # print(f"img shape: {img.shape}")
         agent_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["agent"])
-        print("Agent pos:", agent_pos)
+        print("Agent pos:", agent_pos, "Obs Shape:", img.shape)
         
         # Keep the rest commented unless you need them:
         # key_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["key"])
         # door_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["door"])
         # goal_pos = np.argwhere(img[..., 0] == OBJECT_TO_IDX["goal"])
+    
+    def save(self):
+        pass

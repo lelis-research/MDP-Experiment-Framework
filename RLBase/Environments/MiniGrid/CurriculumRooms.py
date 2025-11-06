@@ -19,6 +19,7 @@ from collections import deque
 from gymnasium import spaces
 import gymnasium as gym
 from gymnasium.envs.registration import register
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, COLORS
 
 # MiniGrid
 from minigrid.minigrid_env import MiniGridEnv
@@ -95,8 +96,12 @@ class OrderedStrictDoor(StrictDoor):
 rooms_spec: List[Dict[str, Any]] = [
     # ----------------------------- Phase A (1–5): Navigate & subgoals ------------------------------
     {"id": 1, "subgoal": True,
+    "lava": {"count": 2},
+    "keys": [{"color": "purple"}],
+
      "exit_door": {"locked": False},
      "requirements": {"open_exit": "none"}},
+    
 
     {"id": 2, "subgoal": True,
      "corridors": {"pattern": "L", "material": "door"},
@@ -389,8 +394,11 @@ class BigCurriculumEnv(MiniGridEnv):
                 dtype=np.uint8
             ),
             "direction": spaces.Discrete(4),
-            "mission": mission_space
+            "mission": mission_space,
+            # (type_idx, color_idx) or (-1,-1)
+            "carrying": spaces.Box(low=-1, high=255, shape=(2,), dtype=np.int16),
         })
+        
 
         self.placed_pairs_by_room: Dict[int, Set[str]] = {}
         self.exit_doors: Dict[int, Tuple[int, int]] = {}
@@ -590,21 +598,7 @@ class BigCurriculumEnv(MiniGridEnv):
             # red subgoal just behind entrance if possible
             if spec.get("subgoal", False):
                 sg = RewardGoal(reward_value=float(room_id), is_terminal=False, color="red")
-                pos = None
-                if room_id in self.entrance_approach:
-                    ia = self.entrance_approach[room_id]
-                    cx = top_x + ROOM_INNER_W // 2; cy = top_y + ROOM_INNER_H // 2
-                    vx = 0 if ia[0] == cx else (1 if ia[0] < cx else -1)
-                    vy = 0 if ia[1] == cy else (1 if ia[1] < cy else -1)
-                    deeper = (ia[0] + vx, ia[1] + vy)
-                    if self.grid.get(*deeper) is None:
-                        self.grid.set(*deeper, sg)
-                        if deeper in self._bfs_room(start, top_x, top_y):
-                            pos = deeper
-                        else:
-                            self.grid.set(*deeper, None)
-                if pos is None:
-                    pos = self._place_reachable(top_x, top_y, sg, reserved, start)
+                pos = self._place_reachable(top_x, top_y, sg, reserved, start)
                 placed_targets.append(pos)
 
             # FINAL GOAL (if requested in this room)
@@ -702,23 +696,39 @@ class BigCurriculumEnv(MiniGridEnv):
     # ----- utils -----
     def _room_id_from_pos(self, pos: Tuple[int, int]) -> Optional[int]:
         x, y = pos
-        for i, spec in enumerate(rooms_spec):
-            room_id = spec["id"]
-            ry, rx = room_index_to_rc(i)
-            top_x = rx * (ROOM_INNER_W + WALL_T) + WALL_T
-            top_y = ry * (ROOM_INNER_H + WALL_T) + WALL_T
-            if top_x <= x < top_x + ROOM_INNER_W and top_y <= y < top_y + ROOM_INNER_H:
-                return room_id
-        # If on a separator (e.g., door), look around to find the nearest interior cell
-        for dx, dy in ((1,0),(-1,0),(0,1),(0,-1)):
-            nx, ny = x + dx, y + dy
+
+        def _room_id_at(px: int, py: int) -> Optional[int]:
             for i, spec in enumerate(rooms_spec):
                 room_id = spec["id"]
                 ry, rx = room_index_to_rc(i)
                 top_x = rx * (ROOM_INNER_W + WALL_T) + WALL_T
                 top_y = ry * (ROOM_INNER_H + WALL_T) + WALL_T
-                if top_x <= nx < top_x + ROOM_INNER_W and top_y <= ny < top_y + ROOM_INNER_H:
+                if top_x <= px < top_x + ROOM_INNER_W and top_y <= py < top_y + ROOM_INNER_H:
                     return room_id
+            return None
+
+        # 1) Check current position first
+        rid_cur = _room_id_at(x, y)
+        if rid_cur is not None:
+            return rid_cur
+
+        # 2) Then check the front cell
+        fx, fy = self.front_pos
+        rid_fwd = _room_id_at(fx, fy)
+        if rid_fwd is not None:
+            return rid_fwd
+
+        # 3) Then check all four neighbors and return the highest id
+        candidates = []
+        for dx, dy in ((1,0), (-1,0), (0,1), (0,-1)):
+            rid = _room_id_at(x + dx, y + dy)
+            if rid is not None:
+                candidates.append(rid)
+
+        if candidates:
+            return max(candidates)
+
+        # 4) If nothing found, no valid room nearby
         raise ValueError("Agent is not in any room!")
 
 
@@ -893,31 +903,78 @@ class BigCurriculumEnv(MiniGridEnv):
         # Full visibility inside this room bbox (shape is (W,H))
         vis_mask = np.ones((w, h), dtype=bool)
 
-        # Optionally show carried object at the agent's tile in this room view
-        ax, ay = self.agent_pos
-        if x0 <= ax < x0 + w and y0 <= ay < y0 + h and self.carrying:
-            gx, gy = ax - x0, ay - y0
-            grid.set(gx, gy, self.carrying)
-        
-
-
         return grid, vis_mask
+    
+    def _encode_room_obs(self, grid, x0, y0, vis_mask):
+        """
+        Encode the sliced room grid to (W,H,3) and overlay the agent marker.
+        Returns (image, carrying_vec), where:
+        - image is uint8 (W,H,3)
+        - carrying_vec is (type_idx, color_idx), or (-1, -1) if empty
+        """
+        img = grid.encode(vis_mask)  # (W,H,3), uint8
+
+        # Agent local coords within the sliced room
+        ax, ay = self.agent_pos
+        lx, ly = ax - x0, ay - y0
+        if 0 <= lx < img.shape[0] and 0 <= ly < img.shape[1]:
+            # Paint the agent marker (like FullyObsWrapper does)
+            img[lx, ly] = np.array([OBJECT_TO_IDX["agent"],
+                                    COLOR_TO_IDX["red"],   # any color you prefer
+                                    self.agent_dir], dtype=img.dtype)
+
+        # Carrying as a compact vector (Markov)
+        if self.carrying is not None:
+            carry_type = OBJECT_TO_IDX[self.carrying.type]
+            carry_color = COLOR_TO_IDX[self.carrying.color]
+            carrying_vec = np.array([carry_type, carry_color], dtype=np.int16)
+        else:
+            carrying_vec = np.array([-1, -1], dtype=np.int16)
+
+        return img, carrying_vec
+    
+    def gen_obs(self):
+        # 1) Get your room slice + mask
+        x0, y0, w, h = self._current_room_bbox()
+        grid, vis_mask = self.gen_obs_grid()
+
+        # 2) Encode and overlay agent
+        image, carrying_vec = self._encode_room_obs(grid, x0, y0, vis_mask)
+
+        # 3) Assemble observation dict
+        obs = {
+            "image": image,
+            "direction": self.agent_dir,
+            "mission": self.mission
+        }
+        # Add carrying explicitly for Markov
+        obs["carrying"] = carrying_vec
+        return obs
 
     # ---------- RENDER OVERRIDES (highlight/POV use room-with-walls) ----------
     def get_pov_render(self, tile_size):
         x0, y0, w, h = self._current_room_bbox()
         subgrid = self.grid.slice(x0, y0, w, h)
+
         # agent pos relative to subgrid
         ax, ay = self.agent_pos
         local_agent_pos = (ax - x0, ay - y0)
+
         vis_mask = np.ones((w, h), dtype=bool)
-        return subgrid.render(
+
+        # Render the room (agent arrow is drawn by Grid.render when agent_pos is provided)
+        img = subgrid.render(
             tile_size,
             agent_pos=local_agent_pos,
             agent_dir=self.agent_dir,
             highlight_mask=vis_mask
         )
 
+        # Overlay a small "carrying" badge in the agent's tile
+        if self.carrying is not None:
+            self._overlay_carrying_marker(img, local_agent_pos, tile_size, self.carrying)
+        return img
+    
     def get_full_render(self, highlight, tile_size):
         # Highlight the whole current room bbox in the global render
         highlight_mask = None
@@ -930,22 +987,100 @@ class BigCurriculumEnv(MiniGridEnv):
             y0c = max(0, min(self.height, y0))
             highlight_mask[x0c:x1, y0c:y1] = True
 
-        return self.grid.render(
+        # Render full grid (this already draws the agent triangle)
+        img = self.grid.render(
             tile_size,
             self.agent_pos,
             self.agent_dir,
             highlight_mask=highlight_mask
         )
 
+        # Overlay carrying badge in the agent’s global cell
+        if self.carrying is not None:
+            self._overlay_carrying_marker(img, tuple(self.agent_pos), tile_size, self.carrying)
+        return img
+
+    
+
+    def _overlay_carrying_marker(self, canvas: np.ndarray, cell_xy: tuple[int, int],
+                             tile_size: int, obj, scale: float = 0.45):
+        """
+        Overlay a small rendering of the carried object (`obj`) in the top-left
+        corner of the agent's cell on the rendered `canvas`.
+
+        Args:
+            canvas: The full RGB image array from Grid.render(...).
+            cell_xy: (x_cell, y_cell) coordinate of the agent in the rendered grid.
+            tile_size: Pixel size of one cell.
+            obj: The carried WorldObj (Key, Ball, Box, etc.).
+            scale: Fraction of tile_size to use for the miniature.
+        """
+        if obj is None:
+            return
+
+        H, W, _ = canvas.shape
+        x_cell, y_cell = cell_xy
+
+        # Compute pixel bounds of the agent's cell
+        x0 = x_cell * tile_size
+        y0 = y_cell * tile_size
+        if x0 < 0 or y0 < 0 or x0 >= W or y0 >= H:
+            return
+
+        # Create a small image for the object using its own render()
+        sub = max(6, int(tile_size * scale))
+        mini = np.zeros((sub, sub, 3), dtype=np.uint8)
+        obj.render(mini)
+
+        # Top-left corner placement with a bit of padding
+        pad = max(1, tile_size // 16)
+        px, py = x0 + pad, y0 + pad
+
+        # Paste safely inside bounds
+        px2 = min(W, px + sub)
+        py2 = min(H, py + sub)
+        if px2 > px and py2 > py:
+            canvas[py:py2, px:px2, :] = mini[:py2 - py, :px2 - px, :]
+    
     # ----- corridor drawer -----
     def _maybe_corridor(self, spec: Dict[str, Any], top_x: int, top_y: int, reserved: Set[tuple]):
         cor = spec.get("corridors")
         if not cor:
             return
-        pattern = str(cor.get("pattern", "")).upper()
+
+        pattern  = str(cor.get("pattern", "")).upper()     # "L" or "T"
         material = str(cor.get("material", "wall")).lower()  # "wall" or "door"
-        cx = top_x + ROOM_INNER_W // 2
-        cy = top_y + ROOM_INNER_H // 2
+        if pattern not in ("L", "T"):
+            return
+
+        room_id = spec["id"]
+
+        # --- Random spine positions but inside the room interior ---
+        cx_candidates = list(range(top_x + 1, top_x + ROOM_INNER_W - 1))
+        cy_candidates = list(range(top_y + 1, top_y + ROOM_INNER_H - 1))
+        cx = int(self.np_random.choice(cx_candidates))
+        cy = int(self.np_random.choice(cy_candidates))
+
+        # Start = entrance approach (or room center fallback)
+        start = self.entrance_approach.get(
+            room_id,
+            (top_x + ROOM_INNER_W // 2, top_y + ROOM_INNER_H // 2)
+        )
+        # Goal = exit approach if present, else center
+        goal = self.exit_approach.get(
+            room_id,
+            (top_x + ROOM_INNER_W // 2, top_y + ROOM_INNER_H // 2)
+        )
+
+        # Clamp helpers to inner bounds
+        def clamp_x(x): return max(top_x + 1, min(top_x + ROOM_INNER_W - 2, x))
+        def clamp_y(y): return max(top_y + 1, min(top_y + ROOM_INNER_H - 2, y))
+
+        # We force the corridor gaps to lie on a simple Manhattan route from start→goal.
+        # For the vertical line at x=cx, place the gap at y aligned with start or goal.
+        gap_v = (cx, clamp_y(start[1] if self.np_random.random() < 0.5 else goal[1]))
+        # For the horizontal line at y=cy, place the gap at x aligned with start or goal.
+        gap_h = (clamp_x(start[0] if self.np_random.random() < 0.5 else goal[0]), cy)
 
         def safe_set(x, y, obj):
             if (x, y) in reserved:
@@ -953,18 +1088,7 @@ class BigCurriculumEnv(MiniGridEnv):
             if self.grid.get(x, y) is None:
                 self.grid.set(x, y, obj)
 
-        def draw_line_with_gap(axis: str):
-            if axis == "v":
-                candidates = [(cx, y) for y in range(top_y + 1, top_y + ROOM_INNER_H - 1)]
-            else:
-                candidates = [(x, cy) for x in range(top_x + 1, top_x + ROOM_INNER_W - 1)]
-            gap = None
-            for p in candidates:
-                if p not in reserved:
-                    gap = p
-                    break
-            if gap is None:
-                gap = candidates[len(candidates)//2]
+        def draw_line_with_explicit_gap(axis: str, gap: tuple[int, int]):
             if axis == "v":
                 for y in range(top_y, top_y + ROOM_INNER_H):
                     pos = (cx, y)
@@ -978,9 +1102,50 @@ class BigCurriculumEnv(MiniGridEnv):
                         continue
                     safe_set(pos[0], pos[1], Wall() if material == "wall" else Door(color="grey", is_locked=False))
 
-        if pattern in ("L", "T"):
-            draw_line_with_gap("v")
-            draw_line_with_gap("h")
+        # Draw both arms (order random for variety)
+        arms = ["v", "h"]
+        self.np_random.shuffle(arms)
+        for a in arms:
+            if a == "v":
+                draw_line_with_explicit_gap("v", gap_v)
+            else:
+                draw_line_with_explicit_gap("h", gap_h)
+
+        # --- Validate reachability; if blocked, carve a second safety gap and re-validate ---
+        reachable = self._bfs_room(start, top_x, top_y)
+        if goal not in reachable:
+            # Open a second gap aligned with the other endpoint (ensures at least one straight pass)
+            second_gap_v = (cx, clamp_y(goal[1] if gap_v[1] != goal[1] else start[1]))
+            second_gap_h = (clamp_x(goal[0] if gap_h[0] != goal[0] else start[0]), cy)
+
+            # Clear walls/doors at the new gaps
+            for gx, gy in (second_gap_v, second_gap_h):
+                if (top_x <= gx < top_x + ROOM_INNER_W) and (top_y <= gy < top_y + ROOM_INNER_H):
+                    self.grid.set(gx, gy, None)  # remove obstruction
+            # If corridor material is doors, put an unlocked door instead of empty
+            if material == "door":
+                cxv, cyv = second_gap_v; self.grid.set(cxv, cyv, Door(color="grey", is_locked=False))
+                cxh, cyh = second_gap_h; self.grid.set(cxh, cyh, Door(color="grey", is_locked=False))
+
+            # Re-check; if still blocked, nuke the blocking cells along the straight Manhattan path
+            reachable = self._bfs_room(start, top_x, top_y)
+            if goal not in reachable:
+                # Carve a direct Manhattan corridor from start to goal
+                x, y = start
+                # horizontal
+                step = 1 if goal[0] >= x else -1
+                for xx in range(x, goal[0] + step, step):
+                    if (top_x <= xx < top_x + ROOM_INNER_W) and (top_y <= y < top_y + ROOM_INNER_H):
+                        self.grid.set(xx, y, None)
+                # vertical
+                step = 1 if goal[1] >= y else -1
+                for yy in range(y, goal[1] + step, step):
+                    if (top_x <= goal[0] < top_x + ROOM_INNER_W) and (top_y <= yy < top_y + ROOM_INNER_H):
+                        self.grid.set(goal[0], yy, None)
+                # If doors requested, place unlocked doors on the carved line intersections
+                if material == "door":
+                    self.grid.set(cx, gap_v[1], Door(color="grey", is_locked=False))
+                    self.grid.set(gap_h[0], cy, Door(color="grey", is_locked=False))
 
 
 
