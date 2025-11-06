@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=test
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=4G
-#SBATCH --time=0-00:05
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=128G
+#SBATCH --time=0-00:10
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=aip-lelis
+#SBATCH --account=rrg-lelis
 #SBATCH --array=0-50
 
 set -euo pipefail
@@ -28,8 +28,7 @@ export FLEXIBLAS=imkl
 
 # ----------------- sweep vars -----------------
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
-EXP_DIR_REL="TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/ContinualOptionQLearning/250K_reset_"$IDX"_seed["$IDX"]"
-
+EXP_DIR_REL="BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/ContinualOptionQLearning/400K-schedule-reset-"$IDX"_seed["$IDX"]"
 
 # These flags only matter if you override the env 
 # NOTE: if ENV is not given then the rest of the params will be ignored and just loaded from the train

@@ -43,7 +43,7 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "TwoRoomKeyDoorTwoGoalEnv-v0_/FullyObs_FixedSeed(seed-1)/ContinualOptionQLearning/250K_init_avg_0_seed[0]"
+        exp_name = "BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/OptionQLearning/0_seed[0]"
     else:
         exp_name = args.exp_dir
 
@@ -79,9 +79,9 @@ if __name__ == "__main__":
     
     experiment = LoggerExperiment(env, agent, test_path, train=False, args=exp_args)
     metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=1, seed_offset=args.seed)
-    exit(0)
+    
     analyzer = SingleExpAnalyzer(exp_path=test_path)
     for r in range(1, args.num_runs+1):
-        analyzer.generate_video(r, 1)
+        analyzer.generate_video(r, 1, fps=50)
     analyzer.save_seeds(test_path)
     analyzer.plot_combined(save_dir=test_path)

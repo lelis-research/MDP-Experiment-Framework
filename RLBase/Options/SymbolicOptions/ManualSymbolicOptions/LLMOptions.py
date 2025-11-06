@@ -12,7 +12,9 @@ from minigrid.core.constants import (
     OBJECT_TO_IDX as OID, IDX_TO_OBJECT, STATE_TO_IDX as SID,
     DIR_TO_VEC,  # (dx, dy) where x = columns (left→right), y = rows (top→down)
 )
+
 from ..Utils import BaseOption
+from ....registry import register_option
 
 # ACTION indices (keep consistent with your env)
 A_LEFT, A_RIGHT, A_FORWARD, A_PICKUP, A_DROP, A_TOGGLE, A_DONE = 0, 1, 2, 3, 4, 5, 6
@@ -349,7 +351,7 @@ import numpy as np
 # ------------------------------------------------------------
 # 2) HANDLING DOORS (colors, status)
 # ------------------------------------------------------------
-
+@register_option
 class GoAdjFaceNearestClosedDoor(TimedOption, GridNavMixin):
     """Navigate adjacent to the nearest CLOSED door and face it."""
     def select_action(self, obs):
@@ -374,6 +376,7 @@ class GoAdjFaceNearestClosedDoor(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
+@register_option
 class GoAdjFaceNearestLockedDoor(TimedOption, GridNavMixin):
     """Navigate adjacent to the nearest LOCKED door and face it."""
     def select_action(self, obs):
@@ -398,6 +401,7 @@ class GoAdjFaceNearestLockedDoor(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
+@register_option
 class GoAdjFaceNearestOpenDoor(TimedOption, GridNavMixin):
     """Navigate adjacent to the nearest OPEN door and face it."""
     def select_action(self, obs):
@@ -422,6 +426,7 @@ class GoAdjFaceNearestOpenDoor(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
+@register_option
 class OpenNearestClosedDoor(TimedOption, GridNavMixin):
     """Go adjacent to nearest CLOSED door, face it, then toggle to open."""
     def select_action(self, obs):
@@ -446,6 +451,7 @@ class OpenNearestClosedDoor(TimedOption, GridNavMixin):
         self._done = True
         return A_TOGGLE
 
+@register_option
 class UnlockNearestLockedDoor(TimedOption, GridNavMixin):
     """Go adjacent to nearest LOCKED door, face it, then toggle once (env checks key)."""
     def select_action(self, obs):
@@ -470,6 +476,7 @@ class UnlockNearestLockedDoor(TimedOption, GridNavMixin):
         self._done = True
         return A_TOGGLE
 
+@register_option
 class GoToNearestGoal(TimedOption, GridNavMixin):
     """Pathfind directly to the nearest goal tile and step onto it."""
     def select_action(self, obs):
@@ -493,7 +500,7 @@ class GoToNearestGoal(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
-
+@register_option
 class FaceAndStepIntoGoal(TimedOption, GridNavMixin):
     """
     If the goal is directly ahead and forward is safe, step in.
@@ -553,26 +560,38 @@ class _GoAdjFaceDoorByStateColor(TimedOption, GridNavMixin):
         return A_DONE
 
 # Locked doors by color
+@register_option
 class GoAdjFaceLockedRedDoor(_GoAdjFaceDoorByStateColor):    _need_state = SID["locked"]; _color_id = 0
+@register_option
 class GoAdjFaceLockedGreenDoor(_GoAdjFaceDoorByStateColor):  _need_state = SID["locked"]; _color_id = 1
+@register_option
 class GoAdjFaceLockedBlueDoor(_GoAdjFaceDoorByStateColor):   _need_state = SID["locked"]; _color_id = 2
+@register_option
 class GoAdjFaceLockedPurpleDoor(_GoAdjFaceDoorByStateColor): _need_state = SID["locked"]; _color_id = 3
+@register_option
 class GoAdjFaceLockedYellowDoor(_GoAdjFaceDoorByStateColor): _need_state = SID["locked"]; _color_id = 4
+@register_option
 class GoAdjFaceLockedGreyDoor(_GoAdjFaceDoorByStateColor):   _need_state = SID["locked"]; _color_id = 5
 
 # Closed doors by color
+@register_option
 class GoAdjFaceClosedRedDoor(_GoAdjFaceDoorByStateColor):    _need_state = SID["closed"]; _color_id = 0
+@register_option
 class GoAdjFaceClosedGreenDoor(_GoAdjFaceDoorByStateColor):  _need_state = SID["closed"]; _color_id = 1
+@register_option
 class GoAdjFaceClosedBlueDoor(_GoAdjFaceDoorByStateColor):   _need_state = SID["closed"]; _color_id = 2
+@register_option
 class GoAdjFaceClosedPurpleDoor(_GoAdjFaceDoorByStateColor): _need_state = SID["closed"]; _color_id = 3
+@register_option
 class GoAdjFaceClosedYellowDoor(_GoAdjFaceDoorByStateColor): _need_state = SID["closed"]; _color_id = 4
+@register_option
 class GoAdjFaceClosedGreyDoor(_GoAdjFaceDoorByStateColor):   _need_state = SID["closed"]; _color_id = 5
 
 
 # ------------------------------------------------------------
 # 3) HANDLING KEYS
 # ------------------------------------------------------------
-
+@register_option
 class PickupNearestKeyAnyColor(TimedOption, GridNavMixin):
     """Go adjacent to nearest key (any color), face it, then pick up."""
     def select_action(self, obs):
@@ -622,18 +641,24 @@ class _PickupNearestKeyByColor(TimedOption, GridNavMixin):
         self._done = True
         return A_PICKUP
 
+@register_option
 class PickupNearestRedKey(_PickupNearestKeyByColor):    _color_id = 0
+@register_option
 class PickupNearestGreenKey(_PickupNearestKeyByColor):  _color_id = 1
+@register_option
 class PickupNearestBlueKey(_PickupNearestKeyByColor):   _color_id = 2
+@register_option
 class PickupNearestPurpleKey(_PickupNearestKeyByColor): _color_id = 3
+@register_option
 class PickupNearestYellowKey(_PickupNearestKeyByColor): _color_id = 4
+@register_option
 class PickupNearestGreyKey(_PickupNearestKeyByColor):   _color_id = 5
 
 
 # ------------------------------------------------------------
 # 4) HANDLING BALLS
 # ------------------------------------------------------------
-
+@register_option
 class PickupNearestBallAnyColor(TimedOption, GridNavMixin):
     """Go adjacent to nearest ball (any color), face it, then pick up."""
     def select_action(self, obs):
@@ -683,18 +708,24 @@ class _PickupNearestBallByColor(TimedOption, GridNavMixin):
         self._done = True
         return A_PICKUP
 
+@register_option
 class PickupNearestRedBall(_PickupNearestBallByColor):    _color_id = 0
+@register_option
 class PickupNearestGreenBall(_PickupNearestBallByColor):  _color_id = 1
+@register_option
 class PickupNearestBlueBall(_PickupNearestBallByColor):   _color_id = 2
+@register_option
 class PickupNearestPurpleBall(_PickupNearestBallByColor): _color_id = 3
+@register_option
 class PickupNearestYellowBall(_PickupNearestBallByColor): _color_id = 4
+@register_option
 class PickupNearestGreyBall(_PickupNearestBallByColor):   _color_id = 5
 
 
 # ------------------------------------------------------------
 # 5) HANDLING BOXES (open / toggle; pickup revealed)
 # ------------------------------------------------------------
-
+@register_option
 class GoAdjFaceNearestBox(TimedOption, GridNavMixin):
     """Navigate adjacent to the nearest box and face it."""
     def select_action(self, obs):
@@ -718,6 +749,7 @@ class GoAdjFaceNearestBox(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
+@register_option
 class OpenNearestBox(TimedOption, GridNavMixin):
     """Navigate adjacent to the nearest box, face it, and toggle once to open."""
     def select_action(self, obs):
@@ -741,6 +773,7 @@ class OpenNearestBox(TimedOption, GridNavMixin):
         self._done = True
         return A_TOGGLE
 
+@register_option
 class OpenNearestBoxAndPickupIfItemRevealed(TimedOption, GridNavMixin):
     """
     Open the nearest box; if a key/ball is revealed in front, pick it up.
@@ -782,6 +815,7 @@ class OpenNearestBoxAndPickupIfItemRevealed(TimedOption, GridNavMixin):
         self._done = True
         return A_DONE
 
+@register_option
 class DropHere(TimedOption, GridNavMixin):
     """Single drop attempt on current tile."""
     def select_action(self, obs):

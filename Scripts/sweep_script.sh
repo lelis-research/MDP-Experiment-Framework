@@ -5,7 +5,7 @@
 #SBATCH --time=0-06:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=aip-lelis
+#SBATCH --account=rrg-lelis
 #SBATCH --array=0-107      # check HP_SEARCH_SPACE to calculate the space size
 
 ########SBATCH --gres=gpu:1
@@ -43,12 +43,12 @@ SEED=1
 NUM_RUNS=5
 NUM_WORKERS=5 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=200_000
+TOTAL_STEPS=400_000
 EPISODE_MAX_STEPS=2500
 NUM_ENVS=1
 
 
-NAME_TAG="init_uncertainty-margin-beta0"
+NAME_TAG="400K-schedule-init_uncertainty-margin-beta0"
 INFO='{
   "gamma": 0.99,
   "discount_option_flag": true,
@@ -60,7 +60,7 @@ INFO='{
   "uncertainty_beta": 0.0,
   "uncertainty_tau": 1.0,
   "uncertainty_kappa": 1.0,
-  "option_explore_mode": "",
+  "option_explore_mode": "schedule",
   "sch_budget": 2,
   "sch_rho": 0.5
 
