@@ -102,7 +102,7 @@ rooms_spec: List[Dict[str, Any]] = [
 
     # {"id": 1, "subgoal": True,
     #  "exit_door": {"locked": False},
-    #  "requirements": {"open_exit": "none"}}
+    #  "requirements": {"open_exit": "none"}},
     
     {"id": 2, "subgoal": True,
      "corridors": {"pattern": "L", "material": "door"},

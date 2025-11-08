@@ -5,7 +5,7 @@
 #SBATCH --time=0-00:10
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=rrg-lelis
+#SBATCH --account=aip-lelis
 #SBATCH --array=0-50
 
 set -euo pipefail
@@ -28,7 +28,7 @@ export FLEXIBLAS=imkl
 
 # ----------------- sweep vars -----------------
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
-EXP_DIR_REL="BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/ContinualOptionQLearning/400K-schedule-reset-"$IDX"_seed["$IDX"]"
+EXP_DIR_REL="Runs/Train/BigCurriculumEnv-v0_/DQN/"$IDX"_seed["$IDX"]"
 
 # These flags only matter if you override the env 
 # NOTE: if ENV is not given then the rest of the params will be ignored and just loaded from the train
@@ -41,7 +41,7 @@ EPISODE_MAX_STEPS=0
 
 
 SEED=$IDX
-NUM_RUNS=1                 # how many test runs (test.py will make one GIF per run)
+NUM_RUNS=5                # how many test runs (test.py will make one GIF per run)
 RENDER_MODE=""             # test.py forces rgb_array_list internally; this arg is parsed but not used
 STORE_TRANSITIONS=false   
 NAME_TAG="" 

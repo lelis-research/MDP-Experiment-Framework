@@ -43,12 +43,15 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/OptionQLearning/0_seed[0]"
+        exp_name = "Runs/Train/BigCurriculumEnv-v0_/FullyObs_FixedSeed(seed-2)/OptionQLearning/0_seed[0]"
     else:
         exp_name = args.exp_dir
 
-    train_path = f"Runs/Train/{exp_name}"
-    test_path = f"Runs/Test/{exp_name}"
+    # train_path = f"Runs/Train/{exp_name}"
+    # test_path = f"Runs/Test/{exp_name}"
+    
+    train_path = args.exp_dir
+    test_path = train_path.replace("Runs/Train/", "Runs/Test/", 1)
 
     # If saved the frames during training you can visualize them like this
     # analyzer = SingleExpAnalyzer(exp_path=train_path)

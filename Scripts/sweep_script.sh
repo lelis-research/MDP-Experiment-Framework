@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=100G          # memory per node
-#SBATCH --time=0-06:00    # time (DD-HH:MM)
+#SBATCH --mem=64G          # memory per node
+#SBATCH --time=0-01:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -30,7 +30,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="OptionDQN" 
+AGENT="DQN" 
 ENV="BigCurriculumEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
@@ -39,19 +39,17 @@ WRAPPING_PARAMS='[]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
-NUM_RUNS=2
-NUM_WORKERS=2 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
+NUM_RUNS=3
+NUM_WORKERS=3 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=400_000
-EPISODE_MAX_STEPS=2500
+TOTAL_STEPS=100_000
+EPISODE_MAX_STEPS=100
 NUM_ENVS=1
 
 
 NAME_TAG=""
 INFO='{
   "gamma": 0.99,
-  "discount_option_flag": true,
-  "option_len": 20,
   "epsilon_start": 1.0,
   "target_update_freq": 20,
   "replay_buffer_cap": 100000

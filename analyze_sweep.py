@@ -544,7 +544,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/BigCurriculumEnv-v0_/DQN/_seed[1]"
+    exp_dir = "Runs/Sweep/BigCurriculumEnv-v0_/OptionDQN/_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------

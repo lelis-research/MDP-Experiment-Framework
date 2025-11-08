@@ -19,43 +19,45 @@ if __name__ == "__main__":
     Continuals_anti_cond = ["egreedy", "schedule"]
     Continuals_anti_cond2 = []
     
-    DQN = "Runs/Train/MiniGrid-Empty-6x6-v0_/FlattenOnehotObj/DQN"
+    DQN = "Runs/Train/BigCurriculumEnv-v0_/FlattenOnehotObj/DQN"
+    DQN2 = "Runs/Train/BigCurriculumEnv-v0_/DQN"
     
     agent_dict = {
         # "QLearning": gather_experiments(QLearning_Big, name_string_conditions=["400K-"], name_string_anti_conditions=Continuals_anti_cond2),
         # "OptionQLearning": gather_experiments(OptionQLearning_Big, name_string_conditions=["400K-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual_max": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_max-"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual_max-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_max-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual_max-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_max-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual_max-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_max-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual_max-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_max-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual_zero": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_zero-"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual_zero-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_zero-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual_zero-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_zero-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual_zero-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_zero-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual_zero-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_zero-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual_reset": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-reset-"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual_reset-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["reset-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual_reset-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-reset-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual_reset-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["reset-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual_reset-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-reset-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual-entropy-beta0": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_uncertainty-entropy-beta0"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual-entropy-beta0-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-entropy-beta0-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual-entropy-beta0-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-entropy-beta0-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual-entropy-beta0-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-entropy-beta0-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual-entropy-beta0-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-entropy-beta0-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual-entropy-beta1": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_uncertainty-entropy-beta1"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual-entropy-beta1-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-entropy-beta1-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual-entropy-beta1-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-entropy-beta1-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual-entropy-beta1-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-entropy-beta1-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual-entropy-beta1-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-entropy-beta1-"], name_string_anti_conditions=Continuals_anti_cond2),
         
 
         # "Continual-margin-beta0": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_uncertainty-margin-beta0"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual-margin-beta0-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-margin-beta0-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual-margin-beta0-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-margin-beta0-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual-margin-beta0-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-margin-beta0-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual-margin-beta0-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-margin-beta0-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         # "Continual-margin-beta1": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-init_uncertainty-margin-beta1"], name_string_anti_conditions=Continuals_anti_cond),
-        # # "Continual-margin-beta1-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-margin-beta1-egreedy-"], name_string_anti_conditions=[]),
-        # # "Continual-margin-beta1-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-margin-beta1-"], name_string_anti_conditions=Continuals_anti_cond2),
+        # "Continual-margin-beta1-egreedy": gather_experiments(ContinualOptionQLearning_TwoGoals, name_string_conditions=["init_uncertainty-margin-beta1-egreedy-"], name_string_anti_conditions=[]),
+        # "Continual-margin-beta1-schedule": gather_experiments(ContinualOptionQLearning_Big, name_string_conditions=["400K-schedule-init_uncertainty-margin-beta1-"], name_string_anti_conditions=Continuals_anti_cond2),
         
         
-        "DQN": gather_experiments(DQN, name_string_conditions=[], name_string_anti_conditions=[]),
+        # "DQN": gather_experiments(DQN, name_string_conditions=[], name_string_anti_conditions=[]),
+        "DQN2": gather_experiments(DQN2, name_string_conditions=[], name_string_anti_conditions=[]),
         
         
         
