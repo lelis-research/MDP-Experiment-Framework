@@ -15,81 +15,64 @@ Known Layers:
     
 """
 
-conv_network_1 = [
-    {"type": "conv2d", "out_channels": 32, "kernel_size": 3, "stride": 1},
-    {"type": "relu"},
-    {"type": "conv2d", "in_channels": 32, "out_channels": 64, "kernel_size": 3, "stride": 1},
-    {"type": "relu"},
-    {"type": "flatten"},
-    {"type": "linear", "out_features": 512},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 512}
+conv1_network = [
+        # image branch
+        {"type": "input",  "id": "x_img", "input_key": "img"},
+        {"type": "conv2d", "id": "conv1", "from": "x_img", "out_channels": 16, "kernel_size": 3, "stride": 1, "padding": 1},
+        {"type": "relu",   "id": "conv1_relu", "from": "conv1"},
+        
+        {"type": "flatten","id": "flat","from": "conv1_relu"},
+
+        # vector branch
+        {"type": "input",  "id": "x_dir", "input_key": "dir_carry"},
+        
+        # merge
+        {"type": "concat", "id": "merged", "from": ["x_dir", "flat"], "dim": 1, "flatten": True},
+        
+        {"type": "linear", "id": "l1",  "from": "merged", "out_features": 64},
+        {"type": "relu",   "id": "l1_relu", "from": "l1"},
+
+        #head
+        {"type": "linear", "id": "out", "from": "l1_relu", "in_features": 64}
+    ]
+
+
+conv2_network = [
+  # image branch (img: N,C,H,W where C = num_bits one-hot planes)
+  {"type":"input",  "id":"x_img", "input_key":"img"},
+  {"type":"conv2d", "id":"conv1", "from":"x_img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1},
+  {"type":"relu",   "id":"relu1", "from":"conv1"},
+  {"type":"conv2d", "id":"conv2", "from":"relu1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1},
+  {"type":"relu",   "id":"relu2", "from":"conv2"},
+  {"type":"flatten","id":"flat",  "from":"relu2"},
+
+  # vector branch (dir/carry one-hots concatenated beforehand; e.g., 4 + 11 + 6 = 21)
+  {"type":"input",  "id":"x_dir", "input_key":"dir_carry"},
+
+  # merge
+  {"type":"concat", "id":"merged", "from":["flat","x_dir"], "dim":1, "flatten":True},
+
+  # trunk
+  {"type":"linear", "id":"fc1",   "from":"merged", "out_features":128},
+  {"type":"relu",   "id":"relu_fc1","from":"fc1"},
+
+  # Q head
+  {"type":"linear", "id":"out",   "from":"relu_fc1", "out_features":"num_actions"}
 ]
 
-conv_network_2 = [
-    {"type": "conv2d",  "out_channels": 32, "kernel_size": 7, "stride": 3, "padding": 2},
-    {"type": "relu"},
-
-    {"type": "conv2d", "in_channels": 32, "out_channels": 64, "kernel_size": 7, "stride": 3, "padding": 2},
-    {"type": "relu"},
-
-    {"type": "conv2d", "in_channels": 64, "out_channels": 64, "kernel_size": 3, "stride": 1, "padding": 1},
-    {"type": "relu"},
-
-    {"type": "flatten"},
-
-    {"type": "linear", "out_features": 512},
-    {"type": "relu"},
+linear1_network = [
+    {"type":"input",  "id":"x", "input_key":"x"},
     
-    {"type": "linear", "in_features": 512},
+    {"type":"linear", "id":"fc1",   "from":"x", "out_features":128},
+    {"type":"relu",   "id":"relu_fc1", "from":"fc1"},
+    
+    {"type":"linear", "id":"fc2",   "from":"relu_fc1", "out_features":128, "out_features":128},
+    {"type":"relu",   "id":"relu_fc2", "from":"fc2"},
+    
+    {"type":"linear", "id":"fc3",   "from":"relu_fc2", "in_features":128},
 ]
-
-fc_network_1 = [
-    {"type": "linear", "out_features": 64},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 64},
-]
-
-fc_network_2 = [
-    {"type": "linear", "out_features": 64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64, "out_features":64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64, "std":0.01}
-]
-fc_network_relu = [
-    {"type": "linear", "out_features": 64},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 64, "out_features":64},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 64, "std":0.01}
-]
-
-linear_network_1 = [
-    {"type": "linear"}
-]
-
-minihack_actor = [
-    {"type": "linear", "out_features": 256},
-    {"type": "relu"},
-    {"type": "linear", "in_features": 256},
-]
-minihack_critic = [
-    {"type": "linear", "out_features": 64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64, "out_features": 64},
-    {"type": "tanh"},
-    {"type": "linear", "in_features": 64},
-]
-
 NETWORKS = {
-    "fc_network_1": fc_network_1,
-    "fc_network_2": fc_network_2,
-    "fc_network_tanh": fc_network_2,
-    "fc_network_relu": fc_network_relu,
-    "conv_network_1": conv_network_1,
-    "conv_network_2": conv_network_2,
-    
-    "minihack_critic": minihack_critic,
-    "minihack_actor": minihack_actor,
+    "conv1_network": conv1_network,
+    "conv2_network": conv2_network,
+    "linear1_network": linear1_network,
 }

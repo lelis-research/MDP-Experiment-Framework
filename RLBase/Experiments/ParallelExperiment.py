@@ -4,10 +4,9 @@ import numpy as np
 import torch  # used only for best-agent checkpointing passthrough
 import random
 
-from . import BaseExperiment
+from . import LoggerExperiment, call_back
 
-
-class ParallelExperiment(BaseExperiment):
+class ParallelExperiment(LoggerExperiment):
     """
     Parallel/vectorized variant of BaseExperiment.
     Overrides only the run loops; everything else (multi_run, _one_run, etc.)
@@ -41,9 +40,9 @@ class ParallelExperiment(BaseExperiment):
         Returns: (all_metrics, best_agent_checkpoint_dict)
         """
         best_agent, best_return = None, -np.inf
+        self.call_back.reset()
         if self._train:
-            agent.reset(seed)
-        
+            agent.reset(seed)  
         all_metrics = []
         pbar = tqdm(total=num_episodes, desc="Running episodes")
         
@@ -53,26 +52,37 @@ class ParallelExperiment(BaseExperiment):
         ep_returns = np.zeros(num_envs, dtype=np.float32)
         ep_lengths = np.zeros(num_envs, dtype=np.int64)
         transitions_buf = [[] for _ in range(num_envs)] if self._dump_transitions else None
+        actions_log = [[] for _ in range(num_envs)] if self._dump_actions else None
 
         episodes_done = 0
-
-        observations, infos = env.reset()
+        agent_logs = [[] for _ in range(num_envs)]
+        
+        seeds = [seed + i for i in range(num_envs)]
+        observations, infos = env.reset(seeds)
         while episodes_done < num_episodes:                
-            actions = agent.parallel_act(observations)
+            actions = agent.parallel_act(observations, greedy=not self._train)
+            if hasattr(agent, 'log'):
+                log_entry = agent.log()
+                for i in range(num_envs):
+                    agent_logs[i].append(log_entry)
+                
             next_observations, rewards, terminateds, truncateds, infos = env.step(actions)
             
             if self._dump_transitions:
                 for i in range(num_envs):
                     transitions_buf[i].append((self._obs_i(observations, i), actions[i], rewards[i],
                                                bool(terminateds[i]), bool(truncateds[i])))
+            if self._dump_actions:
+                for i in range(num_envs):
+                    actions_log[i].append(actions[i])
             
+            if self._train:
+                agent.parallel_update(next_observations, rewards, terminateds, truncateds,
+                                      call_back=lambda data_dict, counter=None: self.call_back(data_dict, f"agents/run_{run_idx}", counter))
             
             ep_returns += self._extract_actual_rewards(infos, rewards)
             ep_lengths += 1
 
-            if self._train:
-                agent.parallel_update(next_observations, rewards, terminateds, truncateds)
-                
             observations = next_observations
 
             dones = np.logical_or(terminateds, truncateds)
@@ -93,8 +103,10 @@ class ParallelExperiment(BaseExperiment):
                     "ep_length": int(ep_lengths[i]),
                     "frames": frames,
                     "transitions": transitions_buf[i] if self._dump_transitions else [],
+                    "actions": actions_log[i] if self._dump_actions else [],
                     "agent_seed": seed,
                     "episode_index": episodes_done,
+                    "agent_logs": agent_logs[i]
                 }
                 all_metrics.append(metrics)
 
@@ -103,6 +115,13 @@ class ParallelExperiment(BaseExperiment):
                     best_return = ep_returns[i]
                     best_agent = agent.save()
 
+                self.call_back({"ep_return": metrics["ep_return"]},
+                           f"ep_return/run_{run_idx}", 
+                           episodes_done)
+                self.call_back({"ep_length": metrics["ep_length"]},
+                            f"ep_length/run_{run_idx}", 
+                            episodes_done)
+            
                 # Progress + optional checkpoint
                 pbar.update(1)
                 pbar.set_postfix({"Return": metrics["ep_return"], "Steps": metrics["ep_length"]})
@@ -116,6 +135,10 @@ class ParallelExperiment(BaseExperiment):
                 ep_lengths[i] = 0
                 if self._dump_transitions:
                     transitions_buf[i] = []
+                if self._dump_actions:
+                    actions_log[i] = []
+                
+                agent_logs[i] = []
             
 
         pbar.close()
@@ -129,6 +152,7 @@ class ParallelExperiment(BaseExperiment):
         Returns: (all_metrics, best_agent_checkpoint_dict)
         """
         best_agent, best_return = None, -np.inf
+        self.call_back.reset()
         if self._train:
             agent.reset(seed)
 
@@ -140,19 +164,31 @@ class ParallelExperiment(BaseExperiment):
         ep_returns = np.zeros(num_envs, dtype=np.float32)
         ep_lengths = np.zeros(num_envs, dtype=np.int64)
         transitions_buf = [[] for _ in range(num_envs)] if self._dump_transitions else None
-
+        actions_log = [[] for _ in range(num_envs)] if self._dump_actions else None
+        
         steps_so_far = 0
         episodes_done = 0
+        agent_logs = [[] for _ in range(num_envs)] 
         
-        observations, infos = env.reset()
+        seeds = [seed + i for i in range(num_envs)]
+        observations, infos = env.reset(seeds)
         while steps_so_far < total_steps:
-            actions = agent.parallel_act(observations)
+            actions = agent.parallel_act(observations, greedy=not self._train)
+            if hasattr(agent, 'log'):
+                log_entry = agent.log()
+                for i in range(num_envs):
+                    agent_logs[i].append(log_entry)
+                    
             next_observations, rewards, terminateds, truncateds, infos = env.step(actions)
             
             if self._dump_transitions:
                 for i in range(num_envs):
                     transitions_buf[i].append((self._obs_i(observations, i), actions[i], rewards[i],
                                                bool(terminateds[i]), bool(truncateds[i])))
+            
+            if self._dump_actions:
+                for i in range(num_envs):
+                    actions_log[i].append(actions[i])
             
                  
             ep_returns += self._extract_actual_rewards(infos, rewards)
@@ -163,7 +199,8 @@ class ParallelExperiment(BaseExperiment):
                 truncateds = np.ones_like(truncateds)
             
             if self._train:
-                agent.parallel_update(next_observations, rewards, terminateds, truncateds)
+                agent.parallel_update(next_observations, rewards, terminateds, truncateds,
+                                      call_back=lambda data_dict, counter=None: self.call_back(data_dict, f"agents/run_{run_idx}", counter))
 
             pbar.update(num_envs)
             observations = next_observations
@@ -189,8 +226,10 @@ class ParallelExperiment(BaseExperiment):
                     "ep_length": int(ep_lengths[i]),
                     "frames": frames,
                     "transitions": transitions_buf[i] if self._dump_transitions else [],
+                    "actions": actions_log[i] if self._dump_actions else [],
                     "agent_seed": seed,
                     "episode_index": episodes_done,
+                    "agent_logs": agent_logs[i]
                 }
                 all_metrics.append(metrics)
                 
@@ -198,6 +237,13 @@ class ParallelExperiment(BaseExperiment):
                 if ep_returns[i] >= best_return:
                     best_return = ep_returns[i]
                     best_agent = agent.save()
+                    
+                self.call_back({"ep_return": metrics["ep_return"]},
+                           f"ep_return/run_{run_idx}", 
+                           steps_so_far)
+                self.call_back({"ep_length": metrics["ep_length"]},
+                            f"ep_length/run_{run_idx}", 
+                            steps_so_far)
 
                 
                 pbar.set_postfix({"Episode": episodes_done, 
@@ -213,45 +259,12 @@ class ParallelExperiment(BaseExperiment):
                 ep_lengths[i] = 0
                 if self._dump_transitions:
                     transitions_buf[i] = []
+                if self._dump_actions:
+                    actions_log[i] = []
+                    
+                agent_logs[i] = []
 
 
         pbar.close()
         return all_metrics, best_agent
     
-    
-    def _one_run(self, run_idx, case_num, num_episodes, total_steps, seed_offset, tuning_hp=None):
-        """
-        Helper for a single run: computes a seed and calls the
-        appropriate single-run method.
-        """
-        if seed_offset is None:
-            seed = random.randint(0, 2**32 - 1)
-        else:
-            if case_num == 1:
-                seed = (run_idx - 1) * num_episodes + seed_offset
-            else:
-                seed = (run_idx - 1) * total_steps + seed_offset
-
-        # build fresh env & agent each run
-        env   = self._make_env()
-        agent = self._make_agent(env)
-        
-        self.env, self.agent = env, agent
-        if tuning_hp is not None:
-            agent.set_hp(tuning_hp)
-
-        if case_num == 1:
-            result, best_agent = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
-        else:
-            result, best_agent = self._single_run_steps(env, agent, total_steps, seed, run_idx)
-                
-        
-        # Save last and best agent
-        if self._checkpoint_freq is not None:
-            path = os.path.join(self.exp_dir, f"Run{run_idx}_Last")
-            agent.save(path)
-            
-            path = os.path.join(self.exp_dir, f"Run{run_idx}_Best")
-            torch.save(best_agent, f"{path}_agent.t")
-        
-        return result

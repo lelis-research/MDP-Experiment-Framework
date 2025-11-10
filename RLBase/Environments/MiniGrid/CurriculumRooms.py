@@ -19,7 +19,7 @@ from collections import deque
 from gymnasium import spaces
 import gymnasium as gym
 from gymnasium.envs.registration import register
-from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, COLORS
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, COLORS, STATE_TO_IDX
 
 # MiniGrid
 from minigrid.minigrid_env import MiniGridEnv
@@ -36,14 +36,14 @@ WALL_T = 1 # DO NOT CHANGE THIS
 ROOMS_PER_ROW = 6         # 6 x 5 = 30 rooms
 ROOM_ROWS = 5
 MAX_STEPS = 10_000
-FINAL_GOAL_REWARD = 100.0
+FINAL_GOAL_REWARD = 1.0
 LAVA_PLACE_MAX_TRIES = 200
 OBJ_PLACE_MAX_TRIES = 200
 
 # ---------- Reward-carrying Goal ----------
 class RewardGoal(Goal):
     """A Goal that carries a custom reward and optional terminal flag."""
-    def __init__(self, reward_value: float = 1.0, is_terminal: bool = False, color: str = "red"):
+    def __init__(self, reward_value: float = 0.0, is_terminal: bool = False, color: str = "red"):
         super().__init__(color)
         self.reward_value = float(reward_value)
         self.is_terminal = bool(is_terminal)
@@ -95,7 +95,7 @@ class OrderedStrictDoor(StrictDoor):
 
 rooms_spec: List[Dict[str, Any]] = [
     # ----------------------------- Phase A (1–5): Navigate & subgoals ------------------------------
-    {"id": 1, "subgoal": True,
+    {"id": 1, "subgoal": False,
      "exit_door": {"locked": True},
      "requirements": {"open_exit": "none", "final_goal": True}},
     
@@ -386,18 +386,30 @@ class BigCurriculumEnv(MiniGridEnv):
             max_steps=max_steps,
             **kwargs
         )
- 
+
+        img_low  = np.array([0, 0, 0], dtype=np.uint8)
+        img_high = np.array([len(OBJECT_TO_IDX) - 1, len(COLOR_TO_IDX) - 1, len(STATE_TO_IDX) - 1], dtype=np.uint8)
+
+        H = ROOM_INNER_H + 2*WALL_T  # 9
+        W = ROOM_INNER_W + 2*WALL_T  # 9
+
         # Observation is the full room including walls: (7+2, 7+2, 3) = (9,9,3)
         self.observation_space = spaces.Dict({
             "image": spaces.Box(
-                low=0, high=255,
-                shape=(ROOM_INNER_W + 2*WALL_T, ROOM_INNER_H + 2*WALL_T, 3),
-                dtype=np.uint8
+                low=np.broadcast_to(img_low,  (H, W, 3)),
+                high=np.broadcast_to(img_high, (H, W, 3)),
+                dtype=np.uint8,
+                shape=(H, W, 3),
             ),
             "direction": spaces.Discrete(4),
             "mission": mission_space,
             # (type_idx, color_idx) or (-1,-1)
-            "carrying": spaces.Box(low=-1, high=255, shape=(2,), dtype=np.int16),
+            "carrying": spaces.Box(
+                low=np.array([-1, -1], dtype=np.int16),
+                high=np.array([len(OBJECT_TO_IDX) - 1, len(COLOR_TO_IDX) - 1], dtype=np.int16),
+                dtype=np.int16,
+                shape=(2,),
+                ),
         })
         
 
@@ -598,7 +610,8 @@ class BigCurriculumEnv(MiniGridEnv):
 
             # red subgoal just behind entrance if possible
             if spec.get("subgoal", False):
-                sg = RewardGoal(reward_value=float(room_id), is_terminal=False, color="red")
+                # sg = RewardGoal(reward_value=float(room_id), is_terminal=False, color="red") # reward = room
+                sg = RewardGoal(reward_value=0.0, is_terminal=False, color="red") # reward = 1 - 0.9 * (steps / max_steps)
                 pos = self._place_reachable(top_x, top_y, sg, reserved, start)
                 placed_targets.append(pos)
 

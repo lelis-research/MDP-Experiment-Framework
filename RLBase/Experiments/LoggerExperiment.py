@@ -90,7 +90,7 @@ class LoggerExperiment(BaseExperiment):
                 if self._train:
                     # Pass history to callback
                     agent.update(next_observation, reward, terminated, truncated,
-                                    call_back=lambda data: self.call_back(data, f"agents/run_{run_idx}"))
+                                    call_back=lambda data, counter=None: self.call_back(data, f"agents/run_{run_idx}", counter))
 
                 ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps += 1
@@ -208,6 +208,12 @@ class LoggerExperiment(BaseExperiment):
                 ep_return += info["actual_reward"] if "actual_reward" in info else reward
                 steps_in_episode += 1
                 steps_so_far += 1
+                
+                # Checkpointing if desired
+                if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and steps_so_far % self._checkpoint_freq == 0:
+                    path = os.path.join(self.exp_dir, f"Run{run_idx}_S{steps_so_far}")
+                    agent.save(path)
+                
 
                 # If we've hit the global step limit mid-episode, force truncation
                 if steps_so_far >= total_steps:
@@ -222,7 +228,7 @@ class LoggerExperiment(BaseExperiment):
                 # Train the agent if needed
                 if self._train:
                     agent.update(next_observation, reward, terminated, truncated, 
-                                      call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}"))
+                                      call_back=lambda data_dict, counter=None: self.call_back(data_dict, f"agents/run_{run_idx}", counter))
                 
                 pbar.update(1)
                 # Move to next observation
@@ -272,10 +278,7 @@ class LoggerExperiment(BaseExperiment):
                 "TotalSteps": steps_so_far
             })
             
-            # Checkpointing if desired
-            if self._checkpoint_freq is not None and self._checkpoint_freq != 0 and steps_so_far % self._checkpoint_freq == 0:
-                path = os.path.join(self.exp_dir, f"Run{run_idx}_S{steps_so_far}")
-                agent.save(path)
+            
         pbar.close()
         return all_metrics, best_agent
 

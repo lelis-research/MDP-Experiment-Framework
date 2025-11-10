@@ -1,6 +1,6 @@
 
 from gymnasium.spaces import Discrete
-from ..ManualSymbolicOptions import FindGoalOption
+from ..RLBase.Options.SymbolicOptions.ManualSymbolicOptions import FindGoalOption
 
 class ManualSeq4_Base_OptionLearner():
     name="ManualSeq4_Base_OptionLearner"

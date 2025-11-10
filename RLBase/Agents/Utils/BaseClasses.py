@@ -9,6 +9,10 @@ class BaseFeature:
         self.device = device
     
     @property
+    def num_features(self):
+        return 1
+    
+    @property
     def features_dim(self):
         # Must be implemented by subclasses.
         raise NotImplementedError("Must be implemented by the child class")
@@ -59,11 +63,11 @@ class BasePolicy:
         else:
             raise ValueError("Action dim is not defined in this action space")
             
-    def select_action(self, observation):
+    def select_action(self, state):
         # Must be implemented by subclasses.
         raise NotImplementedError("This method should be implemented by subclasses.")
     
-    def select_parallel_actions(self, observations):
+    def select_parallel_actions(self, states_vec):
         # Must be implemented by subclasses.
         raise NotImplementedError("This method should be implemented by subclasses.")
     
@@ -104,14 +108,14 @@ class BaseAgent:
     def act(self, observation):
         return self.policy.select_action(observation)
     
-    def parallel_act(self, observations):
-        return self.policy.select_parallel_actions(observations)
+    def parallel_act(self, observations_vec):
+        return self.policy.select_parallel_actions(observations_vec)
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
         # For training updates; override in subclasses.
         pass
     
-    def parallel_update(self, observations, rewards, terminateds, truncateds, call_back=None):
+    def parallel_update(self, observations_vec, rewards_vec, terminateds_vec, truncateds_vec, call_back=None):
         # For parallel training updates; override in subclasses.
         pass
     

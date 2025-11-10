@@ -51,30 +51,23 @@ class FLattenFeature(BaseFeature):
         return observation
 
 
-
-
 @register_feature_extractor
-class MiniGridOneHotFlatWithDirCarryFeature(BaseFeature):
+class OneHotImageDirCarryFeature(BaseFeature):
     """
-    Output (always batched): (N, features_dim)
-      features = [ onehot(image) , onehot(direction) , onehot(carry_type) , onehot(carry_color) ]
-
-    Accepts single obs dict or batch dict:
-      - image: (W,H,3) or (N,W,H,3)
-      - direction: () or (N,)
-      - carrying: (2,) or (N,2) with -1 meaning "none"
+    One-hot encode obs['image'] with categorical indices (W,H,3).
+    Vocab sizes and offsets are inferred from Box.low/high per channel.
     """
 
     def __init__(self, observation_space, device="cpu"):
         super().__init__(observation_space, device=device)
-
         if not isinstance(observation_space, gym.spaces.Dict):
             raise TypeError("Expected a Dict observation space.")
 
-        # Validate image
+        # -------- IMAGE -------- (BOX())
         if "image" not in observation_space.spaces:
             raise KeyError("Observation space must contain 'image'.")
         img_space = observation_space.spaces["image"]
+
         if not isinstance(img_space, gym.spaces.Box) or len(img_space.shape) != 3:
             raise ValueError("obs['image'] must be a 3D Box (W,H,3).")
         W, H, C = img_space.shape
@@ -82,112 +75,152 @@ class MiniGridOneHotFlatWithDirCarryFeature(BaseFeature):
             raise ValueError(f"Expected image channels=3 (type,color,state); got {C}.")
         self.W, self.H = int(W), int(H)
 
-        # Required keys
+        # Infer per-channel lows/highs (supports broadcasted bounds)
+        low, high = img_space.low, img_space.high
+        if low.shape  != (W, H, 3):  low  = np.broadcast_to(low,  (W, H, 3))
+        if high.shape != (W, H, 3):  high = np.broadcast_to(high, (W, H, 3))
+
+        chan_low  = low.min(axis=(0, 1))     # (3,)
+        chan_high = high.max(axis=(0, 1))    # (3,)
+
+        if np.any(low.max(axis=(0,1)) != chan_low):
+            raise ValueError("Per-channel lows vary across space; expected uniform per-channel bounds.")
+        if np.any(high.min(axis=(0,1)) != chan_high):
+            raise ValueError("Per-channel highs vary across space; expected uniform per-channel bounds.")
+        if np.any(chan_high < chan_low):
+            raise ValueError("Invalid bounds: high < low for at least one channel.")
+
+        chan_card = (chan_high.astype(np.int64) - chan_low.astype(np.int64) + 1)
+        if np.any(chan_card <= 0):
+            raise ValueError("Non-positive cardinality detected in image channels.")
+
+        self.chan_low   = chan_low.astype(np.uint8)   # [obj_low, color_low, state_low]
+        self.chan_high  = chan_high.astype(np.uint8)  # [obj_high, color_high, state_high]
+        self.chan_card  = chan_card.astype(np.int64)  # [|obj|, |color|, |state|]
+
+        self.num_obj, self.num_color, self.num_state = map(int, self.chan_card.tolist())
+        self.num_bits = int(self.num_obj + self.num_color + self.num_state)
+
+        self.out_W, self.out_H, self.out_C = self.W, self.H, self.num_bits
+        
+        # -------- DIRECTION -------- (Discrete())
         if "direction" not in observation_space.spaces:
-            raise KeyError("Observation space must contain 'direction' (Discrete(4)).")
+            raise KeyError("Observation space must contain 'direction'.")
+        
+        dir_space = observation_space.spaces["direction"]
+        if not isinstance(dir_space, gym.spaces.Discrete):
+            raise TypeError("obs['direction'] must be gym.spaces.Discrete.")
+        
+        self.dir_low, self.dir_high = 0, int(dir_space.n) - 1
+        self.dir_card = int(dir_space.n)   # e.g., 4
+        
+        # -------- CARRYING -------- (Box()
+
         if "carrying" not in observation_space.spaces:
-            raise KeyError("Observation space must contain 'carrying' (2-vector).")
-
-        # Vocab sizes from MiniGrid
-        self.num_obj   = len(OBJECT_TO_IDX)
-        self.num_color = len(COLOR_TO_IDX)
-        self.num_state = len(STATE_TO_IDX)
-        self.num_bits  = self.num_obj + self.num_color + self.num_state
-
-        # Direction and carry
-        self.num_dir = 4
-        self.carry_type_dim  = self.num_obj
-        self.carry_color_dim = self.num_color
-
-        # Precompute total features
-        self._features_dim = (
-            self.W * self.H * self.num_bits  # image one-hot flattened
-            + self.num_dir                   # direction one-hot
-            + self.carry_type_dim            # carry type one-hot
-            + self.carry_color_dim           # carry color one-hot
-        )
+            raise KeyError("Observation space must contain 'carrying' (pair: type,color).")
+        
+        carry_space = observation_space.spaces["carrying"]
+        if not isinstance(carry_space, gym.spaces.Box) or carry_space.shape != (2,):
+            raise TypeError("obs['carrying'] must be a Box with shape (2,) = (type_idx, color_idx).")
+        
+        # Per-component bounds and cardinalities
+        carry_low  = np.asarray(carry_space.low,  dtype=np.int64)  # [-1, -1]
+        carry_high = np.asarray(carry_space.high, dtype=np.int64)  # [|OBJ|-1, |COLOR|-1]
+        if np.any(carry_high < carry_low):
+            raise ValueError("Invalid 'carrying' bounds: high < low")
+        carry_card = (carry_high - carry_low + 1)                  # [|OBJ|+1_if_none, |COLOR|+1_if_none]
+        self.carry_low_vec  = carry_low
+        self.carry_high_vec = carry_high
+        self.carry_card_vec = carry_card
+        # total length after concatenating per-component one-hots
+        self.carry_dim = int(carry_card[0] + carry_card[1])
+        
 
     @property
-    def features_dim(self) -> int:
-        return self._features_dim
+    def num_features(self):
+        return 2
+    
+    @property
+    def features_dim(self) -> tuple:
+        return (self.out_C, self.out_W , self.out_H), self.carry_dim + int(self.dir_card)
 
-    # --------- helpers ---------
-    def _ensure_batch_img(self, img: torch.Tensor) -> torch.Tensor:
-        # Accept (W,H,3) or (N,W,H,3), return (N,W,H,3)
-        if img.dim() == 3:
-            return img.unsqueeze(0)
-        if img.dim() == 4:
-            return img
-        raise ValueError(f"Expected image rank 3 or 4, got {img.dim()}.")
+    @staticmethod
+    def one_hot_shifted(idxs: torch.Tensor, low: int, card: int) -> torch.Tensor:
+        shifted = (idxs - low).clamp(min=0, max=card - 1)
+        return F.one_hot(shifted, num_classes=card).to(torch.float32)
 
-    def _ensure_batch_dir(self, d: torch.Tensor) -> torch.Tensor:
-        # Accept scalar () or (N,), return (N,)
-        if d.dim() == 0:
-            return d.unsqueeze(0)
-        if d.dim() == 1:
-            return d
-        raise ValueError(f"Expected direction rank 0 or 1, got {d.dim()}.")
-
-    def _ensure_batch_carry(self, c: torch.Tensor) -> torch.Tensor:
-        # Accept (2,) or (N,2), return (N,2)
-        if c.dim() == 1:
-            if c.numel() != 2:
-                raise ValueError("carrying must have length 2.")
-            return c.unsqueeze(0)
-        if c.dim() == 2 and c.shape[-1] == 2:
-            return c
-        raise ValueError(f"Expected carrying shape (2,) or (N,2), got {tuple(c.shape)}.")
-
-    def _safe_one_hot(self, idx_t: torch.Tensor, num_classes: int) -> torch.Tensor:
-        """
-        Robust one-hot that tolerates invalid indices (e.g., -1, 255).
-        Invalid positions become all-zeros.
-        """
-        idx_t = idx_t.to(torch.long)
-        valid = (idx_t >= 0) & (idx_t < num_classes)
-        sanitized = idx_t.clamp(min=0, max=max(0, num_classes - 1))
-        oh = F.one_hot(sanitized, num_classes=num_classes).to(torch.float32)
-        return oh * valid.unsqueeze(-1).to(torch.float32)
-
-    # --------- main ---------
     def __call__(self, observation):
         # ---- IMAGE ----
         img = observation["image"]
-        img_t = torch.as_tensor(img, device=self.device)  # int dtype ok
-        if img_t.shape[-1] != 3:
-            raise ValueError(f"Expected image last dim=3, got {img_t.shape[-1]}.")
-        img_t = self._ensure_batch_img(img_t).to(torch.long)           # (N,W,H,3)
+        img_t = torch.as_tensor(img, device=self.device)
 
-        # Split channels
-        type_idx  = img_t[..., 0]                                      # (N,W,H)
-        color_idx = img_t[..., 1]                                      # (N,W,H)
-        state_idx = img_t[..., 2]                                      # (N,W,H)
+        # ensure batch dimension → (N,W,H,3)
+        if img_t.dim() == 3:
+            img_t = img_t.unsqueeze(0)
+        elif img_t.dim() != 4:
+            raise ValueError(f"Expected image tensor with 3 or 4 dims, got {tuple(img_t.shape)}.")
 
-        # One-hot per cell, then concat channels
-        type_oh  = self._safe_one_hot(type_idx,  self.num_obj)         # (N,W,H,num_obj)
-        color_oh = self._safe_one_hot(color_idx, self.num_color)       # (N,W,H,num_color)
-        state_oh = self._safe_one_hot(state_idx, self.num_state)       # (N,W,H,num_state)
+        img_t = img_t.to(torch.long)
 
-        onehot_img = torch.cat([type_oh, color_oh, state_oh], dim=-1).to(torch.float32)  # (N,W,H,num_bits)
-        N = onehot_img.shape[0]
-        flat_img = onehot_img.view(N, -1)                              # (N, W*H*num_bits)
+        # Split channels (N,W,H)
+        type_idx  = img_t[..., 0]
+        color_idx = img_t[..., 1]
+        state_idx = img_t[..., 2]
 
-        # ---- DIRECTION ----
-        dir_val = torch.as_tensor(observation["direction"], device=self.device)
-        dir_val = self._ensure_batch_dir(dir_val).to(torch.long)       # (N,)
-        dir_oh  = self._safe_one_hot(dir_val, self.num_dir).to(torch.float32)  # (N,4)
+        # Scalars from stored bounds/cardinalities
+        obj_low, color_low, state_low   = [int(x) for x in self.chan_low.tolist()]
+        obj_high, color_high, state_high = [int(x) for x in self.chan_high.tolist()]
+        obj_card, color_card, state_card = [int(x) for x in self.chan_card.tolist()]
 
-        # ---- CARRYING ----
-        carry = torch.as_tensor(observation["carrying"], device=self.device)
-        carry = self._ensure_batch_carry(carry).to(torch.long)         # (N,2)
-        carry_type_idx  = carry[:, 0]
-        carry_color_idx = carry[:, 1]
-        carry_type_oh   = self._safe_one_hot(carry_type_idx,  self.carry_type_dim)   # (N, |OBJ|)
-        carry_color_oh  = self._safe_one_hot(carry_color_idx, self.carry_color_dim)  # (N, |COLOR|)
+        # Strict validity checks (fail fast during development)
+        tmin, tmax = type_idx.min().item(),  type_idx.max().item()
+        cmin, cmax = color_idx.min().item(), color_idx.max().item()
+        smin, smax = state_idx.min().item(), state_idx.max().item()
+        assert (tmin >= obj_low   and tmax <= obj_high),   f"object_type out of range [{tmin},{tmax}] vs [{obj_low},{obj_high}]"
+        assert (cmin >= color_low and cmax <= color_high), f"color out of range       [{cmin},{cmax}] vs [{color_low},{color_high}]"
+        assert (smin >= state_low and smax <= state_high), f"state out of range        [{smin},{smax}] vs [{state_low},{state_high}]"
 
-        # ---- CONCAT ----
-        feats = torch.cat([flat_img, dir_oh, carry_type_oh, carry_color_oh], dim=1)  # (N, features_dim)
-        return feats
+        # One-hot per channel
+        type_oh  = self.one_hot_shifted(type_idx,  obj_low,   obj_card)   # (N,W,H,|OBJ|)
+        color_oh = self.one_hot_shifted(color_idx, color_low, color_card) # (N,W,H,|COLOR|)
+        state_oh = self.one_hot_shifted(state_idx, state_low, state_card) # (N,W,H,|STATE|)
+
+        # Concatenate planes → (N, W, H, num_bits)
+        onehot_img = torch.cat([type_oh, color_oh, state_oh], dim=-1)  # float32
+        onehot_img = onehot_img.permute(0, 3, 1, 2).contiguous()
+        
+        # ========= CARRYING =========  (type_idx, color_idx) or (-1, -1)
+        carry = observation["carrying"]            # shape (2,) or (N, 2)
+        carry_t = torch.as_tensor(carry, device=self.device)
+        if carry_t.dim() == 1:
+            carry_t = carry_t.unsqueeze(0)        # (N, 2)
+        elif carry_t.dim() != 2 or carry_t.size(-1) != 2:
+            raise ValueError(f"Expected 'carrying' shape (2,) or (N,2); got {tuple(carry_t.shape)}.")
+        carry_t = carry_t.to(torch.long)
+
+        carry_type  = carry_t[..., 0]              # (N,)
+        carry_color = carry_t[..., 1]              # (N,)
+
+        type_low, color_low = int(self.carry_low_vec[0]),  int(self.carry_low_vec[1])
+        type_card, color_card = int(self.carry_card_vec[0]), int(self.carry_card_vec[1])
+
+        type_oh  = self.one_hot_shifted(carry_type,  type_low,  type_card)   # (N, type_card)
+        color_oh = self.one_hot_shifted(carry_color, color_low, color_card)  # (N, color_card)
+
+        onehot_carry = torch.cat([type_oh, color_oh], dim=-1)                 # (N, type_card + color_card)
+
+        # ========= DIRECTION =========  Discrete(4)
+        direction = observation["direction"]       # scalar or (N,)
+        dir_t = torch.as_tensor(direction, device=self.device)
+        if dir_t.dim() == 0:
+            dir_t = dir_t.unsqueeze(0)            # (N,)
+        dir_t = dir_t.to(torch.long)
+
+        onehot_dir = self.one_hot_shifted(dir_t, self.dir_low, self.dir_card)  # (N, dir_dim)
+
+        # Return the tuple requested
+        return onehot_img.to(self.device), torch.cat([onehot_carry, onehot_dir], dim=1).to(self.device)
+            
     
 @register_feature_extractor
 class ImageFeature(BaseFeature):

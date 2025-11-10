@@ -50,23 +50,14 @@ class OptionDQNAgent(DQNAgent):
         # Create DQNPolicy using the feature extractor's feature dimension.
         self.policy = OptionDQNPolicy(
             action_option_space, 
-            self.feature_extractor.features_dim, 
+            self.feature_extractor.features_dim,
+            self.feature_extractor.num_features, 
             hyper_params,
             device=device
         )
         # Buffer to accumulate n-step transitions.
-        self.n_step_buffer = BasicBuffer(hyper_params.n_steps)
+        self.n_step_buffer = [BasicBuffer(hyper_params.n_steps)] * num_envs if num_envs > 1 else BasicBuffer(hyper_params.n_steps)
         
-        # Option execution bookkeeping
-        self.running_option_index = None       # index into options_lst (or None)
-        self.option_start_state = None         # encoded state where option began
-        self.option_cumulative_reward = 0.0    # discounted return accumulator R_{t:t+k}
-        self.option_multiplier = 1.0           # current gamma^t during option
-        self.option_steps = 0
-        
-        # Parent keeps last_state/last_action for primitive updates
-        self.last_state = None
-        self.last_action = None
           
     def act(self, observation, greedy=False):
         """
@@ -116,6 +107,7 @@ class OptionDQNAgent(DQNAgent):
             truncated (bool): True if the episode was truncated.
             call_back (function): Callback function to track training progress.
         """
+        reward = np.clip(reward, -1, 1) # for stability
         state = self.feature_extractor(observation)
         
         # add option or action to the n_step_buffer
@@ -161,7 +153,8 @@ class OptionDQNAgent(DQNAgent):
             if terminated or truncated:
                 # For episode end, flush all transitions.
                 for i in range(self.n_step_buffer.size):
-                    trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], all_steps - steps[i])
+                    all_steps -= steps[i]
+                    trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], all_steps + 1)
                     self.replay_buffer.add_single_item(trans)
                 self.n_step_buffer.reset()
             else:
@@ -171,10 +164,15 @@ class OptionDQNAgent(DQNAgent):
                 self.n_step_buffer.remove_oldest()
         
         # Perform learning step if there are enough samples.
-        if self.replay_buffer.size >= self.hp.batch_size:
+        if self.replay_buffer.size >= self.hp.warmup_buffer_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
             states, actions, rewards, next_states, dones, n_steps = zip(*batch)
             self.policy.update(states, actions, rewards, next_states, dones, n_steps, call_back=call_back)
+        
+        if call_back is not None:            
+            call_back({
+                "train/buffer_size": self.replay_buffer.size,
+            }, counter=self.policy.act_counter)
           
     def reset(self, seed):
         """
@@ -187,6 +185,11 @@ class OptionDQNAgent(DQNAgent):
         self.feature_extractor.reset(seed)
         self.replay_buffer.reset()
         
+        if isinstance(self.n_step_buffer, list):
+            for buffer in self.n_step_buffer: buffer.reset()
+        else:
+            self.n_step_buffer.reset()
+        
         # Clear any running option state
         self.running_option_index = None       # index into options_lst (or None)
         self.option_start_state = None         # encoded state where option began
@@ -197,7 +200,26 @@ class OptionDQNAgent(DQNAgent):
         # Parent keeps last_state/last_action for primitive updates
         self.last_state = None
         self.last_action = None
+        
+        self.last_states_vec = None
+        self.last_actions_vec = None
 
+    def log(self):
+        if self.running_option_index is None:
+            return {
+                "OptionUsageLog": False,
+                "NumOptions": len(self.options_lst),
+                "OptionIndex": None,
+                "OptionClass": None,
+            }
+        else:
+            return {
+                "OptionUsageLog": True,
+                "NumOptions": len(self.options_lst),
+                "OptionIndex": self.running_option_index,
+                "OptionClass": self.options_lst[self.running_option_index].__class__,
+            }
+            
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)
         options_checkpoint = save_options_list(self.options_lst, file_path=None)
