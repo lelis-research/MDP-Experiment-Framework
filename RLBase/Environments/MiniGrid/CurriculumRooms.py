@@ -95,14 +95,14 @@ class OrderedStrictDoor(StrictDoor):
 
 rooms_spec: List[Dict[str, Any]] = [
     # ----------------------------- Phase A (1–5): Navigate & subgoals ------------------------------
-    {"id": 1, "subgoal": False,
-     "exit_door": {"locked": True},
-     "requirements": {"open_exit": "none", "final_goal": True}},
+    # {"id": 1, "subgoal": False,
+    #  "exit_door": {"locked": True},
+    #  "requirements": {"open_exit": "none", "final_goal": True}},
     
 
-    # {"id": 1, "subgoal": True,
-    #  "exit_door": {"locked": False},
-    #  "requirements": {"open_exit": "none"}},
+    {"id": 1, "subgoal": True,
+     "exit_door": {"locked": False},
+     "requirements": {"open_exit": "none"}},
     
     {"id": 2, "subgoal": True,
      "corridors": {"pattern": "L", "material": "door"},

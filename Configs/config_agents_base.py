@@ -56,7 +56,7 @@ def get_device(preferred_device):
         device = "cpu"
     return device
 
-preferred_device = "cpu"  # cpu, mps, cuda
+preferred_device = "cuda"  # cpu, mps, cuda
 device = get_device(preferred_device)
 print(f"Using device: {device}")
 
@@ -189,7 +189,7 @@ AGENT_DICT = {
             epsilon_end=info.get("epsilon_end", 0.05),
             epsilon_decay_steps=info.get("epsilon_decay_steps", 160_000),
             n_steps=info.get("n_steps", 1),
-            warmup_buffer_size=info.get("warmup_buffer_size", 10_000), 
+            warmup_buffer_size=info.get("warmup_buffer_size", 10_000),
             replay_buffer_cap=info.get("replay_buffer_cap", 200_000),
             batch_size=info.get("batch_size", 32),
             target_update_freq=info.get("target_update_freq", 2000),

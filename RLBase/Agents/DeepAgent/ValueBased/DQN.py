@@ -319,11 +319,12 @@ class DQNAgent(BaseAgent):
         """
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state, greedy=greedy)
-        self.last_state = state
+        self.last_observation = observation
         self.last_action = action
         return action
 
     def parallel_act(self, observations_vec, greedy=False):
+        #NOTE: probably needs to relook
         states_vec = self.feature_extractor(observations_vec)
         actions_vec = self.policy.select_parallel_actions(states_vec, greedy=greedy, num_envs=self.num_envs)
         
@@ -344,32 +345,32 @@ class DQNAgent(BaseAgent):
             call_back (function): Callback function to track training progress.
         """
         reward = np.clip(reward, -1, 1) # for stability
-        state = self.feature_extractor(observation)
-        transition = (self.last_state, self.last_action, reward, state, terminated)
+        transition = (self.last_observation, self.last_action, reward, observation, terminated)
         self.n_step_buffer.add_single_item(transition)
         
         # If enough transitions are accumulated or if episode ends:
         if self.n_step_buffer.size >= self.hp.n_steps or terminated or truncated:
             rollout = self.n_step_buffer.get_all()
-            states, actions, rewards, next_states, dones = zip(*rollout)
+            observations, actions, rewards, next_observations, dones = zip(*rollout)
             # Compute n-step returns using the accumulated rewards.
             returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
             if terminated or truncated:
                 # For episode end, flush all transitions.
                 for i in range(self.n_step_buffer.size):
-                    trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], self.n_step_buffer.size - i)
+                    trans = (observations[i], actions[i], returns[i], next_observations[-1], dones[-1], self.n_step_buffer.size - i)
                     self.replay_buffer.add_single_item(trans)
                 self.n_step_buffer.reset()
             else:
                 # Otherwise, add only the oldest transition.
-                trans = (states[0], actions[0], returns[0], next_states[-1], dones[-1], self.n_step_buffer.size)
+                trans = (observations[0], actions[0], returns[0], next_observations[-1], dones[-1], self.n_step_buffer.size)
                 self.replay_buffer.add_single_item(trans)
                 self.n_step_buffer.remove_oldest()
         
         
         if self.replay_buffer.size >= self.hp.warmup_buffer_size:
             batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-            states, actions, rewards, next_states, dones, n_steps = zip(*batch)
+            observations, actions, rewards, next_observations, dones, n_steps = zip(*batch)
+            states, next_states = [self.feature_extractor(obs) for obs in observations], [self.feature_extractor(obs) for obs in next_observations]
             self.policy.update(states, actions, rewards, next_states, dones, n_steps, call_back=call_back)
             
         if call_back is not None:            
@@ -378,6 +379,7 @@ class DQNAgent(BaseAgent):
             }, counter=self.policy.act_counter)
         
     def parallel_update(self, observations_vec, rewards_vec, terminateds_vec, truncateds_vec, call_back=None):
+        #NOTE: probably needs to relook
         states_vec = self.feature_extractor(observations_vec)
         for env_ind in range(self.num_envs):
             reward, terminated, truncated = rewards_vec[env_ind], terminateds_vec[env_ind], truncateds_vec[env_ind]
@@ -442,7 +444,7 @@ class DQNAgent(BaseAgent):
         else:
             self.n_step_buffer.reset()
         
-        self.last_state = None
+        self.last_observation = None
         self.last_action = None
         
         self.last_states_vec = None
