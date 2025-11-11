@@ -322,16 +322,6 @@ class DQNAgent(BaseAgent):
         self.last_observation = observation
         self.last_action = action
         return action
-
-    def parallel_act(self, observations_vec, greedy=False):
-        #NOTE: probably needs to relook
-        states_vec = self.feature_extractor(observations_vec)
-        actions_vec = self.policy.select_parallel_actions(states_vec, greedy=greedy, num_envs=self.num_envs)
-        
-        
-        self.last_states_vec = states_vec
-        self.last_actions_vec = actions_vec
-        return actions_vec
         
     def update(self, observation, reward, terminated, truncated, call_back=None):
         """
@@ -378,55 +368,8 @@ class DQNAgent(BaseAgent):
                 "train/buffer_size": self.replay_buffer.size,
             }, counter=self.policy.act_counter)
         
-    def parallel_update(self, observations_vec, rewards_vec, terminateds_vec, truncateds_vec, call_back=None):
-        #NOTE: probably needs to relook
-        states_vec = self.feature_extractor(observations_vec)
-        for env_ind in range(self.num_envs):
-            reward, terminated, truncated = rewards_vec[env_ind], terminateds_vec[env_ind], truncateds_vec[env_ind]
-            reward = np.clip(reward, -1, 1) # for stability
-            transition = (self._get_state_i(self.last_states_vec, env_ind), 
-                          self.last_actions_vec[env_ind], 
-                          reward, 
-                          self._get_state_i(states_vec, env_ind), 
-                          terminated)
-            self.n_step_buffer[env_ind].add_single_item(transition)
-            
-            # If enough transitions are accumulated or if episode ends:
-            if self.n_step_buffer[env_ind].size >= self.hp.n_steps or terminated or truncated:
-                rollout = self.n_step_buffer[env_ind].get_all()
-                states, actions, rewards, next_states, dones = zip(*rollout)
-                # Compute n-step returns using the accumulated rewards.
-                returns = calculate_n_step_returns(rewards, 0.0, self.hp.gamma)
-                if terminated or truncated:
-                    # For episode end, flush all transitions.
-                    for i in range(self.n_step_buffer[env_ind].size):
-                        trans = (states[i], actions[i], returns[i], next_states[-1], dones[-1], self.n_step_buffer[env_ind].size - i)
-                        self.replay_buffer.add_single_item(trans)
-                    self.n_step_buffer[env_ind].reset()
-                else:
-                    # Otherwise, add only the oldest transition.
-                    trans = (states[0], actions[0], returns[0], next_states[-1], dones[-1], self.n_step_buffer[env_ind].size)
-                    self.replay_buffer.add_single_item(trans)
-                    self.n_step_buffer[env_ind].remove_oldest()
-            
-            
-            if self.replay_buffer.size >= self.hp.warmup_buffer_size:
-                batch = self.replay_buffer.get_random_batch(self.hp.batch_size)
-                states, actions, rewards, next_states, dones, n_steps = zip(*batch)
-                self.policy.update(states, actions, rewards, next_states, dones, n_steps, call_back=call_back)
+
                 
-            if call_back is not None:            
-                call_back({
-                    "train/buffer_size": self.replay_buffer.size,
-                }, counter=self.policy.act_counter)
-                
-            
-    
-    
-    def _get_state_i(self, state, i):
-        # returns the i-th sample with the same structure as a single-state
-        # useful because the state could be a tuple or a torch
-        return tuple(t[i].unsqueeze(0) for t in state) if isinstance(state, tuple) else state[i].unsqueeze(0) # unsqueeze to keep the dim as is
 
     def reset(self, seed):
         """
@@ -446,7 +389,4 @@ class DQNAgent(BaseAgent):
         
         self.last_observation = None
         self.last_action = None
-        
-        self.last_states_vec = None
-        self.last_actions_vec = None
         

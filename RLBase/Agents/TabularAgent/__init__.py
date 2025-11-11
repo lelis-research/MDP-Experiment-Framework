@@ -1,5 +1,4 @@
 from .DoubleQLearning import DoubleQLearningAgent, DoubleQLearningPolicy
 from .QLearning import QLearningAgent, QLearningPolicy
-from .Sarsa import SarsaAgent, SarsaPolicy
 from .OptionQLearning import OptionQLearningAgent, OptionQLearningPolicy
 from .ContinualOptionQLearning import ContinualOptionQLearningAgent, ContinualOptionQLearningPolicy

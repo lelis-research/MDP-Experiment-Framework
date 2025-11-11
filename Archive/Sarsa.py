@@ -2,8 +2,8 @@ import numpy as np
 import random
 import torch
 
-from ..Utils import BaseAgent, BasePolicy
-from ...registry import register_agent, register_policy
+from ..RLBase.Agents.Utils import BaseAgent, BasePolicy
+from ..RLBase.registry import register_agent, register_policy
 
 
 @register_policy

@@ -2,12 +2,13 @@
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G          # memory per node
-#SBATCH --time=0-10:00    # time (DD-HH:MM)
+#SBATCH --time=0-6:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-0      # check HP_SEARCH_SPACE to calculate the space size
-#SBATCH --gres=gpu:1
+#SBATCH --array=0-0     # check HP_SEARCH_SPACE to calculate the space size
+
+#####SBATCH --gres=gpu:1
 
 set -euo pipefail
 cd ~/scratch/MDP-Experiment-Framework
@@ -29,7 +30,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 
 # --------------- Hyperparam sweep settings ---------------
 CONFIG="config_agents_base"
-AGENT="DQN" 
+AGENT="OptionDQN" 
 ENV="BigCurriculumEnv-v0"
 #'["NormalizeObs","ClipObs","NormalizeReward", "ClipReward"]' #'["CombineObs"]' #'["ViewSize","FlattenOnehotObj","FixedSeed","FixedRandomDistractor"]'
 ENV_WRAPPING='[]' #'["RGBImgPartialObs", "FixedSeed"]' #, "DropMission", "FrameStack", "MergeStackIntoChannels"]'
@@ -38,10 +39,10 @@ WRAPPING_PARAMS='[]' #'[{"tile_size":7}, {"seed":5000}]' #, {}, {"stack_size":4}
 ENV_PARAMS='{}' #'{"continuing_task":False}'
 SEED=1
 
-NUM_RUNS=3
-NUM_WORKERS=3 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
+NUM_RUNS=2
+NUM_WORKERS=2 #If you want all the runs to be parallel NUM_WORKERS and NUM_RUNS should be equal
 NUM_EPISODES=0
-TOTAL_STEPS=500_000
+TOTAL_STEPS=10_000
 EPISODE_MAX_STEPS=500
 NUM_ENVS=1
 
@@ -60,7 +61,7 @@ HP_SEARCH_SPACE='{
   "step_size": [0.01, 0.001, 0.0001],
   "epsilon_decay_steps": [200000, 400000],
   "batch_size": [32, 128, 512],
-  "n_steps": [1, 5, 10],
+  "n_steps": [1, 3],
   "target_update_freq": [100, 1000, 2000],
   "flag_double_dqn_target": [true, false]
 }'
