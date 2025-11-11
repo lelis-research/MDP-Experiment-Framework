@@ -11,7 +11,6 @@ from RLBase.Agents.HumanAgent import HumanAgent, ContinualHumanAgent
 from RLBase.Agents.RandomAgent import RandomAgent, OptionRandomAgent
 from RLBase.Agents.TabularAgent import (
     QLearningAgent,
-    SarsaAgent,
     DoubleQLearningAgent,
     OptionQLearningAgent,
     ContinualOptionQLearningAgent,
@@ -153,17 +152,6 @@ AGENT_DICT = {
         TabularSymbolicFeature,
         ManualContinualOptionLearner,
         initial_options_lst=[],
-    ),
-    SarsaAgent.name: lambda env, info: SarsaAgent(
-        get_env_action_space(env), 
-        get_env_observation_space(env),
-        HyperParameters(
-            step_size=info.get("step_size", 0.5),
-            gamma=info.get("gamma", 0.99),
-            epsilon=info.get("epsilon", 0.1),
-        ),
-        get_num_envs(env),
-        TabularFeature,
     ),
     DoubleQLearningAgent.name: lambda env, info: DoubleQLearningAgent(
         get_env_action_space(env), 
