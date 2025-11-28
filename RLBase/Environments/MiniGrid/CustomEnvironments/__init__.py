@@ -1,0 +1,1 @@
+from .MazeRooms import MazeRoomsEnv

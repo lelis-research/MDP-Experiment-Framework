@@ -1,0 +1,17 @@
+# Core RL stack
+gymnasium
+minihack
+minigrid
+mujoco
+gymnasium-robotics
+
+# Torch
+torch
+
+# Logging / plotting / utils
+tensorboard
+matplotlib
+tqdm
+imageio
+PyYAML
+argcomplete
