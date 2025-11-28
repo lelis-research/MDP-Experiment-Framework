@@ -8,7 +8,7 @@ from RLBase.Options.NNOptions.TransferOptions import TransferOptionLearner
 from RLBase.Options.NNOptions.DecWholeOptions import DecWholeOptionLearner
 from RLBase.Options.NNOptions.FineTuneOptions import FineTuneOptionLearner
 from RLBase.Options.NNOptions.MaskedOptions import MaskedOptionLearner
-from RLBase.Trainer import OnlineTrainer
+from RLBase.Trainers import OnlineTrainer
 from RLBase import load_policy, load_agent
 from RLBase.Environments import get_env
 from RLBase.Evaluate import SingleExpAnalyzer

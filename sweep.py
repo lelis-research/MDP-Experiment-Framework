@@ -6,7 +6,7 @@ from functools import partial
 import pickle
 import json
 
-from RLBase.Trainer import OnlineTrainer
+from RLBase.Trainers import OnlineTrainer
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from Configs.loader import load_config, fmt_wrap

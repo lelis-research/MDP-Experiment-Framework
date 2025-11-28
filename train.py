@@ -6,7 +6,7 @@ from functools import partial
 import json
 
 from RLBase.Evaluate import SingleExpAnalyzer
-from RLBase.Trainer import OnlineTrainer
+from RLBase.Trainers import OnlineTrainer
 from RLBase.Environments import get_env, ENV_LST
 from Configs.config_agents_base import AGENT_DICT
 from Configs.loader import load_config, fmt_wrap

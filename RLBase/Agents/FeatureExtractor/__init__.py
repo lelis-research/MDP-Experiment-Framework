@@ -1,1 +1,0 @@
-from .TabularExtractor import TabularFeature

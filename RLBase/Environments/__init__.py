@@ -1,3 +1,5 @@
-from .MiniGrid import MINIGRID_ENV_LST
-from .MiniHack import MINIHACK_ENV_LST
-from .GetEnvironment import make_env, get_env, ENV_LST
+from .MiniGrid import *
+from .Mujoco import *
+from .Atari import *
+from .Classic import *
+from .GetEnvironment import get_env, ALL_ENVS

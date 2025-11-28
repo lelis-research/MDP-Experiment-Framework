@@ -1,9 +1,11 @@
-# Core RL stack
 gymnasium
-minihack
-minigrid
-mujoco
+gymnasium[atari]
+gymnasium[mujoco]
+gymnasium[robotics]
 gymnasium-robotics
+minigrid
+minihack
+
 
 # Torch
 torch

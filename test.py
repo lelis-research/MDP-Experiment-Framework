@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from RLBase.Trainer import OnlineTrainer
+from RLBase.Trainers import OnlineTrainer
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from RLBase import load_policy, load_agent

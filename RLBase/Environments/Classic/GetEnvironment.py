@@ -1,23 +1,26 @@
 import argparse
 import gymnasium as gym
 from gymnasium.vector import SyncVectorEnv
-import minihack
 
 from .Wrappers import WRAPPING_TO_WRAPPER
 
 
 # List of supported MiniGrid environments
-MINIHACK_ENV_LST = [
-
+CLASSIC_ENV_LST = [
+    "Acrobot-v1",
+    "CartPole-v1",
+    "MountainCar-v0",
+    "MountainCarContinuous-v0",
+    "Pendulum-v1",
 ]
 
 
 def get_env(env_name, num_envs, max_steps=500, render_mode=None, env_params=None, wrapping_lst=None, wrapping_params=None):
     """
-    Create a vectorized (parallel) MiniHack environment.
+    Create a vectorized (parallel) Classic environment.
     
     Args:
-        env_name (str): Name of the MiniHack environment. Must be in MINIHACK_ENV_LST.
+        env_name (str): Name of the Classic environment. Must be in CLASSIC_ENV_LST.
         num_envs (int): Number of parallel environments.
         max_steps (int): Maximum steps per episode.
         render_mode (str or None): Rendering mode for the environments.
@@ -27,7 +30,7 @@ def get_env(env_name, num_envs, max_steps=500, render_mode=None, env_params=None
     Returns:
         SyncVectorEnv: A vectorized environment with num_envs instances.
     """
-    assert env_name in MINIHACK_ENV_LST, f"Environment {env_name} not supported."
+    assert env_name in CLASSIC_ENV_LST, f"Environment {env_name} not supported."
     env_params = {} if env_params is None else env_params
     wrapping_lst = [] if wrapping_lst is None else wrapping_lst
     wrapping_params = [] if wrapping_params is None else wrapping_params
@@ -45,7 +48,7 @@ def get_env(env_name, num_envs, max_steps=500, render_mode=None, env_params=None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quick vectorized env smoke test.")
-    parser.add_argument("--env", type=str, choices=MINIHACK_ENV_LST, default="", help="MiniGrid env id to create.")
+    parser.add_argument("--env", type=str, choices=CLASSIC_ENV_LST, default="Acrobot-v1", help="MiniGrid env id to create.")
     parser.add_argument("--num_envs", type=int, default=2, help="Number of parallel envs to create.")
     parser.add_argument("--max_steps", type=int, default=50, help="Max episode steps for each env.")
     parser.add_argument("--render_mode", type=str, default=None, help="Render mode passed to gym.make.")
