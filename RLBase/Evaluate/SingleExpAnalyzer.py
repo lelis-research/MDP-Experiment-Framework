@@ -441,8 +441,11 @@ class SingleExpAnalyzer:
             filename = os.path.join(self.exp_path, f"run_{run_number}_ep_{episode_number}_{name_tag}")
         else:
             filename = f"{name_tag}"
-
+            
         print(f"Number of frames: {len(frames)}")
+        if len(frames) == 0:
+            print("No frames to generate video.")
+            return
         
         first = frames[0]
         

@@ -32,10 +32,9 @@ class BaseFeature(RandomGenerator):
     
     @property
     def features_dict(self):
-        return 1
+        raise NotImplementedError("features_dict property must be implemented by the child class")
     
     def __call__(self, observation):
-        # Must be implemented by subclasses.
         raise NotImplementedError("Must be implemented by the child class")
     
     def update(self):

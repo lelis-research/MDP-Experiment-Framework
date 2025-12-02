@@ -1,19 +1,29 @@
-gymnasium
-gymnasium[atari]
-gymnasium[mujoco]
-gymnasium[robotics]
-gymnasium-robotics
-minigrid
-minihack
+# Core ML / numerics
+torch==2.9.1
+numpy==2.2.6
 
+# Gymnasium ecosystem
+gymnasium==1.2.2
+gymnasium-robotics==1.4.1
 
-# Torch
-torch
+# RL environments
+minigrid==3.0.0
+minihack==1.0.2
+ale-py==0.11.2
+mujoco==3.3.7
+pettingzoo==1.25.0
 
-# Logging / plotting / utils
-tensorboard
-matplotlib
-tqdm
-imageio
-PyYAML
-argcomplete
+# Rendering / visuals
+pygame==2.6.1
+glfw==2.10.0
+PyOpenGL==3.1.10
+imageio==2.37.2
+
+# Logging / plotting
+tensorboard==2.20.0
+matplotlib==3.10.7
+tqdm==4.67.1
+
+# Utilities
+PyYAML==6.0.3
+argcomplete==3.6.3

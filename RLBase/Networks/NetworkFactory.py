@@ -4,15 +4,13 @@ import math
 import numpy as np
 from typing import Any, Dict, List, Union, Optional
 
-def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
-    torch.nn.init.orthogonal_(layer.weight, gain=std)
-    if getattr(layer, "bias", None) is not None:
-        torch.nn.init.constant_(layer.bias, bias_const)
-    return layer
+from .LayerInit import apply_init
+
 
 # ---- New: small factory for module-creating layers ----
 def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
     t = layer_cfg.get("type", "").lower()
+    
     if t == "conv2d":
         m = nn.Conv2d(
             in_channels=layer_cfg["in_channels"],
@@ -21,8 +19,8 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
             stride=layer_cfg.get("stride", 1),
             padding=layer_cfg.get("padding", 0),
         )
-        return layer_init(m, std=layer_cfg.get("std", np.sqrt(2)),
-                          bias_const=layer_cfg.get("bias_const", 0.0))
+        return apply_init(m, **layer_cfg["init_params"])
+    
     elif t == "maxpool2d":
         return nn.MaxPool2d(
             kernel_size=layer_cfg["kernel_size"],
@@ -36,8 +34,7 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
             in_features=layer_cfg["in_features"],
             out_features=layer_cfg["out_features"],
         )
-        return layer_init(m, std=layer_cfg.get("std", np.sqrt(2)),
-                          bias_const=layer_cfg.get("bias_const", 0.0))
+        return apply_init(m, **layer_cfg["init_params"])
     elif t == "batchnorm2d":
         return nn.BatchNorm2d(layer_cfg["num_features"])
     elif t == "relu":
@@ -302,17 +299,21 @@ def prepare_network_config(config, input_dims: dict, output_dim: int | None = No
 # ----------------- Example usage -----------------
 if __name__ == '__main__':
     """
+    Example with explicit initializers:
+      - Each module-backed layer has an `init` dict:
+        {"name": "<init_name>", "params": {...}}
+
     Example: x1 is an image (B,1,28,28). x2 is a vector (B,16).
     Pipeline:
-      x1 -> conv -> relu -> pool -> conv -> relu -> pool -> flatten -> (id: flat)
-      x2 -> linear(16->64) -> relu -> (id: meta64)
-      concat(flat, meta64) along dim=1 (auto-flatten enabled for safety)
-      -> linear(32*7*7 + 64 -> 128) -> relu -> linear(128 -> 10)
+      x1 -> conv -> relu -> flatten -> (id: flat)
+      x2 -> (id: x_dir)
+      concat(flat, x_dir) -> linear -> relu -> linear
     """
     layer_config = [
         # image branch
         {"type": "input",  "id": "x_img", "input_key": "x1"},
-        {"type": "conv2d", "id": "conv1", "from": "x_img", "out_channels": 16, "kernel_size": 3, "stride": 1, "padding": 1},
+        {"type": "conv2d", "id": "conv1", "from": "x_img", "out_channels": 16, "kernel_size": 3, "stride": 1, "padding": 1,
+         "init_params": {"name": "kaiming_normal", "nonlinearity": "relu", "mode": "fan_out"} },
         {"type": "relu",   "id": "conv1_relu", "from": "conv1"},
         
         {"type": "flatten","id": "flat","from": "conv1_relu"},
@@ -323,11 +324,13 @@ if __name__ == '__main__':
         # merge
         {"type": "concat", "id": "merged", "from": ["x_dir", "flat"], "dim": 1, "flatten": True},
         
-        {"type": "linear", "id": "l1",  "from": "merged", "out_features": 64},
+        {"type": "linear", "id": "l1",  "from": "merged", "out_features": 64,
+         "init_params": {"name": "xavier_uniform", "gain": 1.0 } } ,
         {"type": "relu",   "id": "l1_relu", "from": "l1"},
 
         #head
-        {"type": "linear", "id": "out", "from": "l1_relu", "in_features": 64}
+        {"type": "linear", "id": "out", "from": "l1_relu", "in_features": 64,
+         "init_params": {"name": "orthogonal", "gain": 1.0, "bias_const": 0.0} },
     ]
     
     layer_config = prepare_network_config(layer_config, input_dims={"x1": [20, 9, 9], "x2": 16}, output_dim=7)

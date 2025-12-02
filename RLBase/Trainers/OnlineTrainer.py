@@ -137,8 +137,10 @@ class OnlineTrainer:
                 frames[i].append(fr)
         
         episodes_done = 0
+        steps_so_far = 0
         
         checkpoint_counter = 0
+        
         while episodes_done < num_episodes:
             action = agent.act(observation, greedy=not self._train)
             
@@ -167,10 +169,11 @@ class OnlineTrainer:
             
             ep_returns += self.extract_actual_rewards(info, reward)
             ep_lengths += 1
+            steps_so_far += num_envs
             
             if self._train:
                 agent.update(next_observation, reward, terminated, truncated,
-                            call_back=lambda data_dict, counter=None: self.call_back(data_dict, f"agents/run_{run_idx}", counter))
+                            call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
                 
             
             observation = next_observation
@@ -286,7 +289,7 @@ class OnlineTrainer:
                     agent_logs[i].append(log_entry)
             
             next_observation, reward, terminated, truncated, info = env.step(action)  
-            
+    
             if env.render_mode == "human":
                 env.envs[0].render()
             elif env.render_mode == "ansi":
@@ -303,6 +306,7 @@ class OnlineTrainer:
                     actions_log[i].append(action[i])
                     
             ep_returns += self.extract_actual_rewards(info, reward)
+            
             ep_lengths += 1
             steps_so_far += num_envs  # aggregate interactions across sub-envs
             
@@ -311,7 +315,7 @@ class OnlineTrainer:
                     
             if self._train:
                 agent.update(next_observation, reward, terminated, truncated, 
-                            call_back=lambda data_dict, counter=None: self.call_back(data_dict, f"agents/run_{run_idx}", counter))
+                            call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
             
             pbar.update(num_envs)
             observation = next_observation
@@ -393,6 +397,17 @@ class OnlineTrainer:
         env   = self._make_env()
         agent = self._make_agent(env)
         
+        print("\n" + "=" * 70)
+        print(f"🎯 Starting Run {run_idx} | Seed: {seed}")
+        print("-" * 70)
+        print(f"🌍 Environment        : {env}")
+        print(f"  └─ Spec            : {getattr(env.envs[0], 'spec', env.envs[0].__class__.__name__)}")
+        print(f"📥 Observation Space : {env.single_observation_space}")
+        print(f"🎮 Action Space      : {env.single_action_space}")
+        print(f"🤖 Agent             : {agent}")
+        print(f"💻 Device            : {agent.device}")
+        # print("=" * 70 + "\n")
+        
         self.env, self.agent = env, agent
         if tuning_hp is not None:
             agent.set_hp(tuning_hp)
@@ -401,7 +416,8 @@ class OnlineTrainer:
             result, best_agent = self._single_run_episodes(env, agent, num_episodes, seed, run_idx)
         else:
             result, best_agent = self._single_run_steps(env, agent, total_steps, seed, run_idx)
-                
+        
+        env.close()
         
         # Save last and best agent
         if self._checkpoint_freq is not None:
@@ -465,7 +481,6 @@ class OnlineTrainer:
         # Serial execution
         else:
             for run in range(1, num_runs + 1):
-                print(f"Starting Run {run}")
                 run_metrics = self._one_run(
                     run_idx=run,
                     case_num=case_num,

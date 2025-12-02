@@ -8,7 +8,7 @@ from .Wrappers import WRAPPING_TO_WRAPPER
 
 # List of supported MiniGrid environments
 MINIHACK_ENV_LST = [
-
+    "MiniHack-River-v0",
 ]
 
 

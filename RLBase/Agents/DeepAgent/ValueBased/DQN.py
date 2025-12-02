@@ -1,18 +1,13 @@
 import numpy as np
-import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from gymnasium.spaces import Discrete
 
-from ...Utils import (
-    BaseAgent,
-    BasePolicy,
-    BasicBuffer,
-    NetworkGen,
-    prepare_network_config,
-    calculate_n_step_returns,
-    get_single_observation
-)
+from ...Base import BaseAgent, BasePolicy
+from ....Buffers import BaseBuffer, ReplayBuffer
+from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
+from ...Utils import calculate_n_step_returns, get_single_observation, stack_observations
 from ....registry import register_agent, register_policy
 
 @register_policy
@@ -28,12 +23,12 @@ class DQNPolicy(BasePolicy):
             input_dims=self.features_dict,
             output_dim=self.action_dim
         )
-        self.network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
         self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
    
         
-        self.target_network.load_state_dict(self.network.state_dict())
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
+        self.target_network.load_state_dict(self.online_network.state_dict())
+        self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
         self.target_update_counter = 0
         
         self.loss_fn = nn.MSELoss()
@@ -41,14 +36,11 @@ class DQNPolicy(BasePolicy):
         
         self.epsilon = self.hp.epsilon_start
         self.epsilon_step_counter = 0
-        self.log_counter = 0
         
     
     def get_values(self, state, use_target=False):
         # each state element should have the batch dimension
-        keys = list(self.features_dict.keys())
-        kwargs = {keys[0]: state} if len(keys) == 1 else {k: v for k, v in zip(keys, state)}
-        q_values = self.network(**kwargs) if not use_target else self.target_network(**kwargs)
+        q_values = self.online_network(**state) if not use_target else self.target_network(**state)
         return q_values
         
     def select_action(self, state, greedy=False):
@@ -67,12 +59,10 @@ class DQNPolicy(BasePolicy):
             q_values = self.get_values(state).cpu().numpy()
         
         
-        state_dim = q_values.shape[0]
+        num_actions = q_values.shape[0]
 
-        for i in range(state_dim):
+        for i in range(num_actions):
             self.epsilon_step_counter += 1
-            self.log_counter += 1
-
             if (self._rand_float(low=0, high=1) < self.epsilon) and not greedy:
                 # Random action
                 action.append(int(self._rand_int(0, self.action_dim)))
@@ -99,19 +89,18 @@ class DQNPolicy(BasePolicy):
             input_dims=self.features_dict,
             output_dim=self.action_dim
         )
-        self.network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
         self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
-        self.target_network.load_state_dict(self.network.state_dict())
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.hp.step_size)
+        self.target_network.load_state_dict(self.online_network.state_dict())
+        self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
         self.target_update_counter = 0
         
         self.epsilon = self.hp.epsilon_start
         self.epsilon_step_counter = 0
         
-        self.log_counter = 0 #for logging
         
         
-    def update(self, last_state, last_action, state, target_reward, terminated, truncated, effective_discount, call_back=None):
+    def update(self, states, actions, next_states, target_reward, terminated, truncated, effective_discount, call_back=None):
         """
         Update the Q-network using a batch of transitions.
         
@@ -123,31 +112,28 @@ class DQNPolicy(BasePolicy):
             dones (list/np.array): Batch of done flags; shape [batch].
             call_back (function, optional): Callback to track loss.
         """
-        actions_t = torch.tensor(np.array(last_action), dtype=torch.int64, device=self.device).unsqueeze(1) # if n is 1 then it is rewards
+        actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device).unsqueeze(1) # if n is 1 then it is rewards
         target_reward_t = torch.tensor(np.array(target_reward), dtype=torch.float32, device=self.device).unsqueeze(1)
         terminated_t = torch.tensor(np.array(terminated), dtype=torch.float32, device=self.device).unsqueeze(1)
         effective_discount_t = torch.tensor(np.array(effective_discount), dtype=torch.float32, device=self.device).unsqueeze(1)
-        
-        
-        last_state_t = torch.as_tensor(np.array(last_state), dtype=torch.float32, device=self.device)
-        state_t = torch.as_tensor(np.array(state), dtype=torch.float32, device=self.device)
+           
    
         # ---- Q(s_t, a_t) from online network ----
-        # last_state has batch dimension already, so we can call network directly
-        qvalues_all = self.get_values(last_state_t)          # [B, A]
+        # states has batch dimension already, so we can call network directly
+        qvalues_all = self.get_values(states)          # [B, A]
         qvalues_t = qvalues_all.gather(1, actions_t)       # [B, 1]
-        
+       
         # ---- Bootstrap value from next state ----
         with torch.no_grad():
             if self.hp.flag_double_dqn_target:
                 # Double DQN: argmax from online net, value from target net
-                q_next_online = self.get_values(state_t)          # [B, A]
+                q_next_online = self.get_values(next_states)          # [B, A]
                 a_next = q_next_online.argmax(dim=1, keepdim=True)  # [B, 1]
-                q_next_target = self.get_values(state_t, use_target=True)       # [B, A]
+                q_next_target = self.get_values(next_states, use_target=True)       # [B, A]
                 bootstrap_value = q_next_target.gather(1, a_next)   # [B, 1]
             else:
                 # Standard DQN: max over target net's Q
-                q_next_target = self.get_values(state_t, use_target=True)       # [B, A]
+                q_next_target = self.get_values(next_states, use_target=True)       # [B, A]
                 bootstrap_value = q_next_target.max(1, keepdim=True)[0]  # [B, 1]
                 
             # Do not bootstrap on terminal transitions
@@ -177,7 +163,7 @@ class DQNPolicy(BasePolicy):
         
         # Gradient norm logging
         total_grad_norm = 0.0
-        for p in self.network.parameters():
+        for p in self.online_network.parameters():
             if p.grad is not None:
                 total_grad_norm += (p.grad.detach().data.norm(2) ** 2).item()
         total_grad_norm = total_grad_norm ** 0.5
@@ -187,7 +173,7 @@ class DQNPolicy(BasePolicy):
         # ---- Target network update ----
         self.target_update_counter += 1
         if self.target_update_counter >= self.hp.target_update_freq:
-            self.target_network.load_state_dict(self.network.state_dict())
+            self.target_network.load_state_dict(self.online_network.state_dict())
             self.target_update_counter = 0
 
             
@@ -208,13 +194,12 @@ class DQNPolicy(BasePolicy):
                     "train/td_abs_mean": td_abs_mean,
                     "train/grad_norm": total_grad_norm,
                 },
-                counter=self.log_counter,
             )
             
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)
         
-        checkpoint['network_state_dict'] = self.network.state_dict()
+        checkpoint['online_network_state_dict'] = self.online_network.state_dict()
         checkpoint['target_network_state_dict'] = self.target_network.state_dict()
         checkpoint['optimizer_state_dict'] = self.optimizer.state_dict()
         checkpoint['features_dict'] = self.features_dict
@@ -227,12 +212,13 @@ class DQNPolicy(BasePolicy):
 
     @classmethod
     def load(cls, file_path, checkpoint=None):
-        instance = super().load(file_path, checkpoint)
-        
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
+        # can't call parent class bc the __init__ args are different
+        instance = cls(checkpoint['action_space'], checkpoint['features_dict'], checkpoint['hyper_params'], checkpoint['device'])
+        instance.set_rng_state(checkpoint['rng_state']) #copied from the BasePolicy.load
         
-        instance.network.load_state_dict(checkpoint['network_state_dict'])
+        instance.online_network.load_state_dict(checkpoint['online_network_state_dict'])
         instance.target_network.load_state_dict(checkpoint['target_network_state_dict'])
         instance.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         
@@ -245,21 +231,13 @@ class DQNPolicy(BasePolicy):
 
 @register_agent
 class DQNAgent(BaseAgent):
-    """
-    Deep Q-Network (DQN) agent that uses experience replay and target networks.
-    
-    Args:
-        action_space (gym.spaces.Discrete): The environment's action space.
-        observation_space: The environment's observation space.
-        hyper_params: Hyper-parameters container (see DQNPolicy).
-        num_envs (int): Number of parallel environments.
-        feature_extractor_class: Class to extract features from observations.
-    """
     name = "DQN"
+    SUPPORTED_ACTION_SPACES = (Discrete, )
+    
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         # Experience Replay Buffer
-        self.replay_buffer = BasicBuffer(hyper_params.replay_buffer_cap)
+        self.replay_buffer = ReplayBuffer(hyper_params.replay_buffer_cap)
         
         # Create DQNPolicy using the feature extractor's feature dimension.
         self.policy = DQNPolicy(
@@ -270,7 +248,7 @@ class DQNAgent(BaseAgent):
         )
         
         # Buffer to accumulate n-step transitions.
-        self.rollout_buffer = [BasicBuffer(self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
+        self.rollout_buffer = [BaseBuffer(self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
         
     def act(self, observation, greedy=False):
         """
@@ -278,10 +256,10 @@ class DQNAgent(BaseAgent):
         observation is a batch
         action is a batch 
         """
-        state = self.feature_extractor(observation) # tuple (B, Features)
-        action = self.policy.select_action(state, greedy=greedy) # (B, )
-        # self.last_observation = observation
-        self.last_state = state
+        state = self.feature_extractor(observation) 
+        action = self.policy.select_action(state, greedy=greedy)
+        
+        self.last_observation = observation
         self.last_action = action
         return action
         
@@ -290,68 +268,53 @@ class DQNAgent(BaseAgent):
         all arguments are batches
         """
         # reward = np.clip(reward, -1, 1) # for stability
-        state = self.feature_extractor(observation)
-        for i in range(len(reward)):
-            transition = self.last_state[i], self.last_action[i], state[i], reward[i], terminated[i], truncated[i], self.hp.gamma
-            self.replay_buffer.add_single_item(transition)
-            # # transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]
-            # transition = self.last_state[i], self.last_action[i], reward[i]
-            # self.rollout_buffer[i].add_single_item(transition)
-            # print (self.rollout_buffer[i].size)
+        for i in range(self.num_envs):
+            transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]
+            self.rollout_buffer[i].add(transition)
             
-            # if terminated[i] or truncated[i]:
-            #     rollout = self.rollout_buffer[i].get_all()
-            #     # rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)
-            #     rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+            if terminated[i] or truncated[i]:
+                rollout = self.rollout_buffer[i].all()
+                rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)     
+                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                for j in range(len(self.rollout_buffer[i])):                    
+                    trans = (rollout_observations[j], rollout_actions[j], get_single_observation(observation, i), \
+                            n_step_return[j], terminated[i], \
+                            truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j))
+                    
+                    
+                    self.replay_buffer.add(trans)
+                self.rollout_buffer[i].clear() 
+            
+            elif self.rollout_buffer[i].is_full():
+                rollout = self.rollout_buffer[i].all() 
+                rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)
+                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                trans = (rollout_observations[0], rollout_actions[0], get_single_observation(observation, i), \
+                         n_step_return[0], terminated[i], \
+                         truncated[i], self.hp.gamma**self.hp.n_steps)
                 
-            #     n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-            #     for j in range(self.rollout_buffer[i].size):                    
-            #         # trans = (rollout_observations[j], rollout_actions[j], get_single_observation(observation, i), \
-            #         #         n_step_return[j], terminated[i], \
-            #         #         truncated[i], self.hp.gamma**(self.rollout_buffer[i].size-j))
-                    
-            #         trans = (rollout_states[j], rollout_actions[j], state[i], \
-            #                 n_step_return[j], terminated[i], \
-            #                 truncated[i], self.hp.gamma**(self.rollout_buffer[i].size-j))
-                    
-            #         self.replay_buffer.add_single_item(trans)
-            #     self.rollout_buffer[i].reset() 
-            
-            # elif self.rollout_buffer[i].size >= self.hp.n_steps:
-            #     rollout = self.rollout_buffer[i].get_all() 
-            #     # rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)
-            #     rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
-            #     n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-            #     # trans = (rollout_observations[0], rollout_actions[0], get_single_observation(observation, i), \
-            #     #          n_step_return[0], terminated[i], \
-            #     #          truncated[i], self.hp.gamma**self.hp.n_steps)
-            #     trans = (rollout_states[0], rollout_actions[0], state[i], \
-            #              n_step_return[0], terminated[i], \
-            #              truncated[i], self.hp.gamma**self.hp.n_steps)
-            #     self.replay_buffer.add_single_item(trans)
+                self.replay_buffer.add(trans)
                 
             
         
-        if self.replay_buffer.size >= self.hp.warmup_buffer_size:
-            batch = self._rand_subset(self.replay_buffer.get_all(), self.hp.batch_size)
+        if len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+            batch = self.replay_buffer.sample(self.hp.batch_size)
 
-            # observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
-            states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)
+            observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
+            observations, next_observations = stack_observations(observations), stack_observations(next_observations)
+            states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
             
-            # states, next_states = [self.feature_extractor(obs) for obs in observations], [self.feature_extractor(obs) for obs in next_observations]
-            self.policy.update(states, actions, next_states, n_step_return , terminated, truncated, effective_discount, call_back=call_back)
+            self.policy.update(states, actions, next_states, n_step_return, terminated, truncated, effective_discount, call_back=call_back)
         
         if call_back is not None:            
             call_back({
-                "train/buffer_size": self.replay_buffer.size,
-            }, counter=self.policy.log_counter)
+                "train/buffer_size": len(self.replay_buffer),
+                })
         
-
-                
 
     def reset(self, seed):
         """
-        Reset the agent's learning state, including feature extractor and replay buffer.
+        Reset the agent's learning state, including replay buffer.
         
         Args:
             seed (int): Seed for reproducibility.
@@ -361,7 +324,7 @@ class DQNAgent(BaseAgent):
         self.last_observation = None
         self.last_action = None
 
-        self.replay_buffer.reset()        
-        self.rollout_buffer = [BasicBuffer(self.hp.n_steps) for _ in range(self.num_envs)]
+        self.replay_buffer.clear()        
+        self.rollout_buffer = [BaseBuffer(self.hp.n_steps) for _ in range(self.num_envs)]
         
         

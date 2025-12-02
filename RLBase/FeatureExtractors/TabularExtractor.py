@@ -16,7 +16,6 @@ class TabularFeature(BaseFeature):
 
     def __init__(self, observation_space, device="cpu"):
         super().__init__(observation_space, device=device, allowed_spaces=ALLOWED_SPACES)
-        self._features_dict = {"x": 1}
         
 
     def __call__(self, observation):
@@ -32,10 +31,6 @@ class TabularFeature(BaseFeature):
             raise ValueError(f"Observation Space {self.observation_space} is not supported by {self.__class__.__name__}")
         
         return [self.hashable_array(x) for x in flat]
-
-    @property
-    def features_dict(self):
-        return self._features_dict
 
 
     

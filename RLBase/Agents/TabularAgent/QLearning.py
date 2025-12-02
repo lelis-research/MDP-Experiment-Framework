@@ -1,7 +1,10 @@
 import numpy as np
 import torch
+from gymnasium.spaces import Discrete
 
-from ..Utils import BaseAgent, BasePolicy, BasicBuffer, calculate_n_step_returns
+from ..Base import BaseAgent, BasePolicy
+from ...Buffers import BaseBuffer
+from ..Utils import calculate_n_step_returns
 from ...registry import register_agent, register_policy
 
 
@@ -13,24 +16,20 @@ class QLearningPolicy(BasePolicy):
         self.q_table = {}
         self.epsilon = self.hp.epsilon_start
         self.epsilon_step_counter = 0
-        self.log_counter = 0
+        
         
     def select_action(self, state, greedy=False):
-        # state is hashable batch of states
-        action = []
-        for s in state:
-            self.epsilon_step_counter += 1 
-            self.log_counter += 1
+        self.epsilon_step_counter += 1 
             
-            if s not in self.q_table:
-                self.q_table[s] = np.zeros(self.action_dim)
-            
-            if self._rand_float(low=0, high=1) < self.epsilon and not greedy:
-                action.append(self._rand_int(0, self.action_dim))
-            else:
-                q_values = self.q_table[s]
-                max_actions = np.flatnonzero(q_values == np.max(q_values))
-                action.append(int(self._rand_elem(max_actions)))
+        if state not in self.q_table:
+            self.q_table[state] = np.zeros(self.action_dim)
+        
+        if self._rand_float(low=0, high=1) < self.epsilon and not greedy:
+            action = self._rand_int(0, self.action_dim)
+        else:
+            q_values = self.q_table[state]
+            max_actions = np.flatnonzero(q_values == np.max(q_values))
+            action = int(self._rand_elem(max_actions))
         return action
 
     
@@ -71,7 +70,7 @@ class QLearningPolicy(BasePolicy):
                 "train/q_mean": np.mean(self.q_table[last_state]),
                 "train/q_max": np.max(self.q_table[last_state]),
                 "train/td_target": td_target,
-            }, counter=self.log_counter)
+            })
         
     def reset(self, seed):
         """
@@ -84,7 +83,6 @@ class QLearningPolicy(BasePolicy):
         self.q_table = {}
         self.epsilon = self.hp.epsilon_start
         self.epsilon_step_counter = 0
-        self.log_counter = 0
 
     def save(self, file_path=None):
         """
@@ -111,11 +109,10 @@ class QLearningPolicy(BasePolicy):
         Args:
             file_path (str): File path from which to load the checkpoint.
         """
-        instance = super().load(file_path, checkpoint)
-        
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
-        
+            
+        instance = super().load(file_path, checkpoint)        
         instance.q_table = checkpoint.get('q_table')
         instance.epsilon = checkpoint.get('epsilon')
         instance.epsilon_step_counter = checkpoint.get('epsilon_step_counter')
@@ -126,10 +123,12 @@ class QLearningPolicy(BasePolicy):
 @register_agent        
 class QLearningAgent(BaseAgent):
     name = "QLearning"
+    SUPPORTED_ACTION_SPACES = (Discrete, )
+    
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
         self.policy = QLearningPolicy(action_space, hyper_params)
-        self.rollout_buffer = [BasicBuffer(self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
+        self.rollout_buffer = [BaseBuffer(capacity=self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
 
         
     def act(self, observation, greedy=False):
@@ -138,29 +137,34 @@ class QLearningAgent(BaseAgent):
         observation is a batch
         action is a batch 
         """
-        state = self.feature_extractor(observation) # tuple (B, Features)
-        action = self.policy.select_action(state, greedy=greedy) # (B, )
+        state = self.feature_extractor(observation) 
+        action = []
+        for i in range(self.num_envs):
+            st = state[i]
+            action.append(self.policy.select_action(st, greedy=greedy))
+        
         self.last_action = action
         self.last_state = state
         return action
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
         state = self.feature_extractor(observation)
-        for i, st in enumerate(state):
+        for i in range(self.num_envs):
+            st = state[i]
             transition = self.last_state[i], self.last_action[i], reward[i]
-            self.rollout_buffer[i].add_single_item(transition)
+            self.rollout_buffer[i].add(transition)
             
             if terminated[i] or truncated[i]:
-                rollout = self.rollout_buffer[i].get_all()
+                rollout = self.rollout_buffer[i].all()
                 rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
                 n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-                for j in range(self.rollout_buffer[i].size):
+                for j in range(len(self.rollout_buffer[i])):
                     self.policy.update(rollout_states[j], rollout_actions[j], st, n_step_return[j], terminated[i], 
-                                       truncated[i], self.hp.gamma**(self.rollout_buffer[i].size-j), call_back=call_back)
-                self.rollout_buffer[i].reset() 
+                                       truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j), call_back=call_back)
+                self.rollout_buffer[i].clear() 
             
-            elif self.rollout_buffer[i].size >= self.hp.n_steps:
-                rollout = self.rollout_buffer[i].get_all() 
+            elif len(self.rollout_buffer[i]) >= self.hp.n_steps:
+                rollout = self.rollout_buffer[i].all() 
                 rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
                 n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
                 self.policy.update(rollout_states[0], rollout_actions[0], st, n_step_return[0], terminated[i], 
@@ -174,5 +178,5 @@ class QLearningAgent(BaseAgent):
 
         self.last_state = None
         self.last_action = None
-        self.rollout_buffer = [BasicBuffer(self.hp.n_steps) for _ in range(self.num_envs)] 
+        self.rollout_buffer = [BaseBuffer(capacity=self.hp.n_steps) for _ in range(self.num_envs)] 
         

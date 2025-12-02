@@ -16,7 +16,7 @@ def discover_agent_files(train_path: Path):
         if fb.exists():
             files = [fb]
     
-    files = [train_path / "Run1_Best_agent.t"]
+    # files = [train_path / "Run1_Best_agent.t"]
     return files
 
 def parse():
@@ -54,12 +54,9 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "Runs/Train/BigCurriculumEnv-v0_/FixedSeed(seed-1)/QLearning/n5_seed[100]"
+        exp_name = "Runs/Train/Pendulum-v1_/A2C/_seed[123123]"
     else:
         exp_name = args.exp_dir
-
-    # train_path = f"Runs/Train/{exp_name}"
-    # test_path = f"Runs/Test/{exp_name}"
     
     train_path = Path(exp_name)
     test_root = Path(str(train_path).replace("Runs/Train/", "Runs/Test/", 1))
@@ -99,11 +96,8 @@ if __name__ == "__main__":
         test_path = test_root / agent_name                # …/Runs/Test/.../Run3_Final_agent/
         os.makedirs(test_path, exist_ok=True)
 
-        def make_agent_loader(bound=str(ckpt)):
-            return lambda _info=None: load_agent(bound)
-        agent_fn = make_agent_loader()
-
-        experiment = Experiment(env, agent_fn, str(test_path), train=False, args=exp_args)
+        agent = load_agent(ckpt)
+        experiment = OnlineTrainer(env, agent, str(test_path), train=False, args=exp_args)
         metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=1, seed_offset=args.seed)
 
         analyzer = SingleExpAnalyzer(exp_path=str(test_path))

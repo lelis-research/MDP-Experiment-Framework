@@ -12,6 +12,12 @@ CLASSIC_ENV_LST = [
     "MountainCar-v0",
     "MountainCarContinuous-v0",
     "Pendulum-v1",
+    
+    # Toy Text-Based Environments
+    "CliffWalking-v1",
+    "FrozenLake-v1",
+    "Taxi-v3", 
+    "Blackjack-v1"
 ]
 
 

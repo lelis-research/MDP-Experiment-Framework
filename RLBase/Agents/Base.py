@@ -1,10 +1,6 @@
-import numpy as np
-import random
 import torch
-from copy import copy
-from typing import Any, Iterable, SupportsFloat, TypeVar
-from gymnasium.utils import seeding
-from ...utils import RandomGenerator
+
+from ..utils import RandomGenerator
 
 class BasePolicy(RandomGenerator):
     """Abstract base class for policies"""
@@ -40,7 +36,8 @@ class BasePolicy(RandomGenerator):
             'hyper_params': self.hp,
             'action_space': self.action_space,
             'policy_class': self.__class__.__name__,
-            'rng_state': self.get_rng_state()
+            'rng_state': self.get_rng_state(),
+            'device': self.device,
         }
         if file_path is not None:
             torch.save(checkpoint, f"{file_path}_policy.t")
@@ -50,13 +47,19 @@ class BasePolicy(RandomGenerator):
     def load(cls, file_path, checkpoint=None):
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
-        instance = cls(checkpoint['action_space'], checkpoint['hyper_params'])
+        
+        instance = cls(checkpoint['action_space'], checkpoint['hyper_params'], checkpoint['device'])
         instance.set_rng_state(checkpoint['rng_state'])
+        
         return instance
         
 class BaseAgent(RandomGenerator):
     """Base class for an RL agent using a policy."""
+    SUPPORTED_ACTION_SPACES = ()
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device='cpu'):
+        if not isinstance(action_space, self.SUPPORTED_ACTION_SPACES):
+            raise TypeError(f"{self.__class__.__name__} only supports action spaces {self.SUPPORTED_ACTION_SPACES}, got {type(action_space)}")
+        
         self.hp = hyper_params
         self.action_space = action_space
         self.observation_space = observation_space
@@ -127,7 +130,6 @@ class BaseAgent(RandomGenerator):
         return f"{self.__class__.__name__}({self.hp})"
     
 
-    
 class BaseContiualPolicy(BasePolicy):
     def trigger_option_learner(self):
         raise NotImplementedError("This method should be implemented by subclasses.")

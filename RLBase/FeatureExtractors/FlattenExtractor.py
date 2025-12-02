@@ -1,7 +1,7 @@
 
 from gymnasium.spaces import Box, Discrete, Dict, MultiDiscrete
 import numpy as np
-import gymnasium
+import torch
 
 from ..registry import register_feature_extractor
 from .Base import BaseFeature
@@ -11,7 +11,7 @@ ALLOWED_SPACES = (Box, Discrete, Dict, MultiDiscrete)
 @register_feature_extractor
 class FlattenFeature(BaseFeature):
     """
-    Convert supported Gymnasium observations into hashable tuples.
+    Convert supported Gymnasium observations into flatten arrays.
     """
 
     def __init__(self, observation_space, device="cpu"):
@@ -48,7 +48,7 @@ class FlattenFeature(BaseFeature):
         else:
             raise ValueError(f"Observation Space {self.observation_space} is not supported by {self.__class__.__name__}")
         
-        return flat
+        return {"x": torch.from_numpy(flat).to(self.device, dtype=torch.float32)}
 
     @property
     def features_dict(self):
@@ -158,12 +158,12 @@ if __name__ == "__main__":
     }
     for space_name, space in spaces.items():
         print(f"\nSpace: {space_name}")
-        batch_sample = _sample_batch(space, batch_size=2)
+        batch_sample = _sample_batch(space, batch_size=1)
         print_sample(space, batch_sample)
         
         extractor = FlattenFeature(space)
         batch = extractor(batch_sample)
-        print("Features: ", batch.shape, extractor.features_dict)
+        print("Features: ", batch["x"].shape, extractor.features_dict)
         
         
 

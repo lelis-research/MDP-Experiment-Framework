@@ -1,14 +1,94 @@
 import numpy as np
 import torch
+from typing import Any, Dict, List, Union
 
-def get_single_observation(observation, index):
+ObsType = Union[Dict[str, Any], np.ndarray, torch.Tensor]
+
+def get_single_observation(observation: ObsType, index: int) -> ObsType:
+    """
+    Extract a single observation from a batched observation.
+    - If observation is a dict: return a dict with the same keys.
+    - Slices arrays/tensors to keep batch dimension = 1.
+    - For non-array values (e.g., int, None), returns them unchanged.
+    
+    NOTE: Assumes observation has a batch dimension as the first dimension and it will keep the batch dimension in the output.
+    """
+
+    def slice_one(x):
+        """Slice batch dimension and keep it."""
+        if isinstance(x, (np.ndarray, torch.Tensor)):
+            # Add back batch dim = 1
+            return x[index:index+1]
+        else:
+            raise NotImplementedError(
+            f"Dict element type {type(x)} is not supported."
+        )
+
+    # ---- Handle dict observation ----
     if isinstance(observation, dict):
-        return {k: (v[index] if hasattr(v, "__getitem__") else v) for k, v in observation.items()}
-    elif hasattr(observation, "__getitem__"):
-        return observation[index]
-    else:
-        raise NotImplementedError(f"Vectorized Observation type {type(observation)} is not defined")
+        return {k: slice_one(v) for k, v in observation.items()}
+
+    # ---- Handle array / tensor observation ----
+    if isinstance(observation, (np.ndarray, torch.Tensor)):
+        return observation[index:index+1]
+
+    # ---- Fallback ----
+    raise NotImplementedError(
+        f"Vectorized observation type {type(observation)} is not supported."
+    )
         
+def stack_observations(observations: List[ObsType]) -> ObsType:
+    """
+    Stack a list of observations into a batched observation.
+
+    Supports:
+    - dict[str, np.ndarray / torch.Tensor]
+    - np.ndarray
+    - torch.Tensor
+
+    Assumes all observations in the list have the same structure and shapes.
+    
+    NOTE: This function assumes that the input observations are already batched (i.e. batch size of 1 or more)
+    """
+
+    if len(observations) == 0:
+        raise ValueError("stack_observations got an empty list.")
+
+    first = observations[0]
+
+    # ---- Dict observation: stack per key ----
+    if isinstance(first, dict):
+        stacked: Dict[str, Any] = {}
+        for k in first.keys():
+            vals = [obs[k] for obs in observations]
+
+            # All vals must be same type
+            v0 = vals[0]
+            if isinstance(v0, torch.Tensor):
+                stacked[k] = torch.cat(vals, dim=0)
+            elif isinstance(v0, np.ndarray):
+                stacked[k] = np.concatenate(vals, axis=0)
+            else:
+                raise NotImplementedError(
+                    f"Dict value type {type(v0)} for key '{k}' is not supported."
+                )
+        return stacked
+
+    # ---- Tensor observation ----
+    if isinstance(first, torch.Tensor):
+        return torch.cat(observations, dim=0)
+
+    # ---- Numpy observation ----
+    if isinstance(first, np.ndarray):
+        return np.concatenate(observations, axis=0)
+
+    # ---- Fallback ----
+    raise NotImplementedError(
+        f"Observation type {type(first)} is not supported in stack_observations."
+    )
+    
+    
+
 def calculate_n_step_returns(rollout_rewards, bootstrap_value, gamma):
     # Initialize the return with the bootstrap value.
     returns = []
@@ -66,37 +146,6 @@ def calculate_gae(
     
     return returns, advantages
 
-
-def calculate_gae_torch(rewards, values, next_values, dones, gamma, lam):
-    """
-    rewards: list[float] or 1D tensor [T]
-    values, next_values: 1D tensors [T] (critic outputs)
-    dones: list[bool] of length T
-    Returns (returns, advantages) as 1D tensors on values.device with no grad.
-    """
-    if not torch.is_tensor(values):
-        values = torch.tensor(values, dtype=torch.float32)
-    if not torch.is_tensor(next_values):
-        next_values = torch.tensor(next_values, dtype=torch.float32)
-
-    device = values.device
-    T = len(rewards)
-    rewards_t = torch.as_tensor(rewards, dtype=torch.float32, device=device)
-    dones_t   = torch.as_tensor(dones,   dtype=torch.float32, device=device)  # 1.0 if done else 0.0
-    mask_t    = 1.0 - dones_t
-
-    advantages = torch.zeros(T, dtype=torch.float32, device=device)
-    gae = torch.zeros((), dtype=torch.float32, device=device)
-
-    with torch.no_grad():
-        for t in reversed(range(T)):
-            delta = rewards_t[t] + gamma * next_values[t] * mask_t[t] - values[t]
-            gae   = delta + gamma * lam * mask_t[t] * gae
-            advantages[t] = gae
-        returns = advantages + values
-
-    return returns, advantages
-
 def calculate_gae_with_discounts(
     rollout_rewards,     # list/np.array length T
     values,              # torch tensor [T]
@@ -117,13 +166,3 @@ def calculate_gae_with_discounts(
         advantages[t] = gae
         returns[t]    = gae + values[t].item()
     return returns, advantages
-
-def keep_batch(x, i):
-    '''
-    get index i element of input x but keep the batch dimension
-    '''
-    if isinstance(x, dict):
-        return {k: keep_batch(v, i) for k, v in x.items()}
-    if isinstance(x, (np.ndarray, torch.Tensor)):
-        return x[i:i+1]  # preserves batch dim
-    return x  # scalars or other types, just return as is
