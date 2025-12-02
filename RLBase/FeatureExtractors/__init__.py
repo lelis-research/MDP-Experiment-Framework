@@ -1,3 +1,5 @@
-from .Base import BaseFeature
+from .Base import BaseFeature, get_batch_features
 from .TabularExtractor import TabularFeature
 from .FlattenExtractor import FlattenFeature
+from .OneHotFlattenFeatureExtractor import OneHotFlattenFeature
+from .OneHotKeepDimExtractor import OneHotKeepDimFeature

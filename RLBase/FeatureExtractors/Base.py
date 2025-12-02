@@ -60,3 +60,9 @@ class BaseFeature(RandomGenerator):
         instance = cls(checkpoint['observation_space'])
         instance.set_rng_state(checkpoint['rng_state'])
         return instance
+
+
+def get_batch_features(features, indices):
+    batch_features = {k: v[indices] for k, v in features.items()}
+    return batch_features
+    

@@ -157,7 +157,7 @@ class A2CPolicy(BasePolicy):
 
         # Update the step size
         if self.hp.anneal_step_size_flag:
-            frac = 1.0 - (self.update_counter - 1.0) / self.hp.total_updates
+            frac = 1.0 - (self.update_counter - 1.0) / self.hp.total_steps
             self.critic_optimizer.param_groups[0]["lr"] = frac * self.hp.critic_step_size
             self.actor_optimizer.param_groups[0]["lr"] = frac * self.hp.actor_step_size
 

@@ -52,6 +52,9 @@ class RandomGenerator:
 
         # Gather elements
         return [lst[i] for i in idxs]
+
+    def _rand_permutation(self, n: int):
+        return self.np_random.permutation(n)
     
     
     def set_seed(self, seed: int | None = None):
