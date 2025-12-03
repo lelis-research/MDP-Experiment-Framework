@@ -129,7 +129,8 @@ def calculate_gae(
     rollout_rewards,         # list of length T
     values,          # tensor [T] of V(s_t)
     next_values,     # tensor [T] of V(s_{t+1})
-    dones,           # list of bools length T
+    terminated,           # list of bools length T
+    truncated,
     gamma, 
     lamda,      # γ and λ
 ):
@@ -138,9 +139,11 @@ def calculate_gae(
     returns    = np.zeros(T, dtype=np.float32)
     gae = 0.0
     for t in reversed(range(T)):
-        mask = 1.0 - float(dones[t])
-        delta = rollout_rewards[t] + gamma * next_values[t].item() * mask - values[t].item()
-        gae   = delta + gamma * lamda * mask * gae
+        mask_bootstrap = 0.0 if terminated[t] else 1.0
+        mask_adv = 0.0 if (terminated[t] or truncated[t]) else 1.0
+        
+        delta = rollout_rewards[t] + gamma * next_values[t].item() * mask_bootstrap - values[t].item()
+        gae   = delta + gamma * lamda * mask_adv * gae
         advantages[t] = gae
         returns[t] = gae + values[t].item()
     
@@ -166,3 +169,23 @@ def calculate_gae_with_discounts(
         advantages[t] = gae
         returns[t]    = gae + values[t].item()
     return returns, advantages
+
+
+def explained_variance(y_pred: torch.Tensor, y_true: torch.Tensor) -> float:
+    """
+    1 - Var[y_true - y_pred] / Var[y_true]
+    Returns 0 if Var[y_true] == 0.
+    """
+    y_true_np = y_true.detach().cpu().numpy()
+    y_pred_np = y_pred.detach().cpu().numpy()
+    var_y = np.var(y_true_np)
+    if var_y < 1e-10:
+        return 0.0
+    return float(1.0 - np.var(y_true_np - y_pred_np) / (var_y + 1e-10))
+
+def grad_norm(params):
+    total = 0.0
+    for p in params:
+        if p.grad is not None:
+            total += float(p.grad.pow(2).sum().item())
+    return math.sqrt(total) if total > 0 else 0.0

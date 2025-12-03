@@ -11,22 +11,12 @@ from gymnasium.spaces import Discrete, Box
 
 from ...Base import BaseAgent, BasePolicy
 from ....Buffers import BaseBuffer
-from ...Utils import calculate_gae, get_single_observation, stack_observations
+from ...Utils import calculate_gae, get_single_observation, stack_observations, grad_norm, explained_variance
 from ....registry import register_agent, register_policy
 from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
 from ....FeatureExtractors import get_batch_features
 
-def explained_variance(y_pred: torch.Tensor, y_true: torch.Tensor) -> float:
-    """
-    1 - Var[y_true - y_pred] / Var[y_true]
-    Returns 0 if Var[y_true] == 0.
-    """
-    y_true_np = y_true.detach().cpu().numpy()
-    y_pred_np = y_pred.detach().cpu().numpy()
-    var_y = np.var(y_true_np)
-    if var_y < 1e-10:
-        return 0.0
-    return float(1.0 - np.var(y_true_np - y_pred_np) / (var_y + 1e-10))
+
 
 @register_policy
 class PPOPolicy(BasePolicy):
@@ -50,19 +40,19 @@ class PPOPolicy(BasePolicy):
         
         if isinstance(self.action_space, Box):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
-            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
             self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
             self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
-            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
         else:
             raise NotImplementedError(f"PPOPolicy does not support action space of type {type(self.action_space)}")
         
-        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=1e-5)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=self.hp.critic_eps)
         self.update_counter = 0
-        self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+        
         
     
     def reset(self, seed):
@@ -96,7 +86,7 @@ class PPOPolicy(BasePolicy):
         
         self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=1e-5)
         self.update_counter = 0   
-        self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+        
 
 
     def _log_prob_and_entropy(self, state, action_t=None):
@@ -163,7 +153,7 @@ class PPOPolicy(BasePolicy):
             else:
                 return action.cpu().numpy(), log_prob_t.cpu().numpy()
 
-    def update(self, states, actions, old_log_probs, next_states, rewards, dones, call_back=None):
+    def update(self, states, actions, old_log_probs, next_states, rewards, terminated, truncated, call_back=None):
 
         self.update_counter += 1
             
@@ -203,7 +193,8 @@ class PPOPolicy(BasePolicy):
             rewards,
             values,
             next_values,
-            dones,
+            terminated,
+            truncated,
             gamma=self.hp.gamma,
             lamda=self.hp.lamda,
         )
@@ -211,21 +202,19 @@ class PPOPolicy(BasePolicy):
         advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device) # (T, )
         returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device) # (T, )
 
-        if self.hp.norm_adv_flag and advantages_t.numel() > 1:
-            advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
-
-
-        datasize = self.hp.rollout_steps
+        assert advantages_t.shape[0] == returns_t.shape[0] == log_probs_old_t.shape[0] == actions_t.shape[0] == values.shape[0] == next_values.shape[0]
+        
+        datasize = advantages_t.shape[0] #self.hp.rollout_steps
         indices = np.arange(datasize)
         continue_training = True
         
         # for logging
-        entropy_losses, actor_losses, critic_losses, clip_fractions = [], [], [], []
+        entropy_losses, actor_losses, critic_losses, clip_fractions, losses, approx_kl_divs = [], [], [], [], [], []
+        actor_grad_norms, critic_grad_norms = [], []
 
         for epoch in range(self.hp.num_epochs):
             if not continue_training:
                 break
-            approx_kl_divs = []
             
             indices = self._rand_permutation(datasize)
             for start in range(0, datasize, self.hp.mini_batch_size):
@@ -238,10 +227,12 @@ class PPOPolicy(BasePolicy):
                 batch_returns_t    = returns_t[batch_indices]        # shape (B, )
                 batch_values_t     = values[batch_indices].squeeze() # shape (B, )
 
-
+                if self.hp.norm_adv_flag and advantages_t.numel() > 1:
+                    batch_advantages_t = (batch_advantages_t - batch_advantages_t.mean()) / (batch_advantages_t.std() + 1e-8)
+                    
                 # new log-probs under current policy
                 _, batch_log_probs_new_t, entropy, _ = self._log_prob_and_entropy(batch_states, batch_actions_t)
-                
+            
                 log_ratio = batch_log_probs_new_t - batch_log_probs_t
                 ratios = torch.exp(log_ratio)  # [B, ]
                 surr1 = - batch_advantages_t * ratios
@@ -261,6 +252,7 @@ class PPOPolicy(BasePolicy):
                 else:
                     values_pred = batch_values_t + torch.clamp(batch_new_values_t - batch_values_t,
                                                            -self.hp.clip_range_critic, self.hp.clip_range_critic)
+                
                 critic_loss = F.mse_loss(batch_returns_t, values_pred)
                 critic_losses.append(critic_loss.item())
                 
@@ -268,7 +260,8 @@ class PPOPolicy(BasePolicy):
                 entropy_losses.append(entropy_bonus.item())
                 
                 loss = actor_loss + self.hp.critic_coef * critic_loss - self.hp.entropy_coef * entropy_bonus
-
+                losses.append(loss.item())
+                
                 # early stopping
                 with torch.no_grad():
                     approx_kl = torch.mean((torch.exp(log_ratio) - 1) - log_ratio).item()
@@ -281,23 +274,46 @@ class PPOPolicy(BasePolicy):
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
                 loss.backward()
+                
+                actor_grad_norms.append(grad_norm(self.actor.parameters()))
+                critic_grad_norms.append(grad_norm(self.critic.parameters()))
+        
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
+                
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
                 
-                if call_back is not None:
-                    call_back({"critic_loss": float(np.mean(critic_losses)),
-                                "actor_loss": float(np.mean(actor_losses)),
-                                "entropy_loss": float(np.mean(entropy_losses)),
-                                "loss": float(np.mean(actor_losses)) + 
-                                        self.hp.critic_coef * float(np.mean(critic_losses)) + 
-                                        self.hp.entropy_coef * float(np.mean(entropy_losses)),
-                                        
-                                "clip_fraction": float(np.mean(clip_fractions)),
-                                "approx_kl": float(np.mean(approx_kl_divs)),
-                                "explained_variance": explained_variance(values, returns_t)                                
-                                })
+        if call_back is not None:
+            payload = {
+                "critic_loss": float(np.mean(critic_losses)),
+                "actor_loss": float(np.mean(actor_losses)),
+                "entropy_loss": float(np.mean(entropy_losses)),
+                "loss": float(np.mean(losses)),
+                        
+                "clip_fraction": float(np.mean(clip_fractions)),
+                "approx_kl": float(np.mean(approx_kl_divs)),
+                "explained_variance": explained_variance(values, returns_t),
+                
+                "advantage_mean": float(advantages_t.mean().item()),
+                "advantage_std": float(advantages_t.std().item()),
+                
+                "values_mean": float(values.mean().item()),
+                "values_std": float(values.std().item()),
+                "returns_mean": float(returns_t.mean().item()),
+                "returns_std": float(returns_t.std().item()),
+                
+                "lr_actor": float(self.actor_optimizer.param_groups[0]["lr"]),
+                "lr_critic": float(self.critic_optimizer.param_groups[0]["lr"]), 
+                
+                "actor_grad_norms": float(np.mean(actor_grad_norms)),
+                "critic_grad_norms": float(np.mean(critic_grad_norms)),
+            }
+            if isinstance(self.action_space, Box) and self.actor_logstd is not None:
+                payload["actor_logstd_mean"] = float(self.actor_logstd.mean().item())
+                payload["actor_logstd_std"] = float(self.actor_logstd.std().item())
+            
+            call_back(payload)
 
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)
@@ -353,6 +369,7 @@ class PPOAgent(BaseAgent):
             )
         
         self.rollout_buffer = [BaseBuffer(self.hp.rollout_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
+        
 
     def act(self, observation, greedy=False):
         """
@@ -369,23 +386,141 @@ class PPOAgent(BaseAgent):
         return action
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
+        if self.hp.update_type == "sync":
+            self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
+            return self.update_sync(observation, reward, terminated, truncated, call_back)
+        elif self.hp.update_type == "per_env":
+            self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+            return self.update_per_env(observation, reward, terminated, truncated, call_back)
+        else:
+            raise NotImplementedError("update_type not defined")
+        
+    def update_sync(self, observation, reward, terminated, truncated, call_back=None):
         """
         all arguments are batches
         """
         for i in range(self.num_envs):
-            transition =  (get_single_observation(self.last_observation, i), 
-                           self.last_action[i], self.last_log_prob[i], reward[i], 
-                           get_single_observation(observation, i), terminated[i])
+            transition =  (
+                get_single_observation(self.last_observation, i), 
+                self.last_action[i], 
+                self.last_log_prob[i], 
+                reward[i], 
+                get_single_observation(observation, i), 
+                terminated[i], 
+                truncated[i],
+            )
+            self.rollout_buffer[i].add(transition)
+        
+        
+        if not all(buf.is_full() for buf in self.rollout_buffer):
+            return
+
+        all_observations        = []
+        all_next_observations   = []
+        all_actions             = []
+        all_log_probs           = []
+        all_rewards             = []
+        all_terminated          = []
+        all_truncated           = []
+        
+        for i in range(self.num_envs):
+            rollout = self.rollout_buffer[i].all()
+            (
+                rollout_observations,
+                rollout_actions,
+                rollout_log_probs,
+                rollout_rewards,
+                rollout_next_observations,
+                rollout_terminated,
+                rollout_truncated,
+            ) = zip(*rollout)
+            
+            all_observations.extend(rollout_observations)
+            all_next_observations.extend(rollout_next_observations)
+            all_actions.extend(rollout_actions)
+            all_log_probs.extend(rollout_log_probs)
+            all_rewards.extend(rollout_rewards)
+            all_terminated.extend(rollout_terminated)
+            all_truncated.extend(rollout_truncated)
+            
+            # --- IMPORTANT: cut GAE at env boundary with a fake truncation ---
+            # If the last step of this env's rollout is not truly terminated,
+            # mark it as truncated so advantages don't leak into the next env's segment.
+            last_idx = len(all_truncated) - 1
+            if not all_terminated[last_idx]:
+                all_truncated[last_idx] = True
+                
+            # clear this env's buffer for next rollout
+            self.rollout_buffer[i].clear()
+
+        # 4) Stack and featurize the big batch
+        observations, next_observations = (
+            stack_observations(all_observations),
+            stack_observations(all_next_observations),
+        )
+        states      = self.feature_extractor(observations)
+        next_states = self.feature_extractor(next_observations)
+
+        # 5) Single PPO update using data from *all* envs combined
+        self.policy.update(
+            states,
+            all_actions,
+            all_log_probs,
+            next_states,
+            all_rewards,
+            all_terminated,
+            all_truncated,
+            call_back=call_back,
+        )
+            
+    def update_per_env(self, observation, reward, terminated, truncated, call_back=None):
+        """
+        all arguments are batches
+        """
+        for i in range(self.num_envs):
+            transition =  (
+                get_single_observation(self.last_observation, i), 
+                self.last_action[i], 
+                self.last_log_prob[i], 
+                reward[i], 
+                get_single_observation(observation, i), 
+                terminated[i], 
+                truncated[i]
+            )
             self.rollout_buffer[i].add(transition)
             
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
-                observations, actions, log_probs, rewards, next_observations, dones = zip(*rollout)
-                observations, next_observations = stack_observations(observations), stack_observations(next_observations)
-                states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
-                self.policy.update(states, actions, log_probs, next_states, rewards, dones, call_back=call_back)
-                self.rollout_buffer[i].clear()
-
+                (
+                    rollout_observations,
+                    rollout_actions,
+                    rollout_log_probs,
+                    rollout_rewards,
+                    rollout_next_observations,
+                    rollout_terminated,
+                    rollout_truncated,
+                ) = zip(*rollout)
+                
+                rollout_observations, rollout_next_observations = (
+                    stack_observations(rollout_observations), 
+                    stack_observations(rollout_next_observations)
+                )
+                rollout_states, rollout_next_states = (
+                    self.feature_extractor(rollout_observations), 
+                    self.feature_extractor(rollout_next_observations)
+                )
+                
+                self.policy.update(rollout_states, 
+                                   rollout_actions, 
+                                   rollout_log_probs, 
+                                   rollout_next_states, 
+                                   rollout_rewards, 
+                                   rollout_terminated, 
+                                   rollout_truncated, 
+                                   call_back=call_back)
+                
+                self.rollout_buffer[i].clear()             
+  
     def reset(self, seed):
         super().reset(seed)
         

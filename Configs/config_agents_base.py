@@ -179,16 +179,23 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
-            rollout_steps=info.get("rollout_steps", 32),
+            rollout_steps=info.get("rollout_steps", 256),
+            
             actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
             actor_step_size=info.get("actor_step_size", 3e-4),
+            actor_eps = info.get("actor_eps", 1e-5),
+            
             critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
             critic_step_size=info.get("critic_step_size", 3e-4),
-            norm_adv_flag=info.get("norm_adv_flag", True),
-            value_coef=info.get("value_coef", 1.0),
-            entropy_coef=info.get("entropy_coef", 0.01),
+            critic_eps = info.get("critic_eps", 1e-5),
+            
+            critic_coef=info.get("critic_coef", 0.5),
+            entropy_coef=info.get("entropy_coef", 0.02),
+            
             anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 4e5)
+            total_steps=info.get("total_steps", 100_000),
+            update_type=info.get("update_type", "sync"), # sync, per_env
+            norm_adv_flag=info.get("norm_adv_flag", True),
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
@@ -235,14 +242,16 @@ AGENT_DICT = {
             actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             actor_eps = info.get("actor_eps", 1e-5),
+            
             critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             critic_eps = info.get("critic_eps", 1e-5),
             
             anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 2_000_000 // 256),
-            
+            total_steps=info.get("total_steps", 100_000),
+            update_type=info.get("update_type", "sync"), # sync, per_env
             norm_adv_flag=info.get("norm_adv_flag", True),
+            
             critic_coef=info.get("critic_coef", 0.5),
             entropy_coef=info.get("entropy_coef", 0.02),
             max_grad_norm=info.get("max_grad_norm", 0.5),

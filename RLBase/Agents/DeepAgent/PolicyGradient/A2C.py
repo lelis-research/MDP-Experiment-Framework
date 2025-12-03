@@ -12,9 +12,12 @@ from gymnasium.spaces import Discrete, Box
 from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
 from ...Base import BaseAgent, BasePolicy
 from ....Buffers import BaseBuffer
-from ...Utils import calculate_gae, get_single_observation, stack_observations
+from ...Utils import calculate_gae, get_single_observation, stack_observations, grad_norm, explained_variance
 from ....registry import register_agent, register_policy
 
+
+
+        
 @register_policy
 class A2CPolicy(BasePolicy):
     """
@@ -40,17 +43,17 @@ class A2CPolicy(BasePolicy):
         
         if isinstance(self.action_space, Box):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
-            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
-            self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
+            # self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
+            # self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
-            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
         else:
             raise NotImplementedError(f"A2CPolicy does not support action space of type {type(self.action_space)}")
         
-        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=1e-5)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=self.hp.critic_eps)
         self.update_counter = 0
         
             
@@ -75,8 +78,8 @@ class A2CPolicy(BasePolicy):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
             
-            self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
+            # self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
+            # self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=1e-5)
@@ -150,16 +153,19 @@ class A2CPolicy(BasePolicy):
             else:
                 return action.cpu().numpy()
 
-    def update(self, states, actions, next_states, rewards, dones, call_back=None):
+    def update(self, states, actions, next_states, rewards, terminated, truncated, call_back=None):
         # T: rollout depth
         
         self.update_counter += 1
 
         # Update the step size
+         # LR annealing (optional)
         if self.hp.anneal_step_size_flag:
-            frac = 1.0 - (self.update_counter - 1.0) / self.hp.total_steps
-            self.critic_optimizer.param_groups[0]["lr"] = frac * self.hp.critic_step_size
-            self.actor_optimizer.param_groups[0]["lr"] = frac * self.hp.actor_step_size
+            frac = 1.0 - (self.update_counter - 1.0) / float(self.hp.total_updates)  # linear from initial->0
+            for param_groups in self.actor_optimizer.param_groups:
+                param_groups["lr"] = frac * self.hp.actor_step_size
+            for param_groups in self.critic_optimizer.param_groups:
+                param_groups["lr"] = frac * self.hp.critic_step_size  
 
         if isinstance(self.action_space, Discrete):
             actions_t = torch.tensor(np.array(actions), dtype=torch.int64, device=self.device)  # (T,)
@@ -177,7 +183,8 @@ class A2CPolicy(BasePolicy):
             rewards,
             values,
             next_values,
-            dones,
+            terminated,
+            truncated,
             gamma=self.hp.gamma,
             lamda=self.hp.lamda,
         )
@@ -194,18 +201,13 @@ class A2CPolicy(BasePolicy):
 
         critic_loss = F.mse_loss(values, returns_t)
         actor_loss = - (log_probs_t * advantages_t).mean() 
-        loss = actor_loss + self.hp.value_coef * critic_loss - self.hp.entropy_coef * entropy_t.mean()        
+        loss = actor_loss + self.hp.critic_coef * critic_loss - self.hp.entropy_coef * entropy_t.mean()        
         
         self.actor_optimizer.zero_grad()
         self.critic_optimizer.zero_grad()
         loss.backward()
 
-        def grad_norm(params):
-            total = 0.0
-            for p in params:
-                if p.grad is not None:
-                    total += float(p.grad.pow(2).sum().item())
-            return math.sqrt(total) if total > 0 else 0.0
+        
 
         actor_grad_norm = grad_norm(self.actor.parameters())
         critic_grad_norm = grad_norm(self.critic.parameters())
@@ -214,24 +216,27 @@ class A2CPolicy(BasePolicy):
         self.critic_optimizer.step()
 
         if call_back is not None:
-            td_error = returns_t - values.detach()
             payload = {
-                "loss": float(loss.item()),
                 "critic_loss": float(critic_loss.item()),
                 "actor_loss": float(actor_loss.item()),
-                "entropy_mean": float(entropy_t.mean().item()),
-                "advantages_mean": float(advantages_t.mean().item()),
-                "advantages_std": float(advantages_t.std().item()),
-                "advantages_min": float(advantages_t.min().item()),
-                "advantages_max": float(advantages_t.max().item()),
+                "entropy_loss": float(entropy_t.mean().item()),
+                "loss": float(loss.item()),
+                        
+                "explained_variance": explained_variance(values, returns_t),
+                
+                "advantage_mean": float(advantages_t.mean().item()),
+                "advantage_std": float(advantages_t.std().item()),
+                
                 "values_mean": float(values.mean().item()),
                 "values_std": float(values.std().item()),
-                "td_error_mean": float(td_error.mean().item()),
-                "td_error_std": float(td_error.std().item()),
+                "returns_mean": float(returns_t.mean().item()),
+                "returns_std": float(returns_t.std().item()),
+                
                 "lr_actor": float(self.actor_optimizer.param_groups[0]["lr"]),
-                "lr_critic": float(self.critic_optimizer.param_groups[0]["lr"]),
-                "actor_grad_norm": actor_grad_norm,
-                "critic_grad_norm": critic_grad_norm,
+                "lr_critic": float(self.critic_optimizer.param_groups[0]["lr"]), 
+                
+                "actor_grad_norms": float(actor_grad_norm),
+                "critic_grad_norms": float(critic_grad_norm),
             }
             if isinstance(self.action_space, Box) and self.actor_logstd is not None:
                 payload["actor_logstd_mean"] = float(self.actor_logstd.mean().item())
@@ -303,23 +308,135 @@ class A2CAgent(BaseAgent):
         self.last_action = action
         return action
 
+    
     def update(self, observation, reward, terminated, truncated, call_back=None):
+        if self.hp.update_type == "sync":
+            self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
+            return self.update_sync(observation, reward, terminated, truncated, call_back)
+        elif self.hp.update_type == "per_env":
+            self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+            return self.update_per_env(observation, reward, terminated, truncated, call_back)
+        else:
+            raise NotImplementedError("update_type not defined")
+    
+    def update_sync(self, observation, reward, terminated, truncated, call_back=None):
         """
         all arguments are batches
         """
         for i in range(self.num_envs):
-            transition =  (get_single_observation(self.last_observation, i), 
-                           self.last_action[i], reward[i], 
-                           get_single_observation(observation, i), terminated[i])
+            transition =  (
+                get_single_observation(self.last_observation, i), 
+                self.last_action[i], 
+                reward[i], 
+                get_single_observation(observation, i), 
+                terminated[i], 
+                truncated[i],
+            )
+            self.rollout_buffer[i].add(transition)
+        
+        
+        if not all(buf.is_full() for buf in self.rollout_buffer):
+            return
+
+        all_observations        = []
+        all_next_observations   = []
+        all_actions             = []
+        all_rewards             = []
+        all_terminated          = []
+        all_truncated           = []
+        
+        for i in range(self.num_envs):
+            rollout = self.rollout_buffer[i].all()
+            (
+                rollout_observations,
+                rollout_actions,
+                rollout_rewards,
+                rollout_next_observations,
+                rollout_terminated,
+                rollout_truncated,
+            ) = zip(*rollout)
+            
+            all_observations.extend(rollout_observations)
+            all_next_observations.extend(rollout_next_observations)
+            all_actions.extend(rollout_actions)
+            all_rewards.extend(rollout_rewards)
+            all_terminated.extend(rollout_terminated)
+            all_truncated.extend(rollout_truncated)
+            
+            # --- IMPORTANT: cut GAE at env boundary with a fake truncation ---
+            # If the last step of this env's rollout is not truly terminated,
+            # mark it as truncated so advantages don't leak into the next env's segment.
+            last_idx = len(all_truncated) - 1
+            if not all_terminated[last_idx]:
+                all_truncated[last_idx] = True
+                
+            # clear this env's buffer for next rollout
+            self.rollout_buffer[i].clear()
+
+        # 4) Stack and featurize the big batch
+        observations, next_observations = (
+            stack_observations(all_observations),
+            stack_observations(all_next_observations),
+        )
+        states      = self.feature_extractor(observations)
+        next_states = self.feature_extractor(next_observations)
+
+        # 5) Single PPO update using data from *all* envs combined
+        self.policy.update(
+            states,
+            all_actions,
+            next_states,
+            all_rewards,
+            all_terminated,
+            all_truncated,
+            call_back=call_back,
+        )
+    
+    def update_per_env(self, observation, reward, terminated, truncated, call_back=None):
+        """
+        all arguments are batches
+        """
+        for i in range(self.num_envs): 
+            transition =  (
+                get_single_observation(self.last_observation, i), 
+                self.last_action[i], 
+                reward[i], 
+                get_single_observation(observation, i), 
+                terminated[i], 
+                truncated[i]
+            )
             self.rollout_buffer[i].add(transition)
             
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
-                observations, actions, rewards, next_observations, dones = zip(*rollout)
-                observations, next_observations = stack_observations(observations), stack_observations(next_observations)
-                states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
-                self.policy.update(states, actions, next_states, rewards, dones, call_back=call_back)
-                self.rollout_buffer[i].clear()
+                (
+                    rollout_observations,
+                    rollout_actions,
+                    rollout_rewards,
+                    rollout_next_observations,
+                    rollout_terminated,
+                    rollout_truncated,
+                ) = zip(*rollout)
+                
+                rollout_observations, rollout_next_observations = (
+                    stack_observations(rollout_observations), 
+                    stack_observations(rollout_next_observations)
+                )
+                rollout_states, rollout_next_states = (
+                    self.feature_extractor(rollout_observations), 
+                    self.feature_extractor(rollout_next_observations)
+                )
+                
+                self.policy.update(rollout_states, 
+                                   rollout_actions, 
+                                   rollout_next_states, 
+                                   rollout_rewards, 
+                                   rollout_terminated, 
+                                   rollout_truncated, 
+                                   call_back=call_back)
+                
+                self.rollout_buffer[i].clear()  
+                
             
             
    
