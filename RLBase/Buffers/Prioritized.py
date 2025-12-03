@@ -12,7 +12,6 @@ Usage: add transitions with a TD-error priority, sample batches (keep idxs/weigh
 
 from __future__ import annotations
 
-import math
 from typing import Iterable, List, Sequence, Tuple, TypeVar
 
 from ..utils import RandomGenerator

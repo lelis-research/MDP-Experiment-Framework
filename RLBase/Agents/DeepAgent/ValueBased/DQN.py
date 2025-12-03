@@ -148,25 +148,27 @@ class DQNPolicy(BasePolicy):
         
         
         # ******** Logging (without grad) ********
-        with torch.no_grad():
-            td = qvalues_t - target_t                 # (B,1)
-            td_abs = td.abs()
-            q_mean = qvalues_t.mean().item()
-            q_max = qvalues_t.max().item()
-            td_mean = td.mean().item()
-            td_abs_mean = td_abs.mean().item()
-            target_mean = target_t.mean().item()
+        if call_back is not None:
+            with torch.no_grad():
+                td = qvalues_t - target_t                 # (B,1)
+                td_abs = td.abs()
+                q_mean = qvalues_t.mean().item()
+                q_max = qvalues_t.max().item()
+                td_mean = td.mean().item()
+                td_abs_mean = td_abs.mean().item()
+                target_mean = target_t.mean().item()
         # ***************************************
         
         self.optimizer.zero_grad()
         loss.backward()
         
         # Gradient norm logging
-        total_grad_norm = 0.0
-        for p in self.online_network.parameters():
-            if p.grad is not None:
-                total_grad_norm += (p.grad.detach().data.norm(2) ** 2).item()
-        total_grad_norm = total_grad_norm ** 0.5
+        if call_back is not None:
+            total_grad_norm = 0.0
+            for p in self.online_network.parameters():
+                if p.grad is not None:
+                    total_grad_norm += (p.grad.detach().data.norm(2) ** 2).item()
+            total_grad_norm = total_grad_norm ** 0.5
 
         self.optimizer.step()
 

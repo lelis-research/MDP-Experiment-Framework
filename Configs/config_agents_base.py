@@ -145,7 +145,7 @@ AGENT_DICT = {
             value_network=NETWORK_PRESETS[info.get("value_network", "mlp1")],
         ),
         get_num_envs(env),
-        FlattenFeature,
+        OneHotFlattenFeature,
         device=device,
     ),
     

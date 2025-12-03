@@ -188,4 +188,4 @@ def grad_norm(params):
     for p in params:
         if p.grad is not None:
             total += float(p.grad.pow(2).sum().item())
-    return math.sqrt(total) if total > 0 else 0.0
+    return np.sqrt(total) if total > 0 else 0.0
