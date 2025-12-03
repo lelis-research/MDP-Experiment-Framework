@@ -8,7 +8,7 @@ gymnasium-robotics==1.4.1
 
 # RL environments
 minigrid==3.0.0
-minihack==1.0.2
+# minihack==1.0.2
 ale-py==0.11.2
 mujoco==3.3.7
 pettingzoo==1.25.0

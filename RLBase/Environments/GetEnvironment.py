@@ -4,13 +4,13 @@ from .MiniGrid import get_env as get_minigrid_env, MINIGRID_ENV_LST
 from .Mujoco import get_env as get_mujoco_env, MUJOCO_ENV_LST
 from .Atari import get_env as get_atari_env, ATARI_ENV_LST
 from .Classic import get_env as get_classic_env, CLASSIC_ENV_LST
-from .MiniHack import get_env as get_minihack_env, MINIHACK_ENV_LST
+# from .MiniHack import get_env as get_minihack_env, MINIHACK_ENV_LST
 ENV_SOURCES = (
     ("MiniGrid", MINIGRID_ENV_LST, get_minigrid_env),
     ("Mujoco", MUJOCO_ENV_LST, get_mujoco_env),
     ("Atari", ATARI_ENV_LST, get_atari_env),
     ("Classic", CLASSIC_ENV_LST, get_classic_env),
-    ("MiniHack", MINIHACK_ENV_LST, get_minihack_env),
+    # ("MiniHack", MINIHACK_ENV_LST, get_minihack_env),
 )
 
 ENV_LST = sorted({env for _, env_list, _ in ENV_SOURCES for env in env_list})
