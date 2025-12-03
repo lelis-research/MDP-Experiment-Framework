@@ -8,27 +8,38 @@
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-50
 
+##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
+
 set -euo pipefail
 
-# ----------------- repo + env -----------------
+# ------------------ Paths & modules ------------------
 cd ~/scratch/MDP-Experiment-Framework
 
-# If your tests need MuJoCo (MiniGrid doesn't), keep; otherwise you can drop these two lines.
-module load mujoco
+module load apptainer
+
+CONTAINER=~/scratch/rlbase-amd64.sif
+
+# If CUDA_VISIBLE_DEVICES is set, we assume we’re on a GPU node and use --nv
+APPTAINER_CMD="apptainer exec"
+if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+  APPTAINER_CMD="apptainer exec --nv"
+fi
+
+# ------------------ Env vars (visible inside container) ------------------
 export MUJOCO_GL=egl
-
-source ~/ENV/bin/activate
-
-# Pin BLAS/OpenMP
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 export FLEXIBLAS=imkl
+export NUMEXPR_NUM_THREADS=1
+export TORCH_NUM_THREADS=1
 
-# ----------------- sweep vars -----------------
-IDX=$SLURM_ARRAY_TASK_ID   # 1…300
+# ---------------Configs---------
+IDX=$SLURM_ARRAY_TASK_ID
 EXP_DIR_REL="Runs/Train/BigCurriculumEnv-v0_/DQN/"$IDX"_seed["$IDX"]"
+NAME_TAG="" 
+SEED=$IDX
 
 # These flags only matter if you override the env 
 # NOTE: if ENV is not given then the rest of the params will be ignored and just loaded from the train
@@ -37,16 +48,14 @@ ENV_WRAPPING='[]'
 WRAPPING_PARAMS='[]'
 ENV_PARAMS='{}'
 EPISODE_MAX_STEPS=0  
-# ---
 
 
-SEED=$IDX
 NUM_RUNS=5                # how many test runs (test.py will make one GIF per run)
 RENDER_MODE=""             # test.py forces rgb_array_list internally; this arg is parsed but not used
 STORE_TRANSITIONS=false   
-NAME_TAG="" 
+# ------------------------------
 
-# ----------------- optional flags -----------------
+
 if [ -n "$RENDER_MODE" ]; then
   RENDER_FLAG="--render_mode $RENDER_MODE"
 else
@@ -65,19 +74,18 @@ else
   ENV=""
 fi
 
-# ----------------- run -----------------
-python test.py \
-  --exp_dir "$EXP_DIR_REL" \
-  $ENV \
-  --env_wrapping      "$ENV_WRAPPING" \
-  --wrapping_params   "$WRAPPING_PARAMS" \
-  --env_params        "$ENV_PARAMS" \
-  --seed              "$SEED" \
-  --num_runs          "$NUM_RUNS" \
-  --episode_max_steps "$EPISODE_MAX_STEPS" \
-  $RENDER_FLAG \
-  $STORE_FLAG \
-  --name_tag          "$NAME_TAG"
+# ------------------ Run inside container ------------------
+$APPTAINER_CMD "$CONTAINER" \
+  python test.py \
+    --exp_dir "$EXP_DIR_REL" \
+    $ENV \
+    --env_wrapping      "$ENV_WRAPPING" \
+    --wrapping_params   "$WRAPPING_PARAMS" \
+    --env_params        "$ENV_PARAMS" \
+    --seed              "$SEED" \
+    --num_runs          "$NUM_RUNS" \
+    --episode_max_steps "$EPISODE_MAX_STEPS" \
+    $RENDER_FLAG \
+    $STORE_FLAG \
+    --name_tag          "$NAME_TAG"
 
-echo "---- SLURM JOB STATS ----"
-seff "$SLURM_JOBID" || sacct -j "$SLURM_JOBID" --format=JobID,ReqMem,MaxRSS,Elapsed,State

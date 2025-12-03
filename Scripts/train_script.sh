@@ -7,6 +7,7 @@
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
 #SBATCH --array=0-5
+
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
 set -euo pipefail
@@ -31,6 +32,8 @@ export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 export FLEXIBLAS=imkl
+export NUMEXPR_NUM_THREADS=1
+export TORCH_NUM_THREADS=1
 
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
@@ -46,7 +49,7 @@ ENV_WRAPPING='[]'
 WRAPPING_PARAMS='[]'
 ENV_PARAMS='{}'
 
-NUM_WORKERS=1
+NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
 TOTAL_STEPS=100_000
@@ -100,6 +103,3 @@ $APPTAINER_CMD "$CONTAINER" \
     --env_params        "$ENV_PARAMS" \
     --env_wrapping      "$ENV_WRAPPING" \
     --wrapping_params   "$WRAPPING_PARAMS"
-
-echo "---- SLURM JOB STATS ----"
-seff "$SLURM_JOBID" || sacct -j "$SLURM_JOBID" --format=JobID,ReqMem,MaxRSS,Elapsed,State

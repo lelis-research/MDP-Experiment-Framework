@@ -205,11 +205,10 @@ class A2CPolicy(BasePolicy):
         self.actor_optimizer.zero_grad()
         self.critic_optimizer.zero_grad()
         loss.backward()
-
         
-
-        actor_grad_norm = grad_norm(self.actor.parameters())
-        critic_grad_norm = grad_norm(self.critic.parameters())
+        if call_back is not None:
+            actor_grad_norm = grad_norm(self.actor.parameters())
+            critic_grad_norm = grad_norm(self.critic.parameters())
 
         self.actor_optimizer.step()
         self.critic_optimizer.step()

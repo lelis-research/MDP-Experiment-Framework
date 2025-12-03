@@ -1,6 +1,7 @@
 # docker
 rlbase.tar 
 rlbase-amd64.tar
+.devcontainer/*
 
 # Experiment results
 Runs/

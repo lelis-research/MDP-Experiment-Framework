@@ -239,9 +239,10 @@ class PPOPolicy(BasePolicy):
                 actor_loss = torch.max(surr1, surr2).mean()
                 actor_losses.append(actor_loss.item())
                 
-                #logging
-                clip_fraction = torch.mean((torch.abs(ratios - 1) > self.hp.clip_range_actor).float()).item()
-                clip_fractions.append(clip_fraction)
+                if call_back is not None:
+                    #logging
+                    clip_fraction = torch.mean((torch.abs(ratios - 1) > self.hp.clip_range_actor).float()).item()
+                    clip_fractions.append(clip_fraction)
                 
                 # critic loss 
                 batch_new_values_t = self.critic(**batch_states).squeeze()
@@ -273,9 +274,9 @@ class PPOPolicy(BasePolicy):
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
                 loss.backward()
-                
-                actor_grad_norms.append(grad_norm(self.actor.parameters()))
-                critic_grad_norms.append(grad_norm(self.critic.parameters()))
+                if call_back is not None:
+                    actor_grad_norms.append(grad_norm(self.actor.parameters()))
+                    critic_grad_norms.append(grad_norm(self.critic.parameters()))
         
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
