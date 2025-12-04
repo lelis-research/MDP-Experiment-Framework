@@ -9,28 +9,8 @@ import argparse
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import torch
-from torch.utils.tensorboard import SummaryWriter 
 
-
-class call_back:
-    def __init__(self, log_dir):
-        self.writer = SummaryWriter(log_dir=log_dir)
-        self.global_counter = 0
-
-    def __call__(self, data_dict, tag, counter=None):
-        if counter is None:
-            counter = self.global_counter
-            self.global_counter += 1
-
-        for key in data_dict:
-            self.writer.add_scalar(f"{tag}/{key}", data_dict[key], counter)
-    
-    def reset(self):
-        self.global_counter = 0
-    
-    def close(self):
-        self.writer.close()
-        
+from .CallBacks import JsonlCallback, TBCallBack, EmptyCallBack
         
 class OnlineTrainer:
     """
@@ -78,7 +58,12 @@ class OnlineTrainer:
         self._dump_actions = True
         self._train = train
         
-        self.call_back = call_back(log_dir=exp_dir)
+        
+        
+        self.call_back = TBCallBack(log_dir=exp_dir, flush_every=100) #makes it super slow on compute canada
+        
+        # self.call_back = EmptyCallBack(log_dir=exp_dir)
+        # self.call_back = JsonlCallback(log_path=os.path.join(exp_dir, "metrics.jsonl"), flush_every=100)
         
     @staticmethod
     def get_single_observation(observation, index):
@@ -208,10 +193,12 @@ class OnlineTrainer:
 
                 self.call_back({"ep_return": metrics["ep_return"]},
                            f"ep_return/run_{run_idx}", 
-                           episodes_done)
+                           episodes_done,
+                           force=True)
                 self.call_back({"ep_length": metrics["ep_length"]},
                             f"ep_length/run_{run_idx}", 
-                            episodes_done)
+                            episodes_done,
+                            force=True)
             
                 # Progress + optional checkpoint
                 pbar.update(1)
@@ -355,10 +342,12 @@ class OnlineTrainer:
                     
                 self.call_back({"ep_return": metrics["ep_return"]},
                            f"ep_return/run_{run_idx}", 
-                           steps_so_far)
+                           steps_so_far,
+                           force=True)
                 self.call_back({"ep_length": metrics["ep_length"]},
                             f"ep_length/run_{run_idx}", 
-                            steps_so_far)
+                            steps_so_far,
+                            force=True)
 
                 
                 pbar.set_postfix({"Episode": episodes_done, 

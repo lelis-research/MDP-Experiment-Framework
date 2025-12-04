@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-5
+#SBATCH --array=0-50
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -42,7 +42,7 @@ NAME_TAG="$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="DQN"
+AGENT="QLearning"
 ENV="CliffWalking-v1"
 
 ENV_WRAPPING='[]'

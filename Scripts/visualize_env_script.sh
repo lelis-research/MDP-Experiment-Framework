@@ -10,21 +10,28 @@
 
 set -euo pipefail
 
-# Move into repo
+# ------------------ Paths & modules ------------------
 cd ~/scratch/MDP-Experiment-Framework
 
-# Load modules & env
-# module python/3.10
-module load mujoco
-export MUJOCO_GL=egl
-source ~/ENV/bin/activate
+module load apptainer
 
-# Pin BLAS/OpenMP
+CONTAINER=~/scratch/rlbase-amd64.sif
+
+# If CUDA_VISIBLE_DEVICES is set, we assume we’re on a GPU node and use --nv
+APPTAINER_CMD="apptainer exec"
+if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
+  APPTAINER_CMD="apptainer exec --nv"
+fi
+
+# ------------------ Env vars (visible inside container) ------------------
+export MUJOCO_GL=egl
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 export FLEXIBLAS=imkl
+export NUMEXPR_NUM_THREADS=1
+export TORCH_NUM_THREADS=1
 
 # Compute array‐task index
 IDX=$SLURM_ARRAY_TASK_ID   # 1…300
@@ -38,12 +45,10 @@ ENV_PARAMS='{}'
 NAME_TAG="seed_$seed" #"$seed"
 # ------------------------------
 
-python visualize_env.py \
-  --env               "$ENV" \
-  --name_tag          "$NAME_TAG" \
-  --env_params        "$ENV_PARAMS" \
-  --env_wrapping      "$ENV_WRAPPING" \
-  --wrapping_params   "$WRAPPING_PARAMS"
-
-echo "---- SLURM JOB STATS ----"
-seff $SLURM_JOBID || sacct -j $SLURM_JOBID --format=JobID,ReqMem,MaxRSS,Elapsed,State
+$APPTAINER_CMD "$CONTAINER" \
+  python visualize_env.py \
+    --env               "$ENV" \
+    --name_tag          "$NAME_TAG" \
+    --env_params        "$ENV_PARAMS" \
+    --env_wrapping      "$ENV_WRAPPING" \
+    --wrapping_params   "$WRAPPING_PARAMS"
