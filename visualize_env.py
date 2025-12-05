@@ -29,7 +29,8 @@ def main():
     runs_dir = "Runs/Figures/"
     os.makedirs(runs_dir, exist_ok=True)  
     
-    env = get_env(env_name=args.env, 
+    env = get_env(env_name=args.env,
+                  num_envs=1, 
                   render_mode="rgb_array",
                   env_params   = args.env_params,
                   wrapping_lst = args.env_wrapping,

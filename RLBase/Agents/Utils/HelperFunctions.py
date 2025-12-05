@@ -88,6 +88,40 @@ def stack_observations(observations: List[ObsType]) -> ObsType:
     )
     
     
+def get_single_state(state: dict, index: int) -> dict:
+    """
+    Slice out the i-th element from a batched state.
+    State is a dict[str -> Tensor] with leading batch dimension.
+    Returns a dict[str -> Tensor] with batch size = 1.
+    """
+    out = {}
+    for k, v in state.items():
+        if isinstance(v, torch.Tensor):
+            out[k] = v[index:index+1]   # preserve batch dimension
+        else:
+            raise TypeError(f"State tensor for key '{k}' must be a torch.Tensor, got {type(v)}")
+    return out
+
+def stack_states(states: list[dict]) -> dict:
+    """
+    Stack a list of state dicts into one batched state dict.
+    All states must have identical keys and tensor shapes.
+    """
+    if len(states) == 0:
+        raise ValueError("stack_states received an empty list.")
+
+    keys = states[0].keys()
+    out = {}
+
+    for k in keys:
+        tensors = [s[k] for s in states]
+
+        if not all(isinstance(t, torch.Tensor) for t in tensors):
+            raise TypeError(f"All values for key '{k}' must be torch.Tensors.")
+
+        out[k] = torch.cat(tensors, dim=0)
+
+    return out
 
 def calculate_n_step_returns(rollout_rewards, bootstrap_value, gamma):
     # Initialize the return with the bootstrap value.
@@ -153,7 +187,8 @@ def calculate_gae_with_discounts(
     rollout_rewards,     # list/np.array length T
     values,              # torch tensor [T]
     next_values,         # torch tensor [T]
-    dones,               # list/np.array[bool], True = true termination (no bootstrap)
+    terminated,               # list/np.array[bool], True = true termination (no bootstrap)
+    truncated,
     discounts,           # list/np.array length T, e.g., γ for primitive, γ**τ for options
     lamda,               # λ
 ):
@@ -162,10 +197,13 @@ def calculate_gae_with_discounts(
     returns    = np.zeros(T, dtype=np.float32)
     gae = 0.0
     for t in reversed(range(T)):
-        mask = 1.0 - float(dones[t])  # 0 if true terminal, 1 otherwise
+        mask_bootstrap = 0.0 if terminated[t] else 1.0
+        mask_adv = 0.0 if (terminated[t] or truncated[t]) else 1.0
+        
         d    = float(discounts[t])     # per-transition discount
-        delta = rollout_rewards[t] + d * next_values[t].item() * mask - values[t].item()
-        gae   = delta + d * lamda * mask * gae
+        
+        delta = rollout_rewards[t] + d * next_values[t].item() * mask_bootstrap - values[t].item()
+        gae   = delta + d * lamda * mask_adv * gae
         advantages[t] = gae
         returns[t]    = gae + values[t].item()
     return returns, advantages

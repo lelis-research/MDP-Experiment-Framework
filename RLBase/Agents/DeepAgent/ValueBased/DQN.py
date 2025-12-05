@@ -142,7 +142,7 @@ class DQNPolicy(BasePolicy):
         
         # ---- TD target ----
         target_t = target_reward_t + effective_discount_t * bootstrap_value           # [B, 1]
-        
+
         # ---- Loss ----
         loss = self.loss_fn(qvalues_t, target_t)
         
@@ -161,7 +161,7 @@ class DQNPolicy(BasePolicy):
         
         self.optimizer.zero_grad()
         loss.backward()
-        
+    
         # Gradient norm logging
         if call_back is not None:
             total_grad_norm = 0.0
@@ -171,6 +171,7 @@ class DQNPolicy(BasePolicy):
             total_grad_norm = total_grad_norm ** 0.5
 
         self.optimizer.step()
+        
 
         # ---- Target network update ----
         self.target_update_counter += 1
@@ -281,8 +282,7 @@ class DQNAgent(BaseAgent):
                 for j in range(len(self.rollout_buffer[i])):                    
                     trans = (rollout_observations[j], rollout_actions[j], get_single_observation(observation, i), \
                             n_step_return[j], terminated[i], \
-                            truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j))
-                    
+                            truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j))          
                     
                     self.replay_buffer.add(trans)
                 self.rollout_buffer[i].clear() 

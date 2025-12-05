@@ -4,9 +4,9 @@ import torch
 from copy import copy
 from gymnasium.spaces import Discrete
 
-from .OptionDQN import OptionDQNAgent, OptionDQNPolicy
-from ...Utils import BaseContiualPolicy
-from ....registry import register_agent, register_policy
+from ..RLBase.Agents.DeepAgent.ValueBased.OptionDQN import OptionDQNAgent, OptionDQNPolicy
+from ..RLBase.Agents.Utils import BaseContiualPolicy
+from ..RLBase.registry import register_agent, register_policy
 
 @register_policy
 class ContinualOptionDQNPolicy(OptionDQNPolicy, BaseContiualPolicy):

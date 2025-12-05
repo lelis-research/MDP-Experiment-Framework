@@ -47,7 +47,7 @@ class OneHotImageDirWrapper(ObservationWrapper):
 
         # ---- Image one-hot shape (same as original wrapper) ----
         obs_shape = env.observation_space["image"].shape
-        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX)
+        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1
 
         new_image_space = spaces.Box(
             low=0,
@@ -108,9 +108,28 @@ class OneHotImageDirWrapper(ObservationWrapper):
             "direction": out_dir,
         }
 
+class FixedSeedWrapper(gym.Wrapper):
+    """
+    Force MiniGrid env to always reset with the same seed.
+
+    Any seed passed from outside (e.g. VectorEnv, env.reset(seed=...))
+    is ignored; we always use self.fixed_seed.
+    """
+
+    def __init__(self, env, seed: int = 0):
+        super().__init__(env)
+        self.fixed_seed = int(seed)
+
+    def reset(self, *, seed=None, options=None):
+        # Ignore external seed completely, always use fixed_seed
+        obs, info = self.env.reset(seed=self.fixed_seed, options=options)
+        return obs, info
+
+
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
     "FullyObs": FullyObsWrapper,
     "DropMission": DropMissionWrapper,
     "OneHotImageDir": OneHotImageDirWrapper,
+    "FixedSeed": FixedSeedWrapper,
 }

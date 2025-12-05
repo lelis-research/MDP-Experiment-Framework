@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
-#SBATCH --cpus-per-task=21
-#SBATCH --mem=4G
-#SBATCH --time=0-00:30
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=3G
+#SBATCH --time=0-01:00
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -42,17 +42,17 @@ NAME_TAG="$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="QLearning"
-ENV="CliffWalking-v1"
+AGENT="A2C"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
-ENV_WRAPPING='[]'
-WRAPPING_PARAMS='[]'
+ENV_WRAPPING='["FullyObs", "FixedSeed", "OneHotImageDir", "DropMission"]'
+WRAPPING_PARAMS='[{}, {"seed":5}, {}, {}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=100_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=100
 
@@ -61,6 +61,19 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
+  "actor_eps": 1e-05,
+  "actor_step_size": 0.001,
+  "anneal_step_size_flag": false,
+  "critic_coef": 0.5,
+  "critic_eps": 1e-05,
+  "critic_step_size": 0.003,
+  "entropy_coef": 0.02,
+  "gamma": 0.99,
+  "lamda": 0.95,
+  "norm_adv_flag": true,
+  "rollout_steps": 256,
+  "total_steps": 500000,
+  "update_type": "sync"
 }'
 # ------------------------------
 

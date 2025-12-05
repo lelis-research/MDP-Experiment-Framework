@@ -7,7 +7,6 @@ import torch
 from ..utils import RandomGenerator
 
 ALLOWED_SPACES = (Box, Discrete, Dict, MultiDiscrete)
-
 class BaseFeature(RandomGenerator):
     # NOTE: Feature Extractor always assumes the input has a batch dimension (even if it's 1)
     def __init__(self, observation_space, device='cpu', allowed_spaces=ALLOWED_SPACES):
@@ -35,6 +34,7 @@ class BaseFeature(RandomGenerator):
         raise NotImplementedError("features_dict property must be implemented by the child class")
     
     def __call__(self, observation):
+        #MUST RETURN A DICT OF TENSORS
         raise NotImplementedError("Must be implemented by the child class")
     
     def update(self):

@@ -2,6 +2,7 @@ POLICY_REGISTRY = {}
 AGENT_REGISTRY = {}
 OPTION_REGISTRY = {}
 FEATURE_EXTRACTOR_REGISTRY = {}
+OPTION_LEARNER_REGISTRY = {}
 
 def register_policy(cls):
     POLICY_REGISTRY[cls.__name__] = cls
@@ -17,4 +18,8 @@ def register_option(cls):
 
 def register_feature_extractor(cls):
     FEATURE_EXTRACTOR_REGISTRY[cls.__name__] = cls
+    return cls
+
+def register_option_learner(cls):
+    OPTION_LEARNER_REGISTRY[cls.__name__] = cls
     return cls

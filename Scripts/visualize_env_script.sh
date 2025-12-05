@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=1-1
+#SBATCH --array=1-10
 
 set -euo pipefail
 
@@ -38,9 +38,9 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1))
-ENV="BigCurriculumEnv-v0"
-ENV_WRAPPING='["FullyObs","FixedSeed"]' #'["ViewSize","FlattenOnehotObj","FixedSeed", "FixedRandomDistractor"]' ,"FixedRandomDistractor"
-WRAPPING_PARAMS='[{},{"seed":'$seed'}]' #'[{"agent_view_size":9},{},{"seed":5000}, {"num_distractors": 40, "seed": 100}]' ,{"num_distractors": 5, "seed": 100}
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV_WRAPPING='["FullyObs", "FixedSeed"]'
+WRAPPING_PARAMS='[{}, {"seed":'$seed'}]'
 ENV_PARAMS='{}'
 NAME_TAG="seed_$seed" #"$seed"
 # ------------------------------

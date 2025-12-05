@@ -4,10 +4,10 @@ from RLBase.Agents.Utils import (
     ImageFeature,
     HyperParameters,
 )
-from RLBase.Options.NNOptions.TransferOptions import TransferOptionLearner
-from RLBase.Options.NNOptions.DecWholeOptions import DecWholeOptionLearner
-from RLBase.Options.NNOptions.FineTuneOptions import FineTuneOptionLearner
-from RLBase.Options.NNOptions.MaskedOptions import MaskedOptionLearner
+from RLBase.Options.NeuralOptions.TransferOptions import TransferOptionLearner
+from RLBase.Options.NeuralOptions.DecWholeOptions import DecWholeOptionLearner
+from RLBase.Options.NeuralOptions.FineTuneOptions import FineTuneOptionLearner
+from RLBase.Options.NeuralOptions.MaskedOptions import MaskedOptionLearner
 from RLBase.Trainers import OnlineTrainer
 from RLBase import load_policy, load_agent
 from RLBase.Environments import get_env

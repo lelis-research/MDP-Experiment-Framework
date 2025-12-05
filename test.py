@@ -54,7 +54,7 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "Runs/Train/Pendulum-v1_/A2C/_seed[123123]"
+        exp_name = "Runs/Train/CliffWalking-v1_/DQN/_seed[123123]"
     else:
         exp_name = args.exp_dir
     

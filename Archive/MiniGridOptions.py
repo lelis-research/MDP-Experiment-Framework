@@ -3,18 +3,24 @@
 # All array access to obs["image"] uses img[y, x], while positions and motion use (x, y).
 
 from __future__ import annotations
-from typing import Optional, Callable, List, Dict, Tuple
-import numpy as np
-from collections import deque
 
+from collections import deque
+from typing import Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 from minigrid.core.constants import (
-    COLORS, COLOR_NAMES, COLOR_TO_IDX, IDX_TO_COLOR,
-    OBJECT_TO_IDX as OID, IDX_TO_OBJECT, STATE_TO_IDX as SID,
+    COLORS,
+    COLOR_NAMES,
+    COLOR_TO_IDX,
+    IDX_TO_COLOR,
+    OBJECT_TO_IDX as OID,
+    IDX_TO_OBJECT,
+    STATE_TO_IDX as SID,
     DIR_TO_VEC,  # (dx, dy) where x = columns (left→right), y = rows (top→down)
 )
 
-from ..Utils import BaseOption
-from ....registry import register_option
+from ..RLBase.Options.Base import BaseOption
+from ..RLBase.registry import register_option
 
 # ACTION indices (keep consistent with your env)
 A_LEFT, A_RIGHT, A_FORWARD, A_PICKUP, A_DROP, A_TOGGLE, A_DONE = 0, 1, 2, 3, 4, 5, 6
@@ -307,8 +313,27 @@ class GridNavMixin:
 # ============================== Timed option base ==============================
 
 class TimedOption(BaseOption, GridNavMixin):
-    def __init__(self, option_len: int):
-        super().__init__(option_len)
+    def __init__(
+        self,
+        option_len: int = 20,
+        option_id: Optional[str] = None,
+        hyper_params=None,
+        device: str = "cpu",
+    ):
+        """
+        option_len is treated as a hyper-parameter and recorded in self.hp.
+        """
+        # Normalize hyper-parameters so option_len is stored.
+        if hyper_params is None:
+            hp = {"option_len": option_len}
+        elif isinstance(hyper_params, dict):
+            hp = dict(hyper_params)
+            hp.setdefault("option_len", option_len)
+        else:
+            hp = hyper_params
+
+        super().__init__(option_id=option_id or self.__class__.__name__, hyper_params=hp, device=device)
+        self.option_len = option_len
         self.step_counter = 0
         self._done = False
         self._phase = "init"
@@ -319,7 +344,9 @@ class TimedOption(BaseOption, GridNavMixin):
     def _tick(self):
         self.step_counter += 1
 
-    def reset(self):
+    def reset(self, seed=None):
+        # Allow seeding via BaseOption's reset
+        super().reset(seed)
         self.step_counter = 0
         self._done = False
         self._phase = "init"
