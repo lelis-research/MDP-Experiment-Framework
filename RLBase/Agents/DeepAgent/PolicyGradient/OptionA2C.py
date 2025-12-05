@@ -332,7 +332,7 @@ class OptionA2CAgent(A2CAgent):
                     self.rollout_buffer[i].add(transition)
                     self.running_option_index[i] = None
             else:
-                transition = get_single_observation(
+                transition = (
                     get_single_observation(self.last_observation, i), 
                     self.last_action[i], 
                     reward[i], 
@@ -386,10 +386,12 @@ class OptionA2CAgent(A2CAgent):
         """
         super().reset(seed)
         
-        self.last_observation = None
-        self.last_action = None
-        
-        self.rollout_buffer = [BaseBuffer(self.hp.rollout_steps) for _ in range(self.num_envs)]
+        # Option execution bookkeeping
+        self.running_option_index = [None for _ in range(self.num_envs)]       # index into options_lst (or None)
+        self.option_start_obs = [None for _ in range(self.num_envs)]         # encoded state where option began
+        self.option_cumulative_reward = [0.0 for _ in range(self.num_envs)]    # discounted return accumulator R_{t:t+k}
+        self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
+        self.option_num_steps = [0 for _ in range(self.num_envs)]
 
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)  # parent saves feature_extractor, policy, hp, etc.

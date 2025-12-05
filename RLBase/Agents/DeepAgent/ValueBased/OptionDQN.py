@@ -94,6 +94,11 @@ class OptionDQNAgent(DQNAgent):
 
         # reward = np.clip(reward, -1, 1) # for stability
         for i in range(self.num_envs):
+            if call_back is not None:
+                call_back({
+                    f"train/option_usage_env_{i}": 1 if self.running_option_index[i] is not None else 0,
+                })
+                
             obs = get_single_observation(observation, i)
             curr_option_idx = self.running_option_index[i]
             
@@ -179,10 +184,6 @@ class OptionDQNAgent(DQNAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         
-        # Parent keeps last_state/last_action for primitive updates
-        self.last_observation = None
-        self.last_action = None
-
     def log(self):
         pass
         # if self.running_option_index is None:

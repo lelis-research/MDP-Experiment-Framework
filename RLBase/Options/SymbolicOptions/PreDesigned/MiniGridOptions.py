@@ -11,7 +11,7 @@ class test_option(BaseOption):
 
     def select_action(self, obsersvation):
         self.counter += 1
-        return 2
+        return 1
 
     def is_terminated(self, observation):
         if self.counter >= 10:

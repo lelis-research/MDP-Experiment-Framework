@@ -82,9 +82,14 @@ class OptionQLearningAgent(QLearningAgent):
         - If inside an option, accumulate discounted reward and do a single SMDP update on option termination.
         - If primitive, do the usual 1-step Q-learning update (parent policy already supports it).
         """
-    
+        
         state = self.feature_extractor(observation)
         for i in range(self.num_envs):
+            if call_back is not None:
+                call_back({
+                    f"train/option_usage_env_{i}": 1 if self.running_option_index[i] is not None else 0,
+                })
+            
             st = state[i]
             obs = get_single_observation(observation, i)
             curr_option_idx = self.running_option_index[i]
@@ -141,14 +146,13 @@ class OptionQLearningAgent(QLearningAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         
-        self.last_state = None
-        self.last_action = None
     
     def log(self):
-        if self.running_option_index is None:
-            return {"OptionUsageLog": False, "OptionIndex": self.running_option_index}
-        else:
-            return {"OptionUsageLog": True, "OptionIndex": self.running_option_index}
+        pass
+        # if self.running_option_index is None:
+        #     return {"OptionUsageLog": False, "OptionIndex": self.running_option_index}
+        # else:
+        #     return {"OptionUsageLog": True, "OptionIndex": self.running_option_index}
         
     def save(self, file_path=None):
         """
