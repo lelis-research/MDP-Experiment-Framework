@@ -5,7 +5,7 @@ from gymnasium.vector import SyncVectorEnv
 from .Wrappers import WRAPPING_TO_WRAPPER
 
 
-# List of supported MiniGrid environments
+# List of supported Classic environments
 CLASSIC_ENV_LST = [
     "Acrobot-v1",
     "CartPole-v1",
@@ -54,7 +54,7 @@ def get_env(env_name, num_envs, max_steps=500, render_mode=None, env_params=None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Quick vectorized env smoke test.")
-    parser.add_argument("--env", type=str, choices=CLASSIC_ENV_LST, default="Acrobot-v1", help="MiniGrid env id to create.")
+    parser.add_argument("--env", type=str, choices=CLASSIC_ENV_LST, default="Acrobot-v1", help="Classic env id to create.")
     parser.add_argument("--num_envs", type=int, default=2, help="Number of parallel envs to create.")
     parser.add_argument("--max_steps", type=int, default=50, help="Max episode steps for each env.")
     parser.add_argument("--render_mode", type=str, default=None, help="Render mode passed to gym.make.")

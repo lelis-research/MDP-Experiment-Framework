@@ -3,7 +3,11 @@ import torch
 from ..utils import RandomGenerator
 
 class BasePolicy(RandomGenerator):
-    """Abstract base class for policies"""
+    """
+    Abstract policy interface.
+    Subclasses implement `select_action(state, greedy=False)` where `state` is a
+    batched feature dict/tensor produced by the agent's feature extractor.
+    """
     def __init__(self, action_space, hyper_params=None, device='cpu'):
         self.action_space = action_space
         self.device = device
@@ -20,8 +24,8 @@ class BasePolicy(RandomGenerator):
             raise ValueError("Action dim is not defined in this action space")
             
     def select_action(self, state):
-        # Must be implemented by subclasses. 
-        # State is a batch of data
+        # Must be implemented by subclasses.
+        # `state` should include a batch dimension, even if size 1.
         raise NotImplementedError("This method should be implemented by subclasses.")
     
     def reset(self, seed):
@@ -54,7 +58,7 @@ class BasePolicy(RandomGenerator):
         return instance
         
 class BaseAgent(RandomGenerator):
-    """Base class for an RL agent using a policy."""
+    """Base class for an RL agent using a policy and feature extractor."""
     SUPPORTED_ACTION_SPACES = ()
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device='cpu'):
         if not isinstance(action_space, self.SUPPORTED_ACTION_SPACES):

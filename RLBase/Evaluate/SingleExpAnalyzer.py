@@ -20,10 +20,15 @@ plt.rcParams.update({
 
 class SingleExpAnalyzer:
     """
-    Analyzes and plots metrics from multiple runs of an experiment.
+    Analyze and plot metrics from multiple runs of a single experiment.
 
-    Expects metrics as a list of runs, where each run is a list of episode dictionaries.
-    Each episode dictionary should contain keys like "ep_return", "ep_length", etc.
+    Expects metrics shaped as: list of runs -> list of episode dicts.
+    Episode dicts typically contain:
+      - ep_return (float), ep_length (int)
+      - frames (list) and actions (list) if recorded
+      - transitions (list) if dump_transitions was enabled
+      - agent_seed / env_seed
+      - agent_logs (list of per-step dicts) optionally holding keys like OptionUsageLog, NumOptions, OptionClass, OptionIndex.
     """
     def __init__(self, metrics=None, exp_path=None):
         """

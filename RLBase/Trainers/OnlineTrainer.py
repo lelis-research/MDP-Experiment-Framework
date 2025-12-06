@@ -14,16 +14,17 @@ from .CallBacks import JsonlCallback, TBCallBack, EmptyCallBack
         
 class OnlineTrainer:
     """
-    Base class for running episodes and collecting metrics.
-    For Vectorized Env
+    Base class for running episodes/steps and collecting metrics with vectorized environments.
     """
     def __init__(self, env, agent, exp_dir=None, train=True, config=None, args=None):
         """
         Args:
-            env: An initialized environment.
-            agent: An agent instance.
-            exp_dir (str, optional): Directory to save checkpoints and metrics.
-            train (bool): Whether to train the agent.
+            env: An initialized environment or a factory that returns one.
+            agent: An agent instance or a factory that accepts an env and returns one.
+            exp_dir (str, optional): Directory to save checkpoints and metrics; created if missing.
+            train (bool): Whether to train the agent (False -> greedy acting, no updates).
+            config (str, optional): Path to a config file to copy into exp_dir.
+            args (Namespace, optional): Parsed CLI args; stored as args.yaml in exp_dir.
         """
          
         self._env_is_factory   = callable(env)
@@ -423,7 +424,18 @@ class OnlineTrainer:
                   dump_metrics=True, checkpoint_freq=None, 
                   dump_transitions=False, num_workers=1, tuning_hp=None):
         """
-        Run multiple independent runs.
+        Run multiple independent runs (either by episode count or total step budget).
+        
+        Args:
+            num_runs (int): Number of independent runs.
+            num_episodes (int): Episodes per run (mutually exclusive with total_steps).
+            total_steps (int): Total env steps per run (mutually exclusive with num_episodes).
+            seed_offset (int or None): Optional offset for deterministic seeding.
+            dump_metrics (bool): Whether to pickle per-run and aggregated metrics.
+            checkpoint_freq (int or None): If set, saves agent snapshots every N steps/episodes.
+            dump_transitions (bool): If True, store per-step transitions in metrics.
+            num_workers (int): Threaded parallelism over runs when env/agent are factories.
+            tuning_hp: Optional hyperparameters passed to agent.set_hp.
         
         Returns:
             list: A list of runs, each containing a list of episode metrics.
@@ -521,10 +533,10 @@ class OnlineTrainer:
     @classmethod
     def load_args(cls, exp_dir):
         """
-        Load and return the environment configuration from a previous experiment run.
+        Load and return the saved CLI args Namespace from a previous experiment run.
 
         Args:
-            exp_dir (str): The directory where the environment file is stored.
+            exp_dir (str): The directory where the args.yaml file is stored.
 
         Returns:
             dict: The environment configuration.
@@ -560,4 +572,3 @@ class OnlineTrainer:
         spec.loader.exec_module(config)
         
         return config
-

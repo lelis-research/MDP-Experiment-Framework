@@ -28,7 +28,7 @@ def get_env(env_name, num_envs, max_steps=None, render_mode=None, env_params=Non
     Dispatch to the correct environment family and build a vectorized env.
     
     Args:
-        env_name (str): Environment id; must be present in one of the family lists (MiniGrid, MiniHack, MuJoCo, Atari).
+        env_name (str): Environment id; must be present in one of the registered family lists (e.g., MiniGrid, MuJoCo, Atari, Classic).
         num_envs (int): Number of parallel environments.
         max_steps (int or None): Optional max steps override (passed through when provided).
         render_mode (str or None): Optional render mode (passed through when provided).
@@ -55,7 +55,7 @@ def get_env(env_name, num_envs, max_steps=None, render_mode=None, env_params=Non
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Unified environment loader for MiniGrid, MiniHack, MuJoCo, Atari.")
+    parser = argparse.ArgumentParser(description="Unified environment loader for MiniGrid, MuJoCo, Atari, Classic.")
     parser.add_argument("--env", type=str, choices=ENV_LST, help="Environment id to create.")
     parser.add_argument("--num_envs", type=int, default=2, help="Number of parallel envs to create.")
     parser.add_argument("--max_steps", type=int, default=None, help="Max episode steps override (family-specific defaults used if None).")

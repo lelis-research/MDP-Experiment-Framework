@@ -12,6 +12,8 @@ ALLOWED_SPACES = (Box, Discrete, Dict, MultiDiscrete)
 class TabularFeature(BaseFeature):
     """
     Convert supported Gymnasium observations into hashable tuples.
+    Note: this is the tabular exception—returns a list of hashable states,
+    not a dict of tensors. Function-approximation extractors should return dicts.
     """
 
     def __init__(self, observation_space, device="cpu"):

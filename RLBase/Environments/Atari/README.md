@@ -1,24 +1,25 @@
 # Atari
 
-Key files:
-- `GetEnvironment.py`: builds Atari vector envs, exposes `ATARI_ENV_LST`, `get_env`, and a CLI demo (`python -m RLBase.Environments.Atari.GetEnvironment`).
-- `Wrappers.py`: Atari wrappers plus the `WRAPPING_TO_WRAPPER` mapping used by `get_env`.
-- `CustomEnvironments/`: place custom Atari env modules here so they can register on import.
+What lives here:
+- `GetEnvironment.py`: exports `ATARI_ENV_LST` and `get_env`; CLI demo via `python -m RLBase.Environments.Atari.GetEnvironment`.
+- `Wrappers.py`: Atari wrappers plus the `WRAPPING_TO_WRAPPER` registry (currently only `Identity`).
+- `CustomEnvironments/`: drop custom Atari env modules here and import them in `__init__.py` so they register on import.
 
-What `get_env` returns:
-- `get_env(env_name, num_envs, max_steps=None, render_mode=None, env_params=None, wrapping_lst=None, wrapping_params=None)` builds a `SyncVectorEnv` with `num_envs` copies of `env_name` (must be in `ATARI_ENV_LST`), applies wrappers in `wrapping_lst`, and passes per-wrapper kwargs from `wrapping_params` (defaults are empty). `max_steps` is forwarded as `max_episode_steps` unless you override it in `env_params`; `render_mode` is added only if provided.
+`get_env` behavior:
+- Signature: `get_env(env_name, num_envs, max_steps=None, render_mode=None, env_params=None, wrapping_lst=None, wrapping_params=None)`.
+- Asserts `env_name` is in `ATARI_ENV_LST`, builds a `SyncVectorEnv` with `gym.make(env_name, max_episode_steps=max_steps, render_mode=render_mode, **env_params)`, then applies wrappers in `wrapping_lst` (kwargs pulled from the same index in `wrapping_params`, default `{}`).
+- `max_steps` defaults to the gym default when `None`; `render_mode` is omitted when `None`.
 
-Adding a custom environment:
-- Create a module in `CustomEnvironments/` that defines your env (e.g., via an ALE ROM wrapper) and register an id via `gymnasium.envs.registration.register`.
-- Import that module in `CustomEnvironments/__init__.py` so registration runs when `RLBase.Environments.Atari` is imported.
-- Add the new id to `ATARI_ENV_LST` in `GetEnvironment.py` so `get_env` allows it.
-- Surface extra knobs through `env_params` when calling `get_env`.
+Add an Atari id:
+1) Implement/register the env (ALE ROM, custom logic, etc.) in `CustomEnvironments/` using `gymnasium.envs.registration.register`.
+2) Import the module inside `CustomEnvironments/__init__.py` so registration runs.
+3) Append the id to `ATARI_ENV_LST` in `GetEnvironment.py`.
+4) Surface any ALE kwargs (e.g., `frameskip`, `repeat_action_probability`) via `env_params` when calling `get_env`.
 
-Adding a wrapper:
-- Implement the wrapper in `Wrappers.py` (subclass `gymnasium.Wrapper` / `ObservationWrapper`, etc.).
-- Register it in `WRAPPING_TO_WRAPPER` with a string key; pass that key in `wrapping_lst` and kwargs in `wrapping_params`.
-- Wrappers apply sequentially in the order listed.
+Add a wrapper:
+- Implement the wrapper class in `Wrappers.py` and register it in `WRAPPING_TO_WRAPPER` with the string you want to use in `wrapping_lst`; optional kwargs go in `wrapping_params` at the same position.
+- Wrappers run in list order; keep observation/action space definitions in sync if you modify them.
 
 Quick use:
-- Code: `envs = get_env("ALE/Pong-v5", num_envs=2, wrapping_lst=["RecordEpisodeStatistics"])` (or use `from RLBase.Environments import get_env` for the unified dispatcher)
-- CLI smoke test: `python -m RLBase.Environments.Atari.GetEnvironment --env_name ALE/Pong-v5 --num_envs 2 --demo_steps 3`
+- Code: `envs = get_env("ALE/Pong-v5", num_envs=2, wrapping_lst=["Identity"])` (or call the unified dispatcher `from RLBase.Environments import get_env`).
+- CLI: `python -m RLBase.Environments.Atari.GetEnvironment --env ALE/Pong-v5 --num_envs 2 --demo_steps 3`
