@@ -138,7 +138,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[], #[test_option()],
+        init_option_lst=[test_option()],
         device=device
     ),
     
@@ -276,7 +276,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[],
+        init_option_lst=[test_option()],
         device=device
     )
 }

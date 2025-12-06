@@ -75,17 +75,17 @@ class A2CPolicy(BasePolicy):
         
         if isinstance(self.action_space, Box):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
-            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
             # self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
             # self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
-            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=1e-5)
+            self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
         else:
             raise NotImplementedError(f"A2CPolicy does not support action space of type {type(self.action_space)}")
         
-        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=1e-5)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(),lr=self.hp.critic_step_size, eps=self.hp.critic_eps)
         self.update_counter = 0
     
     
@@ -265,13 +265,21 @@ class A2CPolicy(BasePolicy):
         instance.set_rng_state(checkpoint['rng_state']) #copied from the BasePolicy.load
         
         instance.actor.load_state_dict(checkpoint['actor_state_dict'])
-        instance.actor_logstd = checkpoint['actor_logstd'].to(instance.device) if checkpoint['actor_logstd'] is not None else None
         instance.critic.load_state_dict(checkpoint['critic_state_dict'])
+        
+        # Restore actor_logstd correctly (only for continuous / Box)
+        if checkpoint['actor_logstd'] is not None:
+            # instance.actor_logstd is already an nn.Parameter from __init__
+            actor_logstd_loaded = checkpoint['actor_logstd'].to(instance.device)
+            with torch.no_grad():
+                instance.actor_logstd.data.copy_(actor_logstd_loaded)
+        else:
+            instance.actor_logstd = None
+            
         instance.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
         instance.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
         
         instance.features_dict = checkpoint['features_dict']
-
         return instance
 
         
@@ -379,7 +387,7 @@ class A2CAgent(BaseAgent):
         states      = self.feature_extractor(observations)
         next_states = self.feature_extractor(next_observations)
 
-        # 5) Single PPO update using data from *all* envs combined
+        # 5) Single A2C update using data from *all* envs combined
         self.policy.update(
             states,
             all_actions,

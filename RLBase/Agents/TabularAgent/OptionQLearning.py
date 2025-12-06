@@ -16,12 +16,12 @@ class OptionQLearningPolicy(QLearningPolicy):
 class OptionQLearningAgent(QLearningAgent):
     name = "OptionQLearning"
     SUPPORTED_ACTION_SPACES = (Discrete, )
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=[]):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=None):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class)
 
         # Keep atomic action space; extend for options.
         self.atomic_action_space = action_space
-        self.options_lst = init_option_lst
+        self.options_lst = [] if init_option_lst is None else init_option_lst
         
         # Replace action_space with extended (primitive + options)
         action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
@@ -50,13 +50,9 @@ class OptionQLearningAgent(QLearningAgent):
             obs = get_single_observation(observation, i)
             curr_option_idx = self.running_option_index[i]
             if curr_option_idx is not None:
-                if self.options_lst[curr_option_idx].is_terminated(obs):
-                    # Option ends; choose anew below
-                    curr_option_idx = None
-                else:
-                    a = self.options_lst[curr_option_idx].select_action(obs)
+                a = self.options_lst[curr_option_idx].select_action(obs)
 
-            if curr_option_idx is None:
+            else:
                 # Choose an extended action (might be a primitive or an option)
                 a = self.policy.select_action(st, greedy=greedy)
 
@@ -180,6 +176,4 @@ class OptionQLearningAgent(QLearningAgent):
         instance.options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
         instance.atomic_action_space = checkpoint['atomic_action_space']
         
-        action_option_space = Discrete(instance.atomic_action_space.n + len(instance.options_lst))
-        instance.policy = OptionQLearningPolicy(action_option_space, instance.hp)
         return instance
