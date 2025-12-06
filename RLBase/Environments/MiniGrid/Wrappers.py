@@ -6,7 +6,7 @@ from minigrid.wrappers import (
     FullyObsWrapper,
 )
 from gymnasium import spaces
-from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX, IDX_TO_OBJECT, IDX_TO_COLOR
 
 
 class DropMissionWrapper(ObservationWrapper):
@@ -125,6 +125,124 @@ class FixedSeedWrapper(gym.Wrapper):
         obs, info = self.env.reset(seed=self.fixed_seed, options=options)
         return obs, info
 
+class AddTextWrapper(ObservationWrapper):
+    """
+    Wraps a MiniGrid env so that observations include a 'text' field
+    describing the visible grid in human-readable form.
+
+    Input obs: Dict with key 'image' of shape (H, W, 3), where channel 0/1/2
+               are (object_idx, color_idx, state_idx).
+    Output obs: Dict with keys:
+        - 'image': same as input
+        - 'text': str description
+    """
+    def __init__(self, env, max_text_len: int = 512):
+        super().__init__(env)
+
+        # Original obs space should be a Dict with "image"
+        assert isinstance(env.observation_space, spaces.Dict), \
+            "Expected Dict observation space for MiniGrid"
+        assert "image" in env.observation_space.spaces, \
+            "Expected key 'image' in observation space"
+
+        # Extend obs space with a Text space for the description
+        self.observation_space = spaces.Dict({
+            **env.observation_space.spaces,
+            "text": spaces.Text(max_length=max_text_len),
+        })
+
+        # Optional: small lookup for direction names if you want to use agent_dir
+        self._dir_names = ["right", "down", "left", "up"]
+
+    # ---- core API ----
+    def observation(self, observation):
+        """
+        observation: the obs dict produced by the wrapped env.
+        We will:
+          - read observation["image"]
+          - generate a textual description
+          - return a new dict with both 'image' and 'text'
+        """
+        img = observation["image"]    # shape (H, W, 3), uint8
+        text = self._image_to_text(img)
+        
+        # Return extended observation
+        obs = dict(observation)
+        obs["text"] = text
+        
+        return obs
+
+    # ---- helpers ----
+    def _image_to_text(self, img: np.ndarray) -> str:
+        """
+        Turn the MiniGrid (H, W, 3) tensor into a compact text description.
+        """
+        H, W, _ = img.shape
+
+        # Try to get agent position / direction if underlying env exposes it
+        # (standard MiniGridEnv does)
+        agent_info = ""
+        try:
+            ax, ay = tuple(self.unwrapped.agent_pos)
+            d = int(self.unwrapped.agent_dir)
+            dir_name = self._dir_names[d] if 0 <= d < len(self._dir_names) else "unknown"
+            agent_info = f"You are at ({ax}, {ay}) facing {dir_name}. "
+        except Exception:
+            agent_info = ""
+
+        object_descriptions = []
+
+        for y in range(H):
+            for x in range(W):
+                obj_idx, color_idx, state_idx = img[y, x]
+
+                obj_idx = int(obj_idx)
+                color_idx = int(color_idx)
+                state_idx = int(state_idx)
+
+                obj_name = IDX_TO_OBJECT.get(obj_idx, "unknown")
+                color_name = IDX_TO_COLOR.get(color_idx, "unknown")
+
+                # Skip trivial cells
+                if obj_name in ["unseen", "empty", "floor"]:
+                    continue
+
+                # State is optional (mostly used for doors/boxes)
+                state_name = None
+                for k, v in STATE_TO_IDX.items():
+                    if v == state_idx:
+                        state_name = k
+                        break
+
+                if obj_name == "agent":
+                    # We already describe the agent via agent_pos/dir; skip here
+                    continue
+
+                # Example text: "yellow locked door at (x, y)"
+                parts = []
+                if color_name != "unknown":
+                    parts.append(color_name)
+                if state_name is not None:
+                    parts.append(state_name)
+                parts.append(obj_name)
+
+                desc = " ".join(parts) + f" at ({x}, {y})"
+                object_descriptions.append(desc)
+
+        if len(object_descriptions) == 0:
+            objects_str = "You see nothing of interest."
+        else:
+            objects_str = "Visible: " + "; ".join(object_descriptions) + "."
+
+        text = (agent_info + objects_str).strip()
+
+        # Optional truncation to match Text space (just in case)
+        max_len = self.observation_space.spaces["text"].max_length
+        if max_len is not None and len(text) > max_len:
+            text = text[: max_len]
+
+        return text
+       
 
 WRAPPING_TO_WRAPPER = {
     "ViewSize": ViewSizeWrapper,
@@ -132,4 +250,5 @@ WRAPPING_TO_WRAPPER = {
     "DropMission": DropMissionWrapper,
     "OneHotImageDir": OneHotImageDirWrapper,
     "FixedSeed": FixedSeedWrapper,
+    "AddText": AddTextWrapper,
 }

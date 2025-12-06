@@ -53,7 +53,7 @@ class OneHotFlattenFeature(BaseFeature):
 
         elif isinstance(space, Dict):
             # Sum one-hot dim of all subspaces
-            return sum(self._onehot_dim(subspace) for subspace in space.spaces.values())
+            return sum(self._onehot_dim(space[key]) for key in self.allowed_keys)
 
         else:
             raise TypeError(f"Unsupported space {type(space)} in OneHotFeature.")
@@ -195,7 +195,8 @@ class OneHotFlattenFeature(BaseFeature):
 
         encoded_items = []
 
-        for key, subspace in space.spaces.items():
+        for key in self.allowed_keys:
+            subspace = space[key]
             value = observation[key]
 
             if isinstance(subspace, Discrete):

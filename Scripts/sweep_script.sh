@@ -42,7 +42,7 @@ NAME_TAG=""
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="A2C"
+AGENT="DQN"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
 ENV_WRAPPING='["FullyObs", "FixedSeed", "OneHotImageDir", "DropMission"]'

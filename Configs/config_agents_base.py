@@ -54,7 +54,7 @@ AGENT_DICT = {
         get_env_observation_space(env),
         HyperParameters(),
         get_num_envs(env),
-        TabularFeature,
+        FlattenFeature,
     ),
     # OptionRandomAgent.name: lambda env, info: OptionRandomAgent(
     #     get_env_action_space(env), 
@@ -163,7 +163,7 @@ AGENT_DICT = {
             entropy_coef=info.get("entropy_coef", 0.02),
             
             anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 200_000),
+            total_steps=info.get("total_steps", 40_000),
             update_type=info.get("update_type", "per_env"), # sync, per_env
             norm_adv_flag=info.get("norm_adv_flag", True),
         ),

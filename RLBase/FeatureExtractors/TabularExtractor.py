@@ -22,13 +22,13 @@ class TabularFeature(BaseFeature):
 
     def __call__(self, observation):
         if isinstance(self.observation_space, Discrete):
-            flat = self._encode_discrete(observation)
+            flat = self._encode_discrete(observation, self.observation_space)
         elif isinstance(self.observation_space, MultiDiscrete):
-            flat = self._encode_multi_discrete(observation)
+            flat = self._encode_multi_discrete(observation, self.observation_space)
         elif isinstance(self.observation_space, Box):
-            flat = self._encode_box(observation)
+            flat = self._encode_box(observation, self.observation_space)
         elif isinstance(self.observation_space, Dict):
-            flat = self._encode_dict(observation)
+            flat = self._encode_dict(observation, self.observation_space)
         else:
             raise ValueError(f"Observation Space {self.observation_space} is not supported by {self.__class__.__name__}")
         
@@ -36,28 +36,31 @@ class TabularFeature(BaseFeature):
 
 
     
-    def _encode_discrete(self, observation, observation_space=None):
-        observation_space = self.observation_space if observation_space is None else observation_space
-        assert isinstance(observation, np.ndarray), f"Expected observation to be np.ndarray, got {type(observation)}"
-        assert len(observation.shape) == 1, f"Expected observation to have shape (batch_size, ), got {observation.shape}"
+    def _encode_discrete(self, observation, space: Discrete):
+        assert isinstance(observation, np.ndarray), \
+            f"Expected observation to be np.ndarray, got {type(observation)}"
+        assert observation.ndim == 1, \
+            f"Expected observation to have shape (batch_size,), got {observation.shape}"
             
         flat = observation.reshape(-1, 1)
 
         return flat
 
-    def _encode_multi_discrete(self, observation, observation_space=None):
-        observation_space = self.observation_space if observation_space is None else observation_space
-        assert isinstance(observation, np.ndarray), f"Expected observation to be np.ndarray, got {type(observation)}"
-        assert observation.shape[1:] == observation_space.shape, f"Expected observation to have shape {observation_space.shape}, got {observation.shape}"
+    def _encode_multi_discrete(self, observation, space: MultiDiscrete):
+        assert isinstance(observation, np.ndarray), \
+            f"Expected observation to be np.ndarray, got {type(observation)}"
+        assert observation.shape[1:] == space.shape, \
+            f"Expected observation to have shape (B, {space.shape}), got {observation.shape}"
         
         flat = observation.reshape(observation.shape[0], -1)
         return flat
      
     
-    def _encode_box(self, observation, observation_space=None):
-        observation_space = self.observation_space if observation_space is None else observation_space
-        assert isinstance(observation, np.ndarray), f"Expected observation to be np.ndarray, got {type(observation)}"
-        assert observation.shape[1:] == observation_space.shape, f"Expected observation to have shape {observation_space.shape}, got {observation.shape}"
+    def _encode_box(self, observation, space: Box):
+        assert isinstance(observation, np.ndarray), \
+            f"Expected observation to be np.ndarray, got {type(observation)}"
+        assert observation.shape[1:] == space.shape, \
+            f"Expected observation to have shape (B, {space.shape}), got {observation.shape}"
         
         flat = observation.reshape(observation.shape[0], -1)
         return flat
@@ -65,11 +68,13 @@ class TabularFeature(BaseFeature):
         
         
     
-    def _encode_dict(self, observation):
-        assert isinstance(observation, dict), f"Expected observation to be dict, got {type(observation)}"
+    def _encode_dict(self, observation, space: Dict):
+        assert isinstance(observation, dict), \
+            f"Expected observation to be dict, got {type(observation)}"
         
         encoded_items = []
-        for key, subspace in self.observation_space.spaces.items():
+        for key in self.allowed_keys:
+            subspace = space[key]
             value = observation[key]
 
             if isinstance(subspace, Discrete):

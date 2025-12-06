@@ -35,7 +35,7 @@ ROOM_INNER_W = 7
 WALL_T = 1 # DO NOT CHANGE THIS
 ROOMS_PER_ROW = 6         # 6 x 5 = 30 rooms
 ROOM_ROWS = 5
-MAX_STEPS = 10_000
+MAX_STEPS = 1000
 FINAL_GOAL_REWARD = 1.0
 LAVA_PLACE_MAX_TRIES = 200
 OBJ_PLACE_MAX_TRIES = 200
@@ -378,7 +378,7 @@ class MazeRoomsEnv(MiniGridEnv):
         total_w = ROOMS_PER_ROW * ROOM_INNER_W + (ROOMS_PER_ROW + 1) * WALL_T
         total_h = ROOM_ROWS * ROOM_INNER_H + (ROOM_ROWS + 1) * WALL_T
         mission_space = MissionSpace(mission_func=self._gen_mission)
-            
+        max_steps = MAX_STEPS if max_steps is None else max_steps
         super().__init__(
             mission_space=mission_space,
             width=total_w,

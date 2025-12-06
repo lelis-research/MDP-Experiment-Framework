@@ -1,15 +1,18 @@
 import numpy as np
 import torch
 from typing import Any, Dict, List, Union
+import warnings
 
 ObsType = Union[Dict[str, Any], np.ndarray, torch.Tensor]
+
+    
+
 
 def get_single_observation(observation: ObsType, index: int) -> ObsType:
     """
     Extract a single observation from a batched observation.
     - If observation is a dict: return a dict with the same keys.
     - Slices arrays/tensors to keep batch dimension = 1.
-    - For non-array values (e.g., int, None), returns them unchanged.
     
     NOTE: Assumes observation has a batch dimension as the first dimension and it will keep the batch dimension in the output.
     """
@@ -19,14 +22,22 @@ def get_single_observation(observation: ObsType, index: int) -> ObsType:
         if isinstance(x, (np.ndarray, torch.Tensor)):
             # Add back batch dim = 1
             return x[index:index+1]
+        elif isinstance(x, (tuple, list)):
+            return x[index:index+1]
         else:
+            # return None
             raise NotImplementedError(
-            f"Dict element type {type(x)} is not supported."
-        )
+                f"Dict element type {type(x)} is not supported."
+            )
 
     # ---- Handle dict observation ----
     if isinstance(observation, dict):
-        return {k: slice_one(v) for k, v in observation.items()}
+        result = {}
+        for k, v in observation.items():
+            sliced = slice_one(v)
+            if sliced is not None:
+                result[k] = sliced
+        return result
 
     # ---- Handle array / tensor observation ----
     if isinstance(observation, (np.ndarray, torch.Tensor)):
@@ -68,7 +79,16 @@ def stack_observations(observations: List[ObsType]) -> ObsType:
                 stacked[k] = torch.cat(vals, dim=0)
             elif isinstance(v0, np.ndarray):
                 stacked[k] = np.concatenate(vals, axis=0)
+            elif isinstance(v0, tuple):
+                stacked[k] = ()
+                for v in vals:
+                    stacked[k] += v
+            elif isinstance(v0, list):
+                stacked[k] = []
+                for v in vals:
+                    stacked[k].extend(v)
             else:
+                # continue
                 raise NotImplementedError(
                     f"Dict value type {type(v0)} for key '{k}' is not supported."
                 )

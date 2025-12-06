@@ -158,7 +158,7 @@ class DQNPolicy(BasePolicy):
                 td_abs_mean = td_abs.mean().item()
                 target_mean = target_t.mean().item()
         # ***************************************
-        
+    
         self.optimizer.zero_grad()
         loss.backward()
     
@@ -270,6 +270,7 @@ class DQNAgent(BaseAgent):
         """
         all arguments are batches
         """
+        
         # reward = np.clip(reward, -1, 1) # for stability
         for i in range(self.num_envs):
             transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]

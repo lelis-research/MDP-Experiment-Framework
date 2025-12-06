@@ -3,6 +3,7 @@
 from gymnasium.spaces import Box, Discrete, Dict, MultiDiscrete
 import numpy as np
 import torch
+import warnings
 
 from ..utils import RandomGenerator
 
@@ -22,12 +23,21 @@ class BaseFeature(RandomGenerator):
             raise TypeError(f"{self.__class__.__name__} only supports {self.allowed_spaces} spaces (got {type(space).__name__})")
 
         if isinstance(space, Dict):
+            self.allowed_keys = []
             for key, subspace in space.spaces.items():
                 if not isinstance(subspace, self.allowed_spaces):
-                    raise TypeError(
-                        f"{self.__class__.__name__} Dict subspace '{key}' must be {self.allowed_spaces} "
-                        f"(got {type(subspace).__name__})"
+                    # raise TypeError(
+                    #     f"{self.__class__.__name__} Dict subspace '{key}' must be {self.allowed_spaces} "
+                    #     f"(got {type(subspace).__name__})"
+                    # )
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Dict subspace '{key}' has type "
+                        f"{type(subspace).__name__}, which is not in allowed {self.allowed_spaces}. "
+                        f"It will be ignored by this feature extractor.",
+                        UserWarning,
                     )
+                else:
+                    self.allowed_keys.append(key)
     
     @property
     def features_dict(self):

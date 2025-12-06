@@ -30,7 +30,7 @@ class FlattenFeature(BaseFeature):
             return int(np.prod(space.shape))
         
         elif isinstance(space, Dict):
-            return sum(self._flat_dim(subspace) for subspace in space.spaces.values())
+            return sum(self._flat_dim(space[key]) for key in self.allowed_keys)
         
         else:
             raise TypeError(f"Unsupported space {type(space)}")
@@ -93,7 +93,8 @@ class FlattenFeature(BaseFeature):
             f"Expected observation to be dict, got {type(observation)}"
         
         encoded_items = []
-        for key, subspace in space.spaces.items():
+        for key in self.allowed_keys:
+            subspace = space[key]
             value = observation[key]
 
             if isinstance(subspace, Discrete):

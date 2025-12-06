@@ -69,7 +69,8 @@ class OneHotKeepDimFeature(BaseFeature):
         if isinstance(space, Dict):
             # Per-key shapes
             shapes = {}
-            for key, subspace in space.spaces.items():
+            for key in self.allowed_keys:
+                subspace = space[key]
                 sub_shapes = self._compute_feature_shapes(subspace)
                 # sub_shapes is {"x": ...}, but here we just store shape
                 shapes[key] = sub_shapes["x"]
@@ -91,7 +92,8 @@ class OneHotKeepDimFeature(BaseFeature):
         if isinstance(space, Dict):
             # Return dict of tensors, same keys as observation_space
             encoded = {}
-            for key, subspace in space.spaces.items():
+            for key in self.allowed_keys:
+                subspace = space[key]
                 sub_obs = observation[key]
                 encoded[key] = self._encode_space(sub_obs, subspace)
             return encoded
