@@ -95,14 +95,14 @@ class OrderedStrictDoor(StrictDoor):
 
 rooms_spec: List[Dict[str, Any]] = [
     # ----------------------------- Phase A (1–5): Navigate & subgoals ------------------------------
-    {"id": 1, "subgoal": False,
-     "exit_door": {"locked": True},
-     "requirements": {"open_exit": "none", "final_goal": True}},
+    # {"id": 1, "subgoal": False,
+    #  "exit_door": {"locked": True},
+    #  "requirements": {"open_exit": "none", "final_goal": True}},
     
 
-    # {"id": 1, "subgoal": True,
-    #  "exit_door": {"locked": False},
-    #  "requirements": {"open_exit": "none"}},
+    {"id": 1, "subgoal": True,
+     "exit_door": {"locked": False},
+     "requirements": {"open_exit": "none"}},
     
     {"id": 2, "subgoal": True,
      "corridors": {"pattern": "L", "material": "door"},
@@ -1161,6 +1161,75 @@ class MazeRoomsEnv(MiniGridEnv):
                     self.grid.set(cx, gap_v[1], Door(color="grey", is_locked=False))
                     self.grid.set(gap_h[0], cy, Door(color="grey", is_locked=False))
 
+    
+    # img to txt
+    def text_obs(self):
+        """
+        Produce a pretty string of the CURRENT ROOM's grid along with the agent.
+        A grid cell is represented by 2-character string, the first one for
+        the object and the second one for the color.
 
+        This uses the same room bbox as the observation (room + 1-thick walls).
+        """
+        if self.agent_pos is None or self.agent_dir is None or self.grid is None:
+            raise ValueError(
+                "The environment hasn't been `reset` therefore the `agent_pos`, "
+                "`agent_dir` or `grid` are unknown."
+            )
 
+        # Map of object types to short string
+        OBJECT_TO_STR = {
+            "wall": "W",
+            "floor": "F",
+            "door": "D",
+            "key": "K",
+            "ball": "A",
+            "box": "B",
+            "goal": "G",
+            "lava": "V",
+        }
+
+        # Map agent's direction to short string
+        AGENT_DIR_TO_STR = {0: ">", 1: "V", 2: "<", 3: "^"}
+
+        # If somehow agent_pos is missing, fall back to parent behavior
+        if self.agent_pos is None:
+            return super().__str__()
+
+        # Get the current room bounding box (same as obs): (x0, y0, w, h)
+        x0, y0, w, h = self._current_room_bbox()
+        x1 = x0 + w
+        y1 = y0 + h
+
+        output = ""
+
+        # Iterate only over the current room + its surrounding walls
+        for row_idx, j in enumerate(range(y0, y1)):   # j = y
+            for i in range(x0, x1):                   # i = x
+                # Agent cell
+                if i == self.agent_pos[0] and j == self.agent_pos[1]:
+                    output += 2 * AGENT_DIR_TO_STR[self.agent_dir]
+                    continue
+
+                tile = self.grid.get(i, j)
+
+                if tile is None:
+                    output += "  "
+                    continue
+
+                if tile.type == "door":
+                    if tile.is_open:
+                        output += "__"
+                    elif tile.is_locked:
+                        output += "L" + tile.color[0].upper()
+                    else:
+                        output += "D" + tile.color[0].upper()
+                    continue
+
+                output += OBJECT_TO_STR[tile.type] + tile.color[0].upper()
+
+            if row_idx < h - 1:
+                output += "\n"
+
+        return output
 register(id="MazeRoomsEnv-v0", entry_point=MazeRoomsEnv)

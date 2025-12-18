@@ -14,7 +14,7 @@ class test_option(BaseOption):
         return 1
 
     def is_terminated(self, observation):
-        if self.counter >= 10:
+        if self.counter >= 5:
             self.counter = 0
             return True
         return False

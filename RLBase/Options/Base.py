@@ -30,6 +30,20 @@ class BaseOption(RandomGenerator):
         Override if your option has a restricted initiation set.
         """
         return True
+    
+    def should_initiate(self, observation: Any) -> bool:
+        """
+        It is a subset of the I_o that will suggest the agent to take this option
+        """
+        return False
+    
+    def reward_func(self, observation: Any) -> float:
+        """
+        Decide the intrinsic reward given to the agent related to the completeness of the option
+        """
+        raise NotImplementedError(
+            "reward_func must be implemented by option subclasses"
+        )
 
     def select_action(
         self,

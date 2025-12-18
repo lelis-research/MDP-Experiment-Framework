@@ -31,15 +31,16 @@ preferred_device = "cpu"  # cpu, mps, cuda
 device = get_device(preferred_device)
 
 AGENT_DICT = {
-    # HumanAgent.name: lambda env, info: HumanAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(actions_enum=env.envs[0].unwrapped.actions), #enum of the actions and their name
-    #     get_num_envs(env),
-    #     MirrorFeature,
-    #     options_lst=[],#create_all_options(), 
-    #     device=device
-    # ),
+    HumanAgent.name: lambda env, info: HumanAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            actions_enum=env.envs[0].unwrapped.actions
+        ), #enum of the actions and their name
+        get_num_envs(env),
+        TabularFeature,
+        device=device
+    ),
     # ContinualHumanAgent.name: lambda env, info: ContinualHumanAgent(
     #     get_env_action_space(env), 
     #     get_env_observation_space(env),
@@ -101,11 +102,11 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(
-            step_size=info.get("step_size", 1e-4),
+            step_size=info.get("step_size", 1e-3),
             gamma=info.get("gamma", 0.99),
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 70_000),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 100_000),
             n_steps=info.get("n_steps", 3),
             warmup_buffer_size=info.get("warmup_buffer_size", 1000),
             replay_buffer_cap=info.get("replay_buffer_cap", 200_000),
@@ -278,5 +279,41 @@ AGENT_DICT = {
         OneHotFlattenFeature,
         init_option_lst=[test_option()],
         device=device
-    )
+    ),
+
+    VQOptionCriticAgent.name: lambda env, info: VQOptionCriticAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            
+            encoder_network=NETWORK_PRESETS[info.get("encoder_network", "enc")],
+            encoder_step_size=info.get("encoder_step_size", 3e-4),
+            encoder_eps=info.get("encoder_eps", 1e-5),
+            encoder_dim=info.get("encoder_dim", 256),
+            
+            hl_actor_network=NETWORK_PRESETS[info.get("hl_actor_network", "mlp1")],
+            hl_actor_step_size=info.get("hl_actor_step_size", 3e-4),
+            hl_actor_eps=info.get("hl_actor_eps", 1e-5),
+            hl_critic_network = NETWORK_PRESETS[info.get("hl_critic_network", "critic")],
+            hl_critic_step_size=info.get("hl_critic_step_size", 3e-4),
+            hl_critic_eps=info.get("hl_critic_eps", 1e-5),
+            hl_exploration_noise_sigma=info.get("hl_exploration_noise_sigma", 0.1),
+            hl_buffer_capacity=info.get("hl_buffer_capacity", 100_000),
+            hl_warmup_size=info.get("hl_warmup_size", 4),
+            hl_batch_size=info.get("hl_batch_size", 2),
+            hl_target_policy_noise=info.get("hl_target_policy_noise", 0.1),
+            hl_target_noise_clip=info.get("hl_target_noise_clip", 0.5),
+            hl_policy_delay=info.get("hl_policy_delay", 2),
+            hl_tau=info.get("hl_tau", 0.005),
+            
+            embedding_dim = info.get("embedding_dim", 32),
+            
+            
+        ),
+        get_num_envs(env),
+        OneHotFlattenFeature,
+        init_option_lst=[test_option(), test_option()],
+        device=device
+    ),
 }

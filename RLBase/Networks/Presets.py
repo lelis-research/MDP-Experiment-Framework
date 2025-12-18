@@ -72,11 +72,50 @@ MLP_MEDIUM = [
      "init_params": {"name": "orthogonal", "gain": 1.0}},
 ]
 
+ENC = [
+    {"type":"input",  "id":"x", "input_key":"x"},
+
+    {"type":"linear", "id":"fc1",   "from":"x", "out_features":512,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type":"relu",   "id":"relu_fc1", "from":"fc1"},
+
+    {"type":"linear", "id":"fc2",   "from":"relu_fc1", "in_features":512, "out_features":512,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type":"relu",   "id":"relu_fc2", "from":"fc2"},
+
+    {"type":"linear", "id":"fc3",   "from":"relu_fc2", "in_features":512,
+     "init_params": {"name": "orthogonal", "gain": 1.0}},
+]
+
+CRITIC = [
+    {"type":"input",  "id":"x", "input_key":"x"},
+    {"type":"input",  "id":"o", "input_key":"o"},
+    
+    {"type":"concat", "id":"merged", "from":["x","o"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc1",   "from":"merged", "out_features":512,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type":"relu",   "id":"relu_fc1", "from":"fc1"},
+
+    {"type":"linear", "id":"fc2",   "from":"relu_fc1", "in_features":512, "out_features":512,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type":"relu",   "id":"relu_fc2", "from":"fc2"},
+
+    {"type":"linear", "id":"fc3",   "from":"relu_fc2", "in_features":512,
+     "init_params": {"name": "orthogonal", "gain": 1.0}},
+]
+
+
+
 # Public registry
 NETWORK_PRESETS = {
+    None: None,
+    
     "conv1": CONV_MERGE_SMALL,
     "conv2": CONV_MERGE_DEEP,
     "mlp1": MLP_MEDIUM,
+    "enc": ENC,
+    "critic": CRITIC,
 
 }
 
