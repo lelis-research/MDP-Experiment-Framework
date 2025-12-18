@@ -3,7 +3,7 @@ from RLBase.FeatureExtractors import *
 from RLBase.Agents import *
 from RLBase.Networks import NETWORK_PRESETS
 # from RLBase.Options import load_options_list
-from RLBase.Options.SymbolicOptions.PreDesigned import test_option
+from RLBase.Options.SymbolicOptions.PreDesigned import test_option, GoToRedGoalOption, GoToGreenGoalOption
 import torch
 
 def get_env_action_space(env):
@@ -41,15 +41,19 @@ AGENT_DICT = {
         TabularFeature,
         device=device
     ),
-    # ContinualHumanAgent.name: lambda env, info: ContinualHumanAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(actions_enum=env.unwrapped.actions), #enum of the actions and their name
-    #     get_num_envs(env),
-    #     MirrorFeature,
-    #     option_learner_class=ManualContinualOptionLearner,
-    #     device=device
-    # ),
+    OptionHumanAgent.name: lambda env, info: OptionHumanAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            actions_enum=env.envs[0].unwrapped.actions,
+            gamma=0.9,
+        ), 
+        get_num_envs(env),
+        TabularFeature,
+        options_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        device=device
+    ),
+    
     RandomAgent.name: lambda env, info: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
