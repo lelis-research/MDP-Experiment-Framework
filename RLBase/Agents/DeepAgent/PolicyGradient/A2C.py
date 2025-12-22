@@ -15,7 +15,9 @@ from ...Utils import calculate_gae, get_single_observation, stack_observations, 
 from ....registry import register_agent, register_policy
 
 
-
+#TODO:The values in the update are not necessarily the old values that was used during the acting
+# specially in the multi-env setting
+# Probably should save the values during the act
         
 @register_policy
 class A2CPolicy(BasePolicy):
@@ -43,9 +45,6 @@ class A2CPolicy(BasePolicy):
         if isinstance(self.action_space, Box):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
-            
-            # self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            # self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -76,9 +75,6 @@ class A2CPolicy(BasePolicy):
         if isinstance(self.action_space, Box):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
-            
-            # self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            # self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -89,7 +85,7 @@ class A2CPolicy(BasePolicy):
         self.update_counter = 0
     
     
-    def _log_prob_and_entropy(self, state, action_t=None):
+    def get_logprob_entropy(self, state, action_t=None):
         """
         Returns:
             action_t: sampled or given action
@@ -122,6 +118,14 @@ class A2CPolicy(BasePolicy):
             # logits_or_mean: [B, action_dim] = mean
             mean = logits_or_mean
             logstd = self.actor_logstd.expand_as(mean)   # [1, A] -> [B, A]
+            
+            if self.hp.min_logstd is not None and self.hp.max_logstd is not None:
+                logstd = torch.clamp(
+                    logstd,
+                    self.hp.min_logstd,   # e.g. -20
+                    self.hp.max_logstd,   # e.g.  2
+                )
+            
             std = torch.exp(logstd)
 
             dist = Normal(mean, std)
@@ -135,7 +139,7 @@ class A2CPolicy(BasePolicy):
             entropy = dist.entropy().sum(dim=-1)             # [B, A] -> [B]
         else:
             raise NotImplementedError(
-                f"A2CPolicy:_log_prob_and_entropy does not support action space of type {type(self.action_space)}"
+                f"A2CPolicy:get_logprob_entropy does not support action space of type {type(self.action_space)}"
             )
 
         return action_t, log_prob, entropy, greedy_action
@@ -146,7 +150,7 @@ class A2CPolicy(BasePolicy):
         """
         
         with torch.no_grad():
-            action, _, _, greedy_action = self._log_prob_and_entropy(state)
+            action, _, _, greedy_action = self.get_logprob_entropy(state)
             if greedy:
                 return greedy_action.cpu().numpy()
             else:
@@ -159,7 +163,7 @@ class A2CPolicy(BasePolicy):
 
         # Update the step size
          # LR annealing (optional)
-        if self.hp.anneal_step_size_flag:
+        if self.hp.enable_stepsize_anneal:
             frac = 1.0 - (self.update_counter - 1.0) / float(self.hp.total_updates)  # linear from initial->0
             for param_groups in self.actor_optimizer.param_groups:
                 param_groups["lr"] = frac * self.hp.actor_step_size
@@ -180,25 +184,25 @@ class A2CPolicy(BasePolicy):
         # returns + advantages
         returns, advantages = calculate_gae(
             rewards,
-            values,
-            next_values,
+            values.detach(),
+            next_values.detach(),
             terminated,
             truncated,
             gamma=self.hp.gamma,
             lamda=self.hp.lamda,
         )
         
-        advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device)  # (T, )
-        returns_t    = torch.tensor(returns,    dtype=torch.float32, device=self.device) # (T, )
+        advantages_t = torch.as_tensor(advantages, dtype=torch.float32, device=self.device)  # (T, )
+        returns_t    = torch.as_tensor(returns,    dtype=torch.float32, device=self.device) # (T, )
         
-        if self.hp.norm_adv_flag:
+        if self.hp.enable_advantage_normalization and advantages_t.numel() > 1:
             advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
         
         # Actor log-probs
-        _, log_probs_t, entropy_t, _ = self._log_prob_and_entropy(states, actions_t)  # (T, ), (T, )
+        _, log_probs_t, entropy_t, _ = self.get_logprob_entropy(states, actions_t)  # (T, ), (T, )
         
-
-        critic_loss = F.mse_loss(values, returns_t)
+        
+        critic_loss = F.mse_loss(values, returns_t)    
         actor_loss = - (log_probs_t * advantages_t).mean() 
         loss = actor_loss + self.hp.critic_coef * critic_loss - self.hp.entropy_coef * entropy_t.mean()        
         
@@ -209,7 +213,13 @@ class A2CPolicy(BasePolicy):
         if call_back is not None:
             actor_grad_norm = grad_norm(self.actor.parameters())
             critic_grad_norm = grad_norm(self.critic.parameters())
-
+            
+        if self.hp.max_grad_norm is not None:
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
+            if self.actor_logstd is not None:
+                torch.nn.utils.clip_grad_norm_([self.actor_logstd], self.hp.max_grad_norm)
+        
         self.actor_optimizer.step()
         self.critic_optimizer.step()
 
@@ -310,6 +320,7 @@ class A2CAgent(BaseAgent):
         """
         state = self.feature_extractor(observation)
         action = self.policy.select_action(state, greedy=greedy)
+        
         self.last_observation = observation
         self.last_action = action
         return action
@@ -329,6 +340,7 @@ class A2CAgent(BaseAgent):
         """
         all arguments are batches
         """
+        # add to the rollouts
         for i in range(self.num_envs):
             transition =  (
                 get_single_observation(self.last_observation, i), 
@@ -340,7 +352,7 @@ class A2CAgent(BaseAgent):
             )
             self.rollout_buffer[i].add(transition)
         
-        
+        # update with the rollouts
         if not all(buf.is_full() for buf in self.rollout_buffer):
             return
 
@@ -403,6 +415,7 @@ class A2CAgent(BaseAgent):
         all arguments are batches
         """
         for i in range(self.num_envs): 
+            # add to the rollouts
             transition =  (
                 get_single_observation(self.last_observation, i), 
                 self.last_action[i], 
@@ -413,6 +426,7 @@ class A2CAgent(BaseAgent):
             )
             self.rollout_buffer[i].add(transition)
             
+            # update with the rollouts
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
                 (

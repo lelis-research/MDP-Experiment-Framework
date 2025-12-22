@@ -47,6 +47,37 @@ def get_single_observation(observation: ObsType, index: int) -> ObsType:
     raise NotImplementedError(
         f"Vectorized observation type {type(observation)} is not supported."
     )
+    
+def get_single_observation_nobatch(observation, index):
+    """
+    Extract a single observation from a batched observation.
+    - If observation is a dict: return a dict with the same keys.
+    - Removes the batch dimension completely.
+
+    Assumes batch dimension is the first dimension.
+    """
+
+    def slice_one(x):
+        if isinstance(x, (np.ndarray, torch.Tensor)):
+            return x[index]          # ❌ no batch dim
+        elif isinstance(x, (tuple, list)):
+            return x[index]
+        else:
+            raise NotImplementedError(
+                f"Element type {type(x)} is not supported."
+            )
+
+    # ---- Dict observation ----
+    if isinstance(observation, dict):
+        return {k: slice_one(v) for k, v in observation.items()}
+
+    # ---- Array / tensor ----
+    if isinstance(observation, (np.ndarray, torch.Tensor)):
+        return observation[index]
+
+    raise NotImplementedError(
+        f"Vectorized observation type {type(observation)} is not supported."
+    )
         
 def stack_observations(observations: List[ObsType]) -> ObsType:
     """

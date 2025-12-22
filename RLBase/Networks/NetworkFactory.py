@@ -5,7 +5,7 @@ import numpy as np
 from typing import Any, Dict, List, Union, Optional
 
 from .LayerInit import apply_init
-
+from .NoisyLayer import NoisyLinear
 
 # ---- New: small factory for module-creating layers ----
 def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
@@ -19,7 +19,7 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
             stride=layer_cfg.get("stride", 1),
             padding=layer_cfg.get("padding", 0),
         )
-        return apply_init(m, **layer_cfg["init_params"])
+        return apply_init(m, **layer_cfg["init_params"]) if "init_params" in layer_cfg else m
     
     elif t == "maxpool2d":
         return nn.MaxPool2d(
@@ -34,7 +34,16 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
             in_features=layer_cfg["in_features"],
             out_features=layer_cfg["out_features"],
         )
-        return apply_init(m, **layer_cfg["init_params"])
+        return apply_init(m, **layer_cfg["init_params"]) if "init_params" in layer_cfg else m
+    elif t == "noisy_linear":
+        m = NoisyLinear(
+            in_features=layer_cfg["in_features"],
+            out_features=layer_cfg["out_features"],
+            sigma_init=layer_cfg.get("sigma_init", 0.5),
+            bias=layer_cfg.get("bias", True),
+        )
+        return m # apply_init(m, **layer_cfg["init_params"]) if "init_params" in layer_cfg else m
+
     elif t == "batchnorm2d":
         return nn.BatchNorm2d(layer_cfg["num_features"])
     elif t == "relu":
@@ -65,10 +74,12 @@ class NetworkGen(nn.Module):
       - For 'input': provide input_key (e.g., 'x1', 'x2') to read from forward(**inputs)
       - For 'concat': optional dim (default 1), flatten(bool, default False)
     """
-    def __init__(self, layer_descriptions: List[Dict[str, Any]]):
+    def __init__(self, layer_descriptions: List[Dict[str, Any]], output_ids: Optional[List[str]] = None):
         super().__init__()
         self.config: List[Dict[str, Any]] = []
         self.layers_dict = nn.ModuleDict()
+        
+        self.output_ids = output_ids
 
         # Normalize and create modules where needed
         for i, raw in enumerate(layer_descriptions):
@@ -91,11 +102,26 @@ class NetworkGen(nn.Module):
                 self.layers_dict[cfg["id"]] = mod
 
             self.config.append(cfg)
+            
+        # Validate output_ids early (nice error messages)
+        if self.output_ids is not None:
+            ids = {c["id"] for c in self.config}
+            missing = [oid for oid in self.output_ids if oid not in ids]
+            if missing:
+                raise KeyError(f"output_ids contain unknown node ids: {missing}")
+    
+    @torch.no_grad()
+    def reset_noise(self):
+        for m in self.modules():
+            if isinstance(m, NoisyLinear):
+                m.reset_noise()
 
     def forward(self, *args, **kwargs):
         """
         Pass named inputs (e.g., model(x1=..., x2=...)).
-        Returns the output of the LAST node.
+        Returns:
+            - If output_ids is None: torch.Tensor (output of last node)
+            - If output_ids is not None: dict[str, torch.Tensor] mapping node_id -> tensor
         """
        
         
@@ -171,13 +197,24 @@ class NetworkGen(nn.Module):
 
             cache[nid] = out
             last_id = nid
+        
+        # NEW: return multiple heads if requested
+        if self.output_ids is not None:
+            return {oid: cache[oid] for oid in self.output_ids}
 
         return cache[last_id]
 
 
 
-def prepare_network_config(config, input_dims: dict, output_dim: int | None = None):
+def prepare_network_config(config, 
+                           input_dims: dict, 
+                           output_dim: int | None = None,
+                           output_dims: dict[str, int] | None = None,):
     """
+    output_dim (old): sets out_features for the very last layer if it's linear.
+    output_dims (new): sets out_features for specific linear nodes by id:
+        output_dims={"head_v": 1, "head_a": action_dim}
+    
     input_dims: mapping from input_key -> shape
       - image-like: (C, H, W)
       - vector-like: int (feature dim)
@@ -198,11 +235,19 @@ def prepare_network_config(config, input_dims: dict, output_dim: int | None = No
         H = (h + 2*p - k) // s + 1
         W = (w + 2*p - k) // s + 1
         return H, W
-    
+    # NEW: apply per-node output dims first (so shape inference uses them)
+    if output_dims is not None:
+        for layer in updated:
+            lid = layer.get("id")
+            if lid in output_dims:
+                if layer["type"].lower() not in ("linear", "noisy_linear"):
+                    raise ValueError(f"output_dims can only target 'linear' layers. '{lid}' is '{layer['type']}'.")
+                layer["out_features"] = int(output_dims[lid])
+                
     # very last layer's output dim
     if output_dim is not None:
         last = updated[-1]
-        if last["type"].lower() == "linear":
+        if last["type"].lower() in ("linear", "noisy_linear"):
             last["out_features"] = output_dim
 
     for i, layer in enumerate(updated):
@@ -255,12 +300,13 @@ def prepare_network_config(config, input_dims: dict, output_dim: int | None = No
             s = shapes[src[0]]
             shapes[layer_id] = feat(s)
 
-        elif layer_type == "linear":
+        elif layer_type in ("linear", "noisy_linear"):
             assert src and len(src) == 1
             s = shapes[src[0]]
             fin = feat(s)
             if "in_features" not in layer:
                 layer["in_features"] = fin
+            
             shapes[layer_id] = layer["out_features"]
 
         elif layer_type in ("relu", "leakyrelu", "sigmoid", "tanh", "identity"):

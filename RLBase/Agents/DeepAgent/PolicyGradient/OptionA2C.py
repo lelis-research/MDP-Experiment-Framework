@@ -16,7 +16,8 @@ from ...Utils import (
     stack_observations, 
     grad_norm,
     explained_variance,
-    get_single_state
+    get_single_state,
+    get_single_observation_nobatch,
 )
 from ....registry import register_agent, register_policy
 from ....Options import load_options_list, save_options_list
@@ -30,7 +31,7 @@ class OptionA2CPolicy(A2CPolicy):
 
         # Update the step size
          # LR annealing (optional)
-        if self.hp.anneal_step_size_flag:
+        if self.hp.enable_stepsize_anneal:
             frac = 1.0 - (self.update_counter - 1.0) / float(self.hp.total_updates)  # linear from initial->0
             for param_groups in self.actor_optimizer.param_groups:
                 param_groups["lr"] = frac * self.hp.actor_step_size
@@ -51,22 +52,22 @@ class OptionA2CPolicy(A2CPolicy):
         # returns + advantages
         returns, advantages = calculate_gae_with_discounts(
             rewards,
-            values,
-            next_values,
+            values.detach(),
+            next_values.detach(),
             terminated,
             truncated,
             discounts,
             lamda=self.hp.lamda,
         )
         
-        advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device)  # (T, )
-        returns_t    = torch.tensor(returns,    dtype=torch.float32, device=self.device) # (T, )
+        advantages_t = torch.as_tensor(advantages, dtype=torch.float32, device=self.device)  # (T, )
+        returns_t    = torch.as_tensor(returns,    dtype=torch.float32, device=self.device) # (T, )
         
-        if self.hp.norm_adv_flag:
+        if self.hp.enable_advantage_normalization and advantages_t.numel() > 1:
             advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
         
         # Actor log-probs
-        _, log_probs_t, entropy_t, _ = self._log_prob_and_entropy(states, actions_t)  # (T, ), (T, )
+        _, log_probs_t, entropy_t, _ = self.get_logprob_entropy(states, actions_t)  # (T, ), (T, )
         
 
         critic_loss = F.mse_loss(values, returns_t)
@@ -80,6 +81,12 @@ class OptionA2CPolicy(A2CPolicy):
         if call_back is not None:
             actor_grad_norm = grad_norm(self.actor.parameters())
             critic_grad_norm = grad_norm(self.critic.parameters())
+            
+        if self.hp.max_grad_norm is not None:
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
+            if self.actor_logstd is not None:
+                torch.nn.utils.clip_grad_norm_([self.actor_logstd], self.hp.max_grad_norm)
 
         self.actor_optimizer.step()
         self.critic_optimizer.step()
@@ -160,16 +167,16 @@ class OptionA2CAgent(A2CAgent):
             int: Primitive action to execute in the environment.
         """
         state = self.feature_extractor(observation) 
-        # action = self.policy.select_action(state, greedy=greedy)
         
         action = []
         for i in range(self.num_envs):
             # If an option is currently running, either continue it or end it here.
             st = get_single_state(state, i)
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             if curr_option_idx is not None:
-                a = self.options_lst[curr_option_idx].select_action(obs)
+                a = self.options_lst[curr_option_idx].select_action(obs_option)
             else:
                 # Choose an extended action (might be a primitive or an option)
                 a = self.policy.select_action(st, greedy=greedy)[0] # because 'a' would be a batch of size 1
@@ -180,7 +187,9 @@ class OptionA2CAgent(A2CAgent):
                     self.option_cumulative_reward[i] = 0.0
                     self.option_multiplier[i] = 1.0
                     self.option_num_steps[i] = 0
-                    a = self.options_lst[curr_option_idx].select_action(obs)
+                    a = self.options_lst[curr_option_idx].select_action(obs_option)
+                else:
+                    curr_option_idx = None
             
             self.running_option_index[i] = curr_option_idx
             action.append(a) 
@@ -203,8 +212,11 @@ class OptionA2CAgent(A2CAgent):
         """
         all arguments are batches
         """
+        
+        # add to the rollouts
         for i in range(self.num_envs):
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             
             if curr_option_idx is not None:
@@ -213,7 +225,7 @@ class OptionA2CAgent(A2CAgent):
                 self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
                 self.option_multiplier[i] *= self.hp.gamma
                 self.option_num_steps[i] += 1
-                if self.options_lst[curr_option_idx].is_terminated(obs) or terminated[i] or truncated[i]:
+                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                     transition = (
                         self.option_start_obs[i], 
                         self.atomic_action_space.n + curr_option_idx, 
@@ -224,6 +236,7 @@ class OptionA2CAgent(A2CAgent):
                         truncated[i]
                     )                  
                     self.rollout_buffer[i].add(transition)
+                    self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
             else:
                 transition = (
@@ -238,7 +251,7 @@ class OptionA2CAgent(A2CAgent):
                     
                 self.rollout_buffer[i].add(transition)
         
-        
+        # update with the rollouts
         if not all(buf.is_full() for buf in self.rollout_buffer):
             return
 
@@ -306,7 +319,10 @@ class OptionA2CAgent(A2CAgent):
         all arguments are batches
         """
         for i in range(self.num_envs): 
+            
+            # add to the rollouts
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             
             if curr_option_idx is not None:
@@ -315,7 +331,7 @@ class OptionA2CAgent(A2CAgent):
                 self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
                 self.option_multiplier[i] *= self.hp.gamma
                 self.option_num_steps[i] += 1
-                if self.options_lst[curr_option_idx].is_terminated(obs) or terminated[i] or truncated[i]:
+                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                     transition = (
                         self.option_start_obs[i], 
                         self.atomic_action_space.n + curr_option_idx, 
@@ -326,6 +342,7 @@ class OptionA2CAgent(A2CAgent):
                         truncated[i]
                     )                  
                     self.rollout_buffer[i].add(transition)
+                    self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
             else:
                 transition = (
@@ -340,7 +357,7 @@ class OptionA2CAgent(A2CAgent):
                     
                 self.rollout_buffer[i].add(transition)
                 
-            
+            # update with the rollouts
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
                 (
@@ -389,6 +406,26 @@ class OptionA2CAgent(A2CAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
 
+    def log(self):
+        logs = []
+        for i in range(self.num_envs):
+            curr_option_idx = self.running_option_index[i]
+            if curr_option_idx is None:
+                logs.append({
+                    "OptionUsageLog": False,
+                    "NumOptions": len(self.options_lst),
+                    "OptionIndex": None,
+                    "OptionClass": None,
+                })
+            else:
+                logs.append({
+                    "OptionUsageLog": True,
+                    "NumOptions": len(self.options_lst),
+                    "OptionIndex": curr_option_idx,
+                    "OptionClass": self.options_lst[curr_option_idx].__class__,
+                })
+        return logs
+    
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)  # parent saves feature_extractor, policy, hp, etc.
         
@@ -408,5 +445,8 @@ class OptionA2CAgent(A2CAgent):
         instance = super().load(file_path, checkpoint)
         instance.options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
         instance.atomic_action_space = checkpoint['atomic_action_space']
+        
+        expected = instance.atomic_action_space.n + len(instance.options_lst)
+        assert instance.policy.action_dim == expected
         
         return instance

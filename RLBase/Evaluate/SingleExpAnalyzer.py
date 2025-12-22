@@ -438,7 +438,7 @@ class SingleExpAnalyzer:
         actions = self.metrics[run_number - 1][episode_number - 1]['actions']
         if "agent_logs" in self.metrics[run_number - 1][episode_number - 1]:
             options = self.metrics[run_number - 1][episode_number - 1]['agent_logs']
-            options_index = [option.get('OptionIndex', None) for option in options]
+            options_index = [option[0].get('OptionIndex', None) for option in options] #[0] is because we only look at the first env in test
         else:
             options_index = [None for _ in range(len(actions))]
 

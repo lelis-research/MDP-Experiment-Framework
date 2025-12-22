@@ -3,7 +3,7 @@ import random
 import torch
 from gymnasium.spaces import Discrete
 
-from ..Utils import calculate_n_step_returns_with_discounts, get_single_observation
+from ..Utils import calculate_n_step_returns_with_discounts, get_single_observation, get_single_observation_nobatch
 from .QLearning import QLearningAgent, QLearningPolicy
 from ...registry import register_agent, register_policy
 from ...Options import load_options_list, save_options_list
@@ -48,14 +48,13 @@ class OptionQLearningAgent(QLearningAgent):
             # If an option is currently running, either continue it or end it here.
             st = state[i]
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             if curr_option_idx is not None:
-                a = self.options_lst[curr_option_idx].select_action(obs)
-
+                a = self.options_lst[curr_option_idx].select_action(obs_option)
             else:
                 # Choose an extended action (might be a primitive or an option)
                 a = self.policy.select_action(st, greedy=greedy)
-
                 if a >= self.atomic_action_space.n:
                     # Start an option
                     curr_option_idx = a - self.atomic_action_space.n
@@ -63,7 +62,9 @@ class OptionQLearningAgent(QLearningAgent):
                     self.option_cumulative_reward[i] = 0.0
                     self.option_multiplier[i] = 1.0
                     self.option_num_steps[i] = 0
-                    a = self.options_lst[curr_option_idx].select_action(obs)
+                    a = self.options_lst[curr_option_idx].select_action(obs_option)
+                else:
+                    curr_option_idx = None
             
             self.running_option_index[i] = curr_option_idx
             action.append(a)
@@ -88,6 +89,7 @@ class OptionQLearningAgent(QLearningAgent):
             
             st = state[i]
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             
             if curr_option_idx is not None:
@@ -97,13 +99,14 @@ class OptionQLearningAgent(QLearningAgent):
                 self.option_multiplier[i] *= self.hp.gamma
                 self.option_num_steps[i] += 1
 
-                if self.options_lst[curr_option_idx].is_terminated(obs) or terminated[i] or truncated[i]:
+                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                     transition = self.option_start_state[i], \
                                 self.atomic_action_space.n + curr_option_idx, \
                                 self.option_cumulative_reward[i], \
                                 self.option_multiplier[i], \
                                 self.option_num_steps[i]
                     self.rollout_buffer[i].add(transition)
+                    self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
 
             else:
@@ -120,18 +123,65 @@ class OptionQLearningAgent(QLearningAgent):
                 n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
                 all_steps = sum(s for s in rollout_num_steps)
                 for j in range(len(self.rollout_buffer[i])):
-                    self.policy.update(rollout_states[j], rollout_actions[j], st, n_step_return[j], terminated[i], 
-                                       truncated[i], self.hp.gamma**(all_steps-rollout_num_steps[j]), call_back=call_back)
+                    self.policy.update(
+                        rollout_states[j], 
+                        rollout_actions[j], 
+                        st, 
+                        n_step_return[j], 
+                        terminated[i], 
+                        truncated[i], 
+                        self.hp.gamma**all_steps, 
+                        call_back=call_back)
+                    if self.replay_buffer is not None:
+                        trans = (
+                            rollout_states[j], 
+                            rollout_actions[j], 
+                            st, 
+                            n_step_return[j], 
+                            terminated[i], 
+                            truncated[i], 
+                            self.hp.gamma**all_steps
+                        )
+                        self.replay_buffer.add(trans)
+                    all_steps -= rollout_num_steps[j]
                 self.rollout_buffer[i].clear() 
                 
-            elif len(self.rollout_buffer[i]) >= self.hp.n_steps:
+            elif self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
                 rollout_states, rollout_actions, rollout_rewards, rollout_discounts, rollout_num_steps = zip(*rollout)
                 n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
                 all_steps = sum(s for s in rollout_num_steps)
-                self.policy.update(rollout_states[0], rollout_actions[0], st, n_step_return[0], terminated[i], 
-                                   truncated[i], self.hp.gamma**all_steps, call_back=call_back) 
-                    
+                self.policy.update(
+                    rollout_states[0], 
+                    rollout_actions[0], 
+                    st, 
+                    n_step_return[0], 
+                    terminated[i], 
+                    truncated[i], 
+                    self.hp.gamma**all_steps, 
+                    call_back=call_back) 
+                if self.replay_buffer is not None:
+                    trans = (
+                        rollout_states[0], 
+                        rollout_actions[0], 
+                        st, 
+                        n_step_return[0], 
+                        terminated[i], 
+                        truncated[i], 
+                        self.hp.gamma**all_steps
+                    )
+                    self.replay_buffer.add(trans)
+        
+        
+        if self.replay_buffer is not None and len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+            batch = self.replay_buffer.sample(self.hp.batch_size)
+
+            states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)  
+
+            for i in range(len(batch)):       
+                self.policy.update(states[i], actions[i], next_states[i], 
+                                   n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)         
+    
     def reset(self, seed):
         super().reset(seed)
 
@@ -144,11 +194,16 @@ class OptionQLearningAgent(QLearningAgent):
         
     
     def log(self):
-        pass
-        # if self.running_option_index is None:
-        #     return {"OptionUsageLog": False, "OptionIndex": self.running_option_index}
-        # else:
-        #     return {"OptionUsageLog": True, "OptionIndex": self.running_option_index}
+        logs = []
+        for i in range(self.num_envs):
+            curr_option_idx = self.running_option_index[i]
+
+            if curr_option_idx is None:
+                logs.append({"OptionUsageLog": False, "OptionIndex": curr_option_idx})
+            else:
+                logs.append({"OptionUsageLog": True, "OptionIndex": curr_option_idx})
+        return logs
+    
         
     def save(self, file_path=None):
         """
@@ -171,9 +226,11 @@ class OptionQLearningAgent(QLearningAgent):
         """
         if checkpoint is None:
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
-
         instance = super().load(file_path, checkpoint)
         instance.options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
         instance.atomic_action_space = checkpoint['atomic_action_space']
+        
+        expected = instance.atomic_action_space.n + len(instance.options_lst)
+        assert instance.policy.action_dim == expected, (instance.policy.action_dim, expected)
         
         return instance

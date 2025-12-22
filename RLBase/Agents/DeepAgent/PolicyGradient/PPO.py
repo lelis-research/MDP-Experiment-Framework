@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.distributions import Categorical, Normal, Independent, TransformedDistribution
 import gymnasium
 from gymnasium.spaces import Discrete, Box
-
+import time
 
 from ...Base import BaseAgent, BasePolicy
 from ....Buffers import BaseBuffer
@@ -15,7 +15,9 @@ from ....registry import register_agent, register_policy
 from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
 from ....FeatureExtractors import get_batch_features
 
-
+#TODO:The values in the update are not necessarily the old values that was used during the acting
+# specially in the multi-env setting
+# Probably should save the values during the act
 
 @register_policy
 class PPOPolicy(BasePolicy):
@@ -41,8 +43,6 @@ class PPOPolicy(BasePolicy):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
-            self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -75,8 +75,6 @@ class PPOPolicy(BasePolicy):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
-            self.action_low = torch.as_tensor(self.action_space.low, device=self.device, dtype=torch.float32)
-            self.action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -88,7 +86,7 @@ class PPOPolicy(BasePolicy):
         
 
 
-    def _log_prob_and_entropy(self, state, action_t=None):
+    def get_logprob_entropy(self, state, action_t=None):
         """
         Returns:
             action_t: sampled or given action
@@ -121,6 +119,14 @@ class PPOPolicy(BasePolicy):
             # logits_or_mean: [B, action_dim] = mean
             mean = logits_or_mean
             logstd = self.actor_logstd.expand_as(mean)   # [1, A] -> [B, A]
+            
+            if self.hp.min_logstd is not None and self.hp.max_logstd is not None:
+                logstd = torch.clamp(
+                    logstd,
+                    self.hp.min_logstd,   # e.g. -20
+                    self.hp.max_logstd,   # e.g.  2
+                )
+            
             std = torch.exp(logstd)
 
             dist = Normal(mean, std)
@@ -134,7 +140,7 @@ class PPOPolicy(BasePolicy):
             entropy = dist.entropy().sum(dim=-1)             # [B, A] -> [B]
         else:
             raise NotImplementedError(
-                f"PPOPolicy:_log_prob_and_entropy does not support action space of type {type(self.action_space)}"
+                f"PPOPolicy:get_logprob_entropy does not support action space of type {type(self.action_space)}"
             )
 
         return action_t, log_prob, entropy, greedy_action
@@ -145,7 +151,7 @@ class PPOPolicy(BasePolicy):
         """
         
         with torch.no_grad():
-            action, log_prob_t, _, greedy_action = self._log_prob_and_entropy(state)
+            action, log_prob_t, _, greedy_action = self.get_logprob_entropy(state)
     
             if greedy:
                 return greedy_action.cpu().numpy(), log_prob_t.cpu().numpy()
@@ -157,7 +163,7 @@ class PPOPolicy(BasePolicy):
         self.update_counter += 1
             
         # LR annealing (optional)
-        if self.hp.anneal_step_size_flag:
+        if self.hp.enable_stepsize_anneal:
             frac = 1.0 - (self.update_counter - 1.0) / float(self.hp.total_updates)  # linear from initial->0
             for param_groups in self.actor_optimizer.param_groups:
                 param_groups["lr"] = frac * self.hp.actor_step_size
@@ -190,17 +196,20 @@ class PPOPolicy(BasePolicy):
                     
         returns, advantages = calculate_gae(
             rewards,
-            values,
-            next_values,
+            values.detach(),
+            next_values.detach(),
             terminated,
             truncated,
             gamma=self.hp.gamma,
             lamda=self.hp.lamda,
         )
         
-        advantages_t = torch.tensor(advantages, dtype=torch.float32, device=self.device) # (T, )
-        returns_t = torch.tensor(returns, dtype=torch.float32, device=self.device) # (T, )
+        advantages_t = torch.as_tensor(advantages, dtype=torch.float32, device=self.device) # (T, )
+        returns_t = torch.as_tensor(returns, dtype=torch.float32, device=self.device) # (T, )
 
+        if self.hp.enable_advantage_normalization and advantages_t.numel() > 1:
+            advantages_t = (advantages_t - advantages_t.mean()) / (advantages_t.std() + 1e-8)
+                    
         assert advantages_t.shape[0] == returns_t.shape[0] == log_probs_old_t.shape[0] == actions_t.shape[0] == values.shape[0] == next_values.shape[0]
         
         datasize = advantages_t.shape[0] #self.hp.rollout_steps
@@ -225,12 +234,9 @@ class PPOPolicy(BasePolicy):
                 batch_advantages_t = advantages_t[batch_indices]     # shape (B, )
                 batch_returns_t    = returns_t[batch_indices]        # shape (B, )
                 batch_values_t     = values[batch_indices].squeeze() # shape (B, )
-
-                if self.hp.norm_adv_flag and advantages_t.numel() > 1:
-                    batch_advantages_t = (batch_advantages_t - batch_advantages_t.mean()) / (batch_advantages_t.std() + 1e-8)
                     
                 # new log-probs under current policy
-                _, batch_log_probs_new_t, entropy, _ = self._log_prob_and_entropy(batch_states, batch_actions_t)
+                _, batch_log_probs_new_t, entropy, _ = self.get_logprob_entropy(batch_states, batch_actions_t)
             
                 log_ratio = batch_log_probs_new_t - batch_log_probs_t
                 ratios = torch.exp(log_ratio)  # [B, ]
@@ -280,6 +286,8 @@ class PPOPolicy(BasePolicy):
         
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
+                if self.actor_logstd is not None:
+                    nn.utils.clip_grad_norm_([self.actor_logstd], self.hp.max_grad_norm)
                 
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
@@ -342,7 +350,9 @@ class PPOPolicy(BasePolicy):
         
         if checkpoint['actor_logstd'] is not None:
             # instance.actor_logstd already exists and is a nn.Parameter
-            instance.actor_logstd.data.copy_(checkpoint['actor_logstd'].to(instance.device))
+            actor_logstd_loaded = checkpoint['actor_logstd'].to(instance.device)
+            with torch.no_grad():
+                instance.actor_logstd.data.copy_(actor_logstd_loaded)
         else:
             instance.actor_logstd = None  # for discrete
         
@@ -467,6 +477,7 @@ class PPOAgent(BaseAgent):
         states      = self.feature_extractor(observations)
         next_states = self.feature_extractor(next_observations)
 
+        
         # 5) Single PPO update using data from *all* envs combined
         self.policy.update(
             states,

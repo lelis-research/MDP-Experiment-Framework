@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from gymnasium.spaces import Discrete
+import time
 
 from ...Base import BaseAgent, BasePolicy
 from ....Buffers import BaseBuffer, ReplayBuffer
@@ -17,63 +18,82 @@ class DQNPolicy(BasePolicy):
         super().__init__(action_space, hyper_params, device=device)
         
         self.features_dict = features_dict
-        
-        network_description = prepare_network_config(
-            self.hp.value_network,
-            input_dims=self.features_dict,
-            output_dim=self.action_dim
-        )
-        self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
-        self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        if self.hp.enable_dueling_networks:
+            # Dueling: network returns dict {"V": [B,1], "A": [B,A]}
+            # Your preset must include linear nodes with ids "V" and "A"
+            network_description = prepare_network_config(
+                self.hp.value_network,
+                input_dims=self.features_dict,
+                output_dims={"V": 1, "A": self.action_dim},
+            )
+            self.online_network = NetworkGen(layer_descriptions=network_description, output_ids=["V", "A"]).to(self.device)
+            self.target_network = NetworkGen(layer_descriptions=network_description, output_ids=["V", "A"]).to(self.device)
+            
+        else:
+            network_description = prepare_network_config(
+                self.hp.value_network,
+                input_dims=self.features_dict,
+                output_dim=self.action_dim
+            )
+            self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+            self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
    
         
         self.target_network.load_state_dict(self.online_network.state_dict())
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
         self.target_update_counter = 0
         
-        self.loss_fn = nn.MSELoss()
-        # self.loss_fn = nn.SmoothL1Loss() #more stable loss
+        if self.hp.enable_huber_loss:
+            self.loss_fn = nn.SmoothL1Loss() #more stable loss
+        else:
+            self.loss_fn = nn.MSELoss()
+    
         
-        self.epsilon = self.hp.epsilon_start
+        self.epsilon = self.hp.epsilon_start if not self.hp.enable_noisy_nets else 0.0
         self.epsilon_step_counter = 0
         
-    
+
     def get_values(self, state, use_target=False):
         # each state element should have the batch dimension
-        q_values = self.online_network(**state) if not use_target else self.target_network(**state)
-        return q_values
+        net = self.target_network if use_target else self.online_network
+
+        out = net(**state)
+
+        if not self.hp.enable_dueling_networks:
+            # out is [B, A]
+            return out
+
+        # out is dict: {"V": [B,1], "A": [B,A]}
+        V = out["V"]
+        A = out["A"]
+        Q = V + (A - A.mean(dim=1, keepdim=True))
+        return Q
         
+    
     def select_action(self, state, greedy=False):
-        """
-        Select an action using epsilon-greedy policy.
-        
-        Args:
-            state (np.array): Flat feature vector.
-        
-        Returns:
-            int: Selected action.
-        """         
+        if self.hp.enable_noisy_nets:
+            # NoisyNet exploration: resample noise each action selection
+            self.online_network.reset_noise()
+
+            with torch.no_grad():
+                q = self.get_values(state)          # [B, A] torch
+                a = torch.argmax(q, dim=1)          # [B]
+            return a.tolist()
+
+        # ---------- epsilon-greedy (your current logic) ----------
         action = []
-        
         with torch.no_grad():
             q_values = self.get_values(state).cpu().numpy()
-        
-        
-        num_actions = q_values.shape[0]
 
-        for i in range(num_actions):
+        for i in range(q_values.shape[0]):
             self.epsilon_step_counter += 1
-            if (self._rand_float(low=0, high=1) < self.epsilon) and not greedy:
-                # Random action
+            if (not greedy) and (self._rand_float(0, 1) < self.epsilon):
                 action.append(int(self._rand_int(0, self.action_dim)))
             else:
-                # Greedy action with tie-breaking, consistent with QLearning
-                row = q_values[i]  # shape [A]]
+                row = q_values[i]
                 max_actions = np.flatnonzero(row == np.max(row))
                 action.append(int(self._rand_elem(max_actions)))
-
         return action
-        
    
     def reset(self, seed):
         """
@@ -84,18 +104,30 @@ class DQNPolicy(BasePolicy):
         """
         super().reset(seed)
             
-        network_description = prepare_network_config(
-            self.hp.value_network,
-            input_dims=self.features_dict,
-            output_dim=self.action_dim
-        )
-        self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
-        self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        if self.hp.enable_dueling_networks:
+            # Dueling: network returns dict {"V": [B,1], "A": [B,A]}
+            # Your preset must include linear nodes with ids "V" and "A"
+            network_description = prepare_network_config(
+                self.hp.value_network,
+                input_dims=self.features_dict,
+                output_dims={"V": 1, "A": self.action_dim},
+            )
+            self.online_network = NetworkGen(layer_descriptions=network_description, output_ids=["V", "A"]).to(self.device)
+            self.target_network = NetworkGen(layer_descriptions=network_description, output_ids=["V", "A"]).to(self.device)
+        else:
+            network_description = prepare_network_config(
+                self.hp.value_network,
+                input_dims=self.features_dict,
+                output_dim=self.action_dim
+            )
+            self.online_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+            self.target_network = NetworkGen(layer_descriptions=network_description).to(self.device)
+        
         self.target_network.load_state_dict(self.online_network.state_dict())
         self.optimizer = optim.Adam(self.online_network.parameters(), lr=self.hp.step_size)
         self.target_update_counter = 0
         
-        self.epsilon = self.hp.epsilon_start
+        self.epsilon = self.hp.epsilon_start if not self.hp.enable_noisy_nets else 0.0
         self.epsilon_step_counter = 0
         
         
@@ -116,7 +148,10 @@ class DQNPolicy(BasePolicy):
         target_reward_t = torch.tensor(np.array(target_reward), dtype=torch.float32, device=self.device).unsqueeze(1)
         terminated_t = torch.tensor(np.array(terminated), dtype=torch.float32, device=self.device).unsqueeze(1)
         effective_discount_t = torch.tensor(np.array(effective_discount), dtype=torch.float32, device=self.device).unsqueeze(1)
-           
+        
+        if self.hp.enable_noisy_nets:
+            self.online_network.reset_noise()
+            self.target_network.reset_noise()
    
         # ---- Q(s_t, a_t) from online network ----
         # states has batch dimension already, so we can call network directly
@@ -125,7 +160,7 @@ class DQNPolicy(BasePolicy):
        
         # ---- Bootstrap value from next state ----
         with torch.no_grad():
-            if self.hp.flag_double_dqn_target:
+            if self.hp.enable_double_dqn_target:
                 # Double DQN: argmax from online net, value from target net
                 q_next_online = self.get_values(next_states)          # [B, A]
                 a_next = q_next_online.argmax(dim=1, keepdim=True)  # [B, 1]
@@ -161,7 +196,9 @@ class DQNPolicy(BasePolicy):
     
         self.optimizer.zero_grad()
         loss.backward()
-    
+        if self.hp.max_grad_norm is not None:
+            torch.nn.utils.clip_grad_norm_(self.online_network.parameters(), self.hp.max_grad_norm)
+        
         # Gradient norm logging
         if call_back is not None:
             total_grad_norm = 0.0
@@ -179,11 +216,12 @@ class DQNPolicy(BasePolicy):
             self.target_network.load_state_dict(self.online_network.state_dict())
             self.target_update_counter = 0
 
-            
-        #Update Epsilon
-        frac = 1.0 - (self.epsilon_step_counter / self.hp.epsilon_decay_steps)
-        frac = max(0.0, frac)
-        self.epsilon = max(self.hp.epsilon_end, self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac)
+        
+        if not self.hp.enable_noisy_nets:
+            #Update Epsilon
+            frac = 1.0 - (self.epsilon_step_counter / self.hp.epsilon_decay_steps)
+            frac = max(0.0, frac)
+            self.epsilon = max(self.hp.epsilon_end, self.hp.epsilon_end + (self.hp.epsilon_start - self.hp.epsilon_end) * frac)
 
         if call_back is not None:
             call_back(
@@ -240,7 +278,7 @@ class DQNAgent(BaseAgent):
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         # Experience Replay Buffer
-        self.replay_buffer = ReplayBuffer(hyper_params.replay_buffer_cap)
+        self.replay_buffer = ReplayBuffer(hyper_params.replay_buffer_size)
         
         # Create DQNPolicy using the feature extractor's feature dimension.
         self.policy = DQNPolicy(
@@ -252,6 +290,7 @@ class DQNAgent(BaseAgent):
         
         # Buffer to accumulate n-step transitions.
         self.rollout_buffer = [BaseBuffer(self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
+        self.update_call_counter = 0
         
     def act(self, observation, greedy=False):
         """
@@ -270,7 +309,6 @@ class DQNAgent(BaseAgent):
         """
         all arguments are batches
         """
-        
         # reward = np.clip(reward, -1, 1) # for stability
         for i in range(self.num_envs):
             transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]
@@ -297,10 +335,10 @@ class DQNAgent(BaseAgent):
                          truncated[i], self.hp.gamma**self.hp.n_steps)
                 
                 self.replay_buffer.add(trans)
-                
-            
-        
-        if len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+     
+        self.update_call_counter += 1
+        if len(self.replay_buffer) >= self.hp.warmup_buffer_size and self.update_call_counter >= self.hp.update_freq:
+            self.update_call_counter = 0
             batch = self.replay_buffer.sample(self.hp.batch_size)
 
             observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
@@ -327,7 +365,9 @@ class DQNAgent(BaseAgent):
         self.last_observation = None
         self.last_action = None
 
-        self.replay_buffer.clear()        
+        self.replay_buffer.clear()
+        self.replay_buffer.set_seed(seed)        
         self.rollout_buffer = [BaseBuffer(self.hp.n_steps) for _ in range(self.num_envs)]
+        self.update_call_counter = 0
         
         

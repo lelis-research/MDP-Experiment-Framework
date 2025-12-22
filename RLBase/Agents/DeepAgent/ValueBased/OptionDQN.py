@@ -11,7 +11,8 @@ from ...Utils import (
     get_single_observation, 
     stack_observations,
     get_single_state,
-    stack_states
+    stack_states,
+    get_single_observation_nobatch,
 )
 from ....registry import register_agent, register_policy
 from ....Options import load_options_list, save_options_list
@@ -53,16 +54,16 @@ class OptionDQNAgent(DQNAgent):
           
     def act(self, observation, greedy=False):
         state = self.feature_extractor(observation) 
-        # action = self.policy.select_action(state, greedy=greedy)
         
         action = []
         for i in range(self.num_envs):
             # If an option is currently running, either continue it or end it here.
             st = get_single_state(state, i)
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             if curr_option_idx is not None:
-                a = self.options_lst[curr_option_idx].select_action(obs)
+                a = self.options_lst[curr_option_idx].select_action(obs_option)
             else:
                 # Choose an extended action (might be a primitive or an option)
                 a = self.policy.select_action(st, greedy=greedy)[0] # because 'a' would be a batch of size 1
@@ -73,8 +74,10 @@ class OptionDQNAgent(DQNAgent):
                     self.option_cumulative_reward[i] = 0.0
                     self.option_multiplier[i] = 1.0
                     self.option_num_steps[i] = 0
-                    a = self.options_lst[curr_option_idx].select_action(obs)
-            
+                    a = self.options_lst[curr_option_idx].select_action(obs_option)
+                else:
+                    curr_option_idx = None
+                            
             self.running_option_index[i] = curr_option_idx
             action.append(a) 
             
@@ -95,6 +98,7 @@ class OptionDQNAgent(DQNAgent):
                 })
                 
             obs = get_single_observation(observation, i)
+            obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
             
             if curr_option_idx is not None:
@@ -104,13 +108,14 @@ class OptionDQNAgent(DQNAgent):
                 self.option_multiplier[i] *= self.hp.gamma
                 self.option_num_steps[i] += 1
                 
-                if self.options_lst[curr_option_idx].is_terminated(obs) or terminated[i] or truncated[i]:
+                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                     transition = self.option_start_obs[i], \
                                 self.atomic_action_space.n + curr_option_idx, \
                                 self.option_cumulative_reward[i], \
                                 self.option_multiplier[i], \
                                 self.option_num_steps[i]
                     self.rollout_buffer[i].add(transition)
+                    self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
             else:
                 transition = get_single_observation(self.last_observation, i), \
@@ -134,9 +139,10 @@ class OptionDQNAgent(DQNAgent):
                             n_step_return[j], 
                             terminated[i], 
                             truncated[i], 
-                            self.hp.gamma**(all_steps-rollout_num_steps[j])
+                            self.hp.gamma**all_steps
                             )
                     self.replay_buffer.add(trans)
+                    all_steps -= rollout_num_steps[j]
                 self.rollout_buffer[i].clear() 
             
             elif self.rollout_buffer[i].is_full():
@@ -149,13 +155,15 @@ class OptionDQNAgent(DQNAgent):
                          truncated[i], self.hp.gamma**all_steps)
                 self.replay_buffer.add(trans)
                 
-            
-        if len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+        self.update_call_counter += 1
+        if len(self.replay_buffer) >= self.hp.warmup_buffer_size and self.update_call_counter >= self.hp.update_freq:
+            self.update_call_counter = 0
             batch = self.replay_buffer.sample(self.hp.batch_size)
 
             observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
             observations, next_observations = stack_observations(observations), stack_observations(next_observations)
             states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
+            
             self.policy.update(states, actions, next_states, n_step_return, terminated, truncated, effective_discount, call_back=call_back)
         
         if call_back is not None:            
@@ -180,22 +188,25 @@ class OptionDQNAgent(DQNAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         
     def log(self):
-        pass
-        # if self.running_option_index is None:
-        #     return {
-        #         "OptionUsageLog": False,
-        #         "NumOptions": len(self.options_lst),
-        #         "OptionIndex": None,
-        #         "OptionClass": None,
-        #     }
-        # else:
-        #     return {
-        #         "OptionUsageLog": True,
-        #         "NumOptions": len(self.options_lst),
-        #         "OptionIndex": self.running_option_index,
-        #         "OptionClass": self.options_lst[self.running_option_index].__class__,
-        #     }
-            
+        logs = []
+        for i in range(self.num_envs):
+            curr_option_idx = self.running_option_index[i]
+            if curr_option_idx is None:
+                logs.append({
+                    "OptionUsageLog": False,
+                    "NumOptions": len(self.options_lst),
+                    "OptionIndex": None,
+                    "OptionClass": None,
+                })
+            else:
+                logs.append({
+                    "OptionUsageLog": True,
+                    "NumOptions": len(self.options_lst),
+                    "OptionIndex": curr_option_idx,
+                    "OptionClass": self.options_lst[curr_option_idx].__class__,
+                })
+        return logs
+    
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)  # parent saves feature_extractor, policy, hp, etc.
         
@@ -215,5 +226,8 @@ class OptionDQNAgent(DQNAgent):
         instance = super().load(file_path, checkpoint)
         instance.options_lst = load_options_list(file_path=None, checkpoint=checkpoint['options_lst'])
         instance.atomic_action_space = checkpoint['atomic_action_space']
+        
+        expected = instance.atomic_action_space.n + len(instance.options_lst)
+        assert instance.policy.action_dim == expected, (instance.policy.action_dim, expected)
         
         return instance

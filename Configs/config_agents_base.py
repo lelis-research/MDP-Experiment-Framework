@@ -50,24 +50,27 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        options_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
     
     RandomAgent.name: lambda env, info: RandomAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(),
+        HyperParameters(
+            ),
         get_num_envs(env),
         FlattenFeature,
     ),
-    # OptionRandomAgent.name: lambda env, info: OptionRandomAgent(
-    #     get_env_action_space(env), 
-    #     get_env_observation_space(env),
-    #     HyperParameters(),
-    #     get_num_envs(env),
-    #     options_lst=create_all_options(),
-    # ),
+    OptionRandomAgent.name: lambda env, info: OptionRandomAgent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            ),
+        get_num_envs(env),
+        FlattenFeature,
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()], 
+    ),
 
     #Tabular Agents
     QLearningAgent.name: lambda env, info: QLearningAgent(
@@ -78,8 +81,12 @@ AGENT_DICT = {
             gamma=info.get("gamma", 0.99),
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 10000),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 40000),
             n_steps=info.get("n_steps", 3),
+            
+            replay_buffer_size=info.get("replay_buffer_size", 256), # give a buffer size for Dyna; None is not Dyna
+            batch_size=info.get("batch_size", 1), # for the Dyna
+            warmup_buffer_size=info.get("warmup_buffer_size", 128), #for the Dyna
         ),
         get_num_envs(env),
         TabularFeature,
@@ -93,11 +100,15 @@ AGENT_DICT = {
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
             epsilon_decay_steps=info.get("epsilon_decay_steps", 10000),
-            n_steps=info.get("n_steps", 3),
+            n_steps=info.get("n_steps", 5),
+            
+            replay_buffer_size=info.get("replay_buffer_size", 256), # give a buffer size for Dyna; None is not Dyna
+            batch_size=info.get("batch_size", 1), # for the Dyna
+            warmup_buffer_size=info.get("warmup_buffer_size", 10), #for the Dyna
         ),
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=[test_option()], 
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()], 
     ),
     
     
@@ -106,18 +117,28 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(
-            step_size=info.get("step_size", 1e-3),
             gamma=info.get("gamma", 0.99),
+            n_steps=info.get("n_steps", 3), # n-step td return
+            
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 100_000),
-            n_steps=info.get("n_steps", 3),
-            warmup_buffer_size=info.get("warmup_buffer_size", 1000),
-            replay_buffer_cap=info.get("replay_buffer_cap", 200_000),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 15_000),
+            enable_noisy_nets=info.get("enable_noisy_nets", True), # Noisy Nets instead of e-greedy
+            
+            replay_buffer_size=info.get("replay_buffer_size", 200_000),            
+            warmup_buffer_size=info.get("warmup_buffer_size", 500),
+            
             batch_size=info.get("batch_size", 64),
-            target_update_freq=info.get("target_update_freq", 20),
-            flag_double_dqn_target=info.get("flag_double_dqn_target", True),
-            value_network=NETWORK_PRESETS[info.get("value_network", "mlp1")],
+            update_freq=info.get("update_freq", 4), # update the network every this step
+            target_update_freq=info.get("target_update_freq", 20), 
+            
+            
+            value_network=NETWORK_PRESETS[info.get("value_network", "MiniGrid/DQN/mlp_noisy")],
+            step_size=info.get("step_size", 1e-3),
+            enable_double_dqn_target=info.get("enable_double_dqn_target", True), # Double DQN
+            enable_dueling_networks=info.get("enable_dueling_networks", False), # Dueling Net
+            enable_huber_loss=info.get("enable_huber_loss", True), # Hubber Loss
+            max_grad_norm=info.get("max_grad_norm", None), # Clip Gradients
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
@@ -128,22 +149,32 @@ AGENT_DICT = {
         get_env_action_space(env), 
         get_env_observation_space(env),
         HyperParameters(
-            step_size=info.get("step_size", 1e-4),
             gamma=info.get("gamma", 0.99),
+            n_steps=info.get("n_steps", 3), # n-step td return
+            
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 150_000),
-            n_steps=info.get("n_steps", 3),
-            warmup_buffer_size=info.get("warmup_buffer_size", 1000),
-            replay_buffer_cap=info.get("replay_buffer_cap", 200_000),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 15_000),
+            enable_noisy_nets=info.get("enable_noisy_nets", True), # Noisy Nets instead of e-greedy
+            
+            replay_buffer_size=info.get("replay_buffer_size", 200_000),            
+            warmup_buffer_size=info.get("warmup_buffer_size", 500),
+            
             batch_size=info.get("batch_size", 64),
-            target_update_freq=info.get("target_update_freq", 20),
-            flag_double_dqn_target=info.get("flag_double_dqn_target", True),
-            value_network=NETWORK_PRESETS[info.get("value_network", "mlp1")],
+            update_freq=info.get("update_freq", 4), # update the network every this step
+            target_update_freq=info.get("target_update_freq", 20), 
+            
+            
+            value_network=NETWORK_PRESETS[info.get("value_network", "MiniGrid/DQN/mlp_noisy")],
+            step_size=info.get("step_size", 1e-3),
+            enable_double_dqn_target=info.get("enable_double_dqn_target", True), # Double DQN
+            enable_dueling_networks=info.get("enable_dueling_networks", False), # Dueling Net
+            enable_huber_loss=info.get("enable_huber_loss", True), # Hubber Loss
+            max_grad_norm=info.get("max_grad_norm", None), # Clip Gradients
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[test_option()],
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
     
@@ -154,23 +185,27 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
-            rollout_steps=info.get("rollout_steps", 256),
+            rollout_steps=info.get("rollout_steps", 32),
             
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
-            actor_eps = info.get("actor_eps", 1e-5),
+            actor_eps = info.get("actor_eps", 1e-8),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
             critic_step_size=info.get("critic_step_size", 3e-4),
-            critic_eps = info.get("critic_eps", 1e-5),
+            critic_eps = info.get("critic_eps", 1e-8),
             
             critic_coef=info.get("critic_coef", 0.5),
-            entropy_coef=info.get("entropy_coef", 0.02),
+            entropy_coef=info.get("entropy_coef", 0.0),
+            max_grad_norm=info.get("max_grad_norm", 0.5),
             
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 40_000),
+            min_logstd=info.get("min_logstd", None), #None means no clipping for logstd (-20.0)
+            max_logstd=info.get("max_logstd", None), #None means no clipping for logstd (+2.0)
+            
+            enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
+            total_steps=info.get("total_steps", 200_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
-            norm_adv_flag=info.get("norm_adv_flag", True),
+            enable_advantage_normalization=info.get("enable_advantage_normalization", True),
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
@@ -182,27 +217,31 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
-            rollout_steps=info.get("rollout_steps", 256),
+            rollout_steps=info.get("rollout_steps", 32),
             
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
-            actor_eps = info.get("actor_eps", 1e-5),
+            actor_eps = info.get("actor_eps", 1e-8),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
             critic_step_size=info.get("critic_step_size", 3e-4),
-            critic_eps = info.get("critic_eps", 1e-5),
+            critic_eps = info.get("critic_eps", 1e-8),
             
             critic_coef=info.get("critic_coef", 0.5),
-            entropy_coef=info.get("entropy_coef", 0.02),
+            entropy_coef=info.get("entropy_coef", 0.0),
+            max_grad_norm=info.get("max_grad_norm", 0.5),
             
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 200_000),
+            min_logstd=info.get("min_logstd", None), #None means no clipping for logstd (-20.0)
+            max_logstd=info.get("max_logstd", None), #None means no clipping for logstd (+2.0)
+            
+            enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
+            total_steps=info.get("total_steps", 200_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
-            norm_adv_flag=info.get("norm_adv_flag", True),
+            enable_advantage_normalization=info.get("enable_advantage_normalization", True),
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[test_option()],
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
     
@@ -212,32 +251,34 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
+            rollout_steps=info.get("rollout_steps", 2048),
             mini_batch_size=info.get("mini_batch_size", 64),
-            rollout_steps=info.get("rollout_steps", 256),
-            num_epochs=info.get("num_epochs", 5),
+            num_epochs=info.get("num_epochs", 10),
+            target_kl=info.get("target_kl", None), #None means no early stop
             
-            clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
-            anneal_clip_range_actor=info.get("anneal_clip_range_actor", True),
-            clip_range_critic_init=info.get("clip_range_critic_init", None), # None means no clipping
-            anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
-            target_kl=info.get("target_kl", 0.02),
-            
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
-            actor_eps = info.get("actor_eps", 1e-5),
+            actor_eps = info.get("actor_eps", 1e-8),
+            clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
+            anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
             critic_step_size=info.get("critic_step_size", 3e-4),
-            critic_eps = info.get("critic_eps", 1e-5),
-            
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 100_000),
-            update_type=info.get("update_type", "sync"), # sync, per_env
-            norm_adv_flag=info.get("norm_adv_flag", True),
+            critic_eps = info.get("critic_eps", 1e-8),
+            clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
+            anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
             
             critic_coef=info.get("critic_coef", 0.5),
-            entropy_coef=info.get("entropy_coef", 0.02),
+            entropy_coef=info.get("entropy_coef", 0.0),
             max_grad_norm=info.get("max_grad_norm", 0.5),
+            
+            min_logstd=info.get("min_logstd", None), #None means no clipping for logstd
+            max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
+            
+            enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
+            total_steps=info.get("total_steps", 500_000), # used for anealing step size
+            update_type=info.get("update_type", "per_env"), # sync, per_env
+            enable_advantage_normalization=info.get("enable_advantage_normalization", True),
             
         ),
         get_num_envs(env),
@@ -251,37 +292,75 @@ AGENT_DICT = {
         HyperParameters(
             gamma=info.get("gamma", 0.99),
             lamda=info.get("lamda", 0.95),
+            rollout_steps=info.get("rollout_steps", 2048),
             mini_batch_size=info.get("mini_batch_size", 64),
-            rollout_steps=info.get("rollout_steps", 256),
-            num_epochs=info.get("num_epochs", 5),
+            num_epochs=info.get("num_epochs", 10),
+            target_kl=info.get("target_kl", None), #None means no early stop
             
-            clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
-            anneal_clip_range_actor=info.get("anneal_clip_range_actor", True),
-            clip_range_critic_init=info.get("clip_range_critic_init", None), # None means no clipping
-            anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
-            target_kl=info.get("target_kl", 0.02),
-            
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "mlp1")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
-            actor_eps = info.get("actor_eps", 1e-5),
+            actor_eps = info.get("actor_eps", 1e-8),
+            clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
+            anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "mlp1")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
             critic_step_size=info.get("critic_step_size", 3e-4),
-            critic_eps = info.get("critic_eps", 1e-5),
-            
-            anneal_step_size_flag=info.get("anneal_step_size_flag", False),
-            total_steps=info.get("total_steps", 100_000),
-            update_type=info.get("update_type", "sync"), # sync, per_env
-            norm_adv_flag=info.get("norm_adv_flag", True),
+            critic_eps = info.get("critic_eps", 1e-8),
+            clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
+            anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
             
             critic_coef=info.get("critic_coef", 0.5),
-            entropy_coef=info.get("entropy_coef", 0.02),
+            entropy_coef=info.get("entropy_coef", 0.0),
             max_grad_norm=info.get("max_grad_norm", 0.5),
+            
+            min_logstd=info.get("min_logstd", None), #None means no clipping for logstd
+            max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
+            
+            enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
+            total_steps=info.get("total_steps", 500_000), # used for anealing step size
+            update_type=info.get("update_type", "per_env"), # sync, per_env
+            enable_advantage_normalization=info.get("enable_advantage_normalization", True),
             
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[test_option()],
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        device=device
+    ),
+    
+    TD3Agent.name: lambda env, info: TD3Agent(
+        get_env_action_space(env), 
+        get_env_observation_space(env),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            
+            exploration_noise=info.get("exploration_noise", 0.1),
+            initial_random_steps=info.get("initial_random_steps", 1000),
+            
+            replay_buffer_size=info.get("replay_buffer_size", 200_000),
+            warmup_buffer_size=info.get("warmup_buffer_size", 2048),
+            
+            batch_size=info.get("batch_size", 64),
+            num_updates=info.get("num_updates", 1),
+            policy_delay=info.get("policy_delay", 2),
+            
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MuJoCo/TD3/mlp_actor")],
+            actor_step_size=info.get("actor_step_size", 3e-4),
+            actor_eps = info.get("actor_eps", 1e-8),
+            need_squash=info.get("need_squash", True), # False if the model already has tanh at the end layer
+            
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MuJoCo/TD3/mlp_critic")],
+            critic_step_size=info.get("critic_step_size", 3e-4),
+            critic_eps = info.get("critic_eps", 1e-8),
+            
+            target_policy_noise=info.get("target_policy_noise", 0.1),
+            target_policy_noise_clip=info.get("target_policy_noise_clip", 1.0),
+            target_network_update_tau=info.get("target_network_update_tau", 0.1),
+            max_grad_norm=info.get("max_grad_norm", 0.5),
+            
+        ),
+        get_num_envs(env),
+        FlattenFeature,
         device=device
     ),
 
@@ -317,7 +396,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[test_option(), test_option()],
+        init_option_lst=[[GoToRedGoalOption(), GoToGreenGoalOption()]],
         device=device
     ),
 }

@@ -79,6 +79,7 @@ class BaseOption(RandomGenerator):
         """
         if seed is not None:
             self.set_seed(seed)
+            
         # Subclasses can override if they have internal state to clear.
 
     # --------- (Optional) batched API ---------

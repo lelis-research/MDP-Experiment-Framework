@@ -2,7 +2,7 @@ import numpy as np
 from gymnasium.spaces import Discrete
 
 from .Human import HumanAgent
-from ..Utils.HelperFunctions import get_single_observation
+from ..Utils.HelperFunctions import get_single_observation_nobatch
 
 class OptionHumanAgent(HumanAgent):
     """
@@ -15,11 +15,11 @@ class OptionHumanAgent(HumanAgent):
     SUPPORTED_ACTION_SPACES = (Discrete, )
 
     def __init__(self, action_space, observation_space, hyper_params,
-                 num_envs, feature_extractor_class, options_lst, device="cpu"):
+                 num_envs, feature_extractor_class, init_option_lst, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params,
                          num_envs, feature_extractor_class, device=device)
 
-        self.options_lst = options_lst
+        self.options_lst = init_option_lst
         print(f"Num Options: {len(self.options_lst)}")
         
         self.running_option_index = None
@@ -32,19 +32,18 @@ class OptionHumanAgent(HumanAgent):
     def act(self, observation, greedy=False):
         if self.num_envs != 1:
             raise ValueError("OptionHumanAgent is intended for num_envs == 1.")
-        # observation = get_single_observation(observation, 0)
-        observation = {k: v[0] for k, v in observation.items()}
         
+        obs_option = get_single_observation_nobatch(observation, 0)
         
         if self.running_option_index is not None:
-            action = self.options_lst[self.running_option_index].select_action(observation)
+            action = self.options_lst[self.running_option_index].select_action(obs_option)
         else:
             self._analyze_obs(observation)
             self.print_action_menu()
             action = self._read_user_action()
             if action >= self.action_space.n:
                 self.running_option_index = action - self.action_space.n
-                action = self.options_lst[self.running_option_index].select_action(observation)
+                action = self.options_lst[self.running_option_index].select_action(obs_option)
                 self.option_cumulative_reward = 0.0
                 self.option_multiplier = 1.0
 
@@ -57,8 +56,9 @@ class OptionHumanAgent(HumanAgent):
     def update(self, observation, reward, terminated, truncated, call_back=None):
         reward = reward[0]
         # observation = get_single_observation(observation, 0)
-        observation = {k: v[0] for k, v in observation.items()}
+        obs_option = get_single_observation_nobatch(observation, 0)
         terminated, truncated = terminated[0], truncated[0]
+        
         
         if self.running_option_index is None:
             print("Reward:", reward)
@@ -66,8 +66,9 @@ class OptionHumanAgent(HumanAgent):
             self.option_cumulative_reward += self.option_multiplier * reward
             self.option_multiplier *= self.hp.gamma
             
-            if terminated or truncated or self.options_lst[self.running_option_index].is_terminated(observation):
+            if terminated or truncated or self.options_lst[self.running_option_index].is_terminated(obs_option):
                 print("Option Reward:", self.option_cumulative_reward)
+                self.options_lst[self.running_option_index].reset()
                 self.running_option_index = None
                 self.option_cumulative_reward = 0.0
                 self.option_multiplier = 1.0

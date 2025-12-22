@@ -21,7 +21,7 @@ class TwoGoalEmptyRoom(MiniGridEnv):
     """
 
     def __init__(self, size=6, max_steps=None, agent_start_pos=None, agent_start_dir=0, **kwargs):
-        mission_space = MissionSpace(mission_func=lambda: "collect both goals")
+        mission_space = MissionSpace(mission_func=self._gen_mission)
         if max_steps is None:
             max_steps = 4 * size * size
 
@@ -41,7 +41,11 @@ class TwoGoalEmptyRoom(MiniGridEnv):
             max_steps=max_steps,
             **kwargs,
         )
-
+    
+    @staticmethod
+    def _gen_mission():
+        return "collect both goals"
+    
     def _gen_grid(self, width, height):
         self.grid = Grid(width, height)
         self.grid.wall_rect(0, 0, width, height)
@@ -51,8 +55,8 @@ class TwoGoalEmptyRoom(MiniGridEnv):
         self.green_pos = (width - 2, height - 2)
 
         # Place goals (reward stored here, but we’ll control reward/termination in step)
-        self.grid.set(*self.red_pos, RewardGoal(reward_value=1.0, is_terminal=False, color="red"))
-        self.grid.set(*self.green_pos, RewardGoal(reward_value=1.0, is_terminal=False, color="green"))
+        self.grid.set(*self.red_pos, RewardGoal(reward_value=0.0, is_terminal=False, color="red"))
+        self.grid.set(*self.green_pos, RewardGoal(reward_value=0.0, is_terminal=False, color="green"))
 
         self.red_collected = False
         self.green_collected = False
@@ -68,21 +72,21 @@ class TwoGoalEmptyRoom(MiniGridEnv):
 
     def step(self, action):
         # Run MiniGrid dynamics (movement, walls, etc.)
-        obs, _, terminated, truncated, info = super().step(action)
+        obs, reward, terminated, truncated, info = super().step(action)
 
         # Ignore MiniGrid’s own goal termination and compute our own reward/termination
-        reward = 0.0
         terminated = False
-
+        curr_obj = self.grid.get(*self.agent_pos)
+        
         # Check whether we are standing on a goal tile (by position is simplest/robust)
         if (self.agent_pos == self.red_pos) and (not self.red_collected):
             self.red_collected = True
-            reward += 1.0
+            reward += curr_obj.reward_value
             self.grid.set(*self.red_pos, None)   # remove so it can't be collected again
 
         if (self.agent_pos == self.green_pos) and (not self.green_collected):
             self.green_collected = True
-            reward += 1.0
+            reward += curr_obj.reward_value
             self.grid.set(*self.green_pos, None)
 
         if self.red_collected and self.green_collected:

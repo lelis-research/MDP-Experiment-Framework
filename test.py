@@ -8,6 +8,9 @@ from RLBase.Trainers import OnlineTrainer
 from RLBase.Evaluate import SingleExpAnalyzer
 from RLBase.Environments import get_env, ENV_LST
 from RLBase import load_policy, load_agent
+# TODO: the test doesn't work for the OptionAgents because 
+# the OnlineTrainer doesn't call the update method of agent
+# which is needed for terminating an option
 
 def discover_agent_files(train_path: Path):
     files = sorted(train_path.glob("*_agent.t"))
@@ -54,7 +57,7 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "Runs/Train/CliffWalking-v1_/DQN/_seed[123123]"
+        exp_name = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/A2C/_seed[123123]"
     else:
         exp_name = args.exp_dir
     
