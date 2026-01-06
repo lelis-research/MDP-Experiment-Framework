@@ -7,19 +7,17 @@ from ....registry import register_option
 from .MiniGridHelper import *
 
 @register_option
-class test_option(BaseOption):
-    def __init__(self):
+class ActionLeft(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Turn Left", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
         self.counter = 0
-        self.option_id = "test"
-        self.hp = None
-        self.device = None
-
-    def select_action(self, obsersvation):
+    
+    def select_action(self, observation, internal_state = None):
         self.counter += 1
-        return 1
-
-    def is_terminated(self, observation):
-        if self.counter >= 5:
+        return 0
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
             self.counter = 0
             return True
         return False
@@ -27,7 +25,43 @@ class test_option(BaseOption):
     def reset(self):
         self.counter = 0
 
+@register_option
+class ActionRight(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Turn Right", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return 1
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
 
+@register_option
+class ActionForward(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Move Forward", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return 2
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
 
 @register_option
 class GoToGreenGoalOption(BaseOption, GridNavMixin):

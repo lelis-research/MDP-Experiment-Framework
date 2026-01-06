@@ -1,12 +1,81 @@
 import numpy as np
 import torch
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Sequence
 import warnings
 
 ObsType = Union[Dict[str, Any], np.ndarray, torch.Tensor]
 
     
 
+
+def get_batch_observation(observation: ObsType, indices: Union[Sequence[int], np.ndarray, torch.Tensor]) -> ObsType:
+    """
+    Extract a batch of observations from a batched observation using indices.
+    ALWAYS keeps batch dimension.
+
+    Supports:
+      - dict[str, np.ndarray / torch.Tensor / tuple / list]
+      - np.ndarray
+      - torch.Tensor
+
+    Returns:
+      Same structure as observation, but batch size = len(indices)
+    """
+
+    # Normalize indices
+    if isinstance(indices, torch.Tensor):
+        idx = indices.detach().cpu().tolist()
+    elif isinstance(indices, np.ndarray):
+        idx = indices.tolist()
+    else:
+        idx = list(indices)
+
+    if len(idx) == 0:
+        raise ValueError("get_batch_observation got empty indices.")
+
+    def take(x):
+        if isinstance(x, (np.ndarray, torch.Tensor)):
+            return x[idx]  # advanced indexing → keeps batch dim
+
+        if isinstance(x, (list, tuple)):
+            picked = [x[i] for i in idx]
+            return type(x)(picked) if isinstance(x, tuple) else picked
+
+        raise NotImplementedError(f"Element type {type(x)} is not supported.")
+
+    # Dict observation
+    if isinstance(observation, dict):
+        return {k: take(v) for k, v in observation.items()}
+
+    # Tensor / array observation
+    if isinstance(observation, (np.ndarray, torch.Tensor)):
+        return take(observation)
+
+    raise NotImplementedError(
+        f"Vectorized observation type {type(observation)} is not supported."
+    )
+
+def get_batch_state(state: Dict[str, torch.Tensor], indices: Union[Sequence[int], np.ndarray, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """
+    Extract a batch from a batched state dict.
+    ALWAYS keeps batch dimension.
+    """
+
+    if isinstance(indices, torch.Tensor):
+        idx = indices.to(device=next(iter(state.values())).device)
+    else:
+        idx = torch.as_tensor(indices, dtype=torch.long,
+                              device=next(iter(state.values())).device)
+
+    if idx.numel() == 0:
+        raise ValueError("get_batch_state got empty indices.")
+
+    out = {}
+    for k, v in state.items():
+        if not isinstance(v, torch.Tensor):
+            raise TypeError(f"State value for key '{k}' must be torch.Tensor.")
+        out[k] = v.index_select(0, idx)
+    return out
 
 def get_single_observation(observation: ObsType, index: int) -> ObsType:
     """

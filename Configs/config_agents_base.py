@@ -3,7 +3,7 @@ from RLBase.FeatureExtractors import *
 from RLBase.Agents import *
 from RLBase.Networks import NETWORK_PRESETS
 # from RLBase.Options import load_options_list
-from RLBase.Options.SymbolicOptions.PreDesigned import test_option, GoToRedGoalOption, GoToGreenGoalOption
+from RLBase.Options.SymbolicOptions.PreDesigned import *
 import torch
 
 def get_env_action_space(env):
@@ -317,7 +317,7 @@ AGENT_DICT = {
             max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
             
             enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
-            total_steps=info.get("total_steps", 500_000), # used for anealing step size
+            total_steps=info.get("total_steps", 100_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
             enable_advantage_normalization=info.get("enable_advantage_normalization", True),
             
@@ -367,36 +367,60 @@ AGENT_DICT = {
     VQOptionCriticAgent.name: lambda env, info: VQOptionCriticAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(
-            gamma=info.get("gamma", 0.99),
-            
-            encoder_network=NETWORK_PRESETS[info.get("encoder_network", "enc")],
+        HyperParameters(            
+            # Encoder Params
+            encoder_network=NETWORK_PRESETS[info.get("encoder_network", "MiniGrid/VQOptionCritic/mlp_encoder")],
             encoder_step_size=info.get("encoder_step_size", 3e-4),
             encoder_eps=info.get("encoder_eps", 1e-5),
             encoder_dim=info.get("encoder_dim", 256),
             
-            hl_actor_network=NETWORK_PRESETS[info.get("hl_actor_network", "mlp1")],
-            hl_actor_step_size=info.get("hl_actor_step_size", 3e-4),
-            hl_actor_eps=info.get("hl_actor_eps", 1e-5),
-            hl_critic_network = NETWORK_PRESETS[info.get("hl_critic_network", "critic")],
-            hl_critic_step_size=info.get("hl_critic_step_size", 3e-4),
-            hl_critic_eps=info.get("hl_critic_eps", 1e-5),
-            hl_exploration_noise_sigma=info.get("hl_exploration_noise_sigma", 0.1),
-            hl_buffer_capacity=info.get("hl_buffer_capacity", 100_000),
-            hl_warmup_size=info.get("hl_warmup_size", 4),
-            hl_batch_size=info.get("hl_batch_size", 2),
-            hl_target_policy_noise=info.get("hl_target_policy_noise", 0.1),
-            hl_target_noise_clip=info.get("hl_target_noise_clip", 0.5),
-            hl_policy_delay=info.get("hl_policy_delay", 2),
-            hl_tau=info.get("hl_tau", 0.005),
+            # High Level Params
+            hl = HyperParameters(
+                gamma=info.get("gamma", 0.99),
+                lamda=info.get("lamda", 0.95),
+                rollout_steps=info.get("rollout_steps", 2048),
+                mini_batch_size=info.get("mini_batch_size", 64),
+                num_epochs=info.get("num_epochs", 10),
+                target_kl=info.get("target_kl", None), #None means no early stop
+                
+                actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
+                actor_step_size=info.get("actor_step_size", 3e-4),
+                actor_eps = info.get("actor_eps", 1e-8),
+                clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
+                anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
+                
+                critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
+                critic_step_size=info.get("critic_step_size", 3e-4),
+                critic_eps = info.get("critic_eps", 1e-8),
+                clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
+                anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
+                
+                critic_coef=info.get("critic_coef", 0.5),
+                entropy_coef=info.get("entropy_coef", 0.0),
+                max_grad_norm=info.get("max_grad_norm", 0.5),
+                
+                min_logstd=info.get("min_logstd", None), #None means no clipping for logstd
+                max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
+                
+                enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
+                total_steps=info.get("total_steps", 100_000), # used for anealing step size
+                # update_type=info.get("update_type", "per_env"), # sync, per_env
+                enable_advantage_normalization=info.get("enable_advantage_normalization", True),
+            ),
             
-            embedding_dim = info.get("embedding_dim", 32),
+            
+            
+            # CodeBook Params
+            embedding_dim = info.get("embedding_dim", 3),
+            embedding_low = info.get("embedding_low", -1),
+            embedding_high = info.get("embedding_high", +1),
+            commit_coef = info.get("commit_coef", 0.1),
             
             
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[[GoToRedGoalOption(), GoToGreenGoalOption()]],
+        init_option_lst=[ActionLeft(), ActionRight(), ActionForward()], #, GoToGreenGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
 }
