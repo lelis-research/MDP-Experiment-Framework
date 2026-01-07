@@ -43,6 +43,12 @@ class PPOPolicy(BasePolicy):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
+            self._action_low  = torch.as_tensor(self.action_space.low,  device=self.device, dtype=torch.float32)
+            self._action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
+            self._action_scale = (self._action_high - self._action_low) / 2.0
+            self._action_scale = torch.clamp(self._action_scale, min=1e-6)
+            self._action_bias  = (self._action_high + self._action_low) / 2.0
+    
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -75,6 +81,13 @@ class PPOPolicy(BasePolicy):
             self.actor_logstd = nn.Parameter(torch.zeros(1, np.prod(self.action_space.shape), device=self.device))
             self.actor_optimizer = optim.Adam(list(self.actor.parameters()) + [self.actor_logstd],lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
             
+            self._action_low  = torch.as_tensor(self.action_space.low,  device=self.device, dtype=torch.float32)
+            self._action_high = torch.as_tensor(self.action_space.high, device=self.device, dtype=torch.float32)
+            self._action_scale = (self._action_high - self._action_low) / 2.0
+            self._action_scale = torch.clamp(self._action_scale, min=1e-6)
+            self._action_bias  = (self._action_high + self._action_low) / 2.0
+            
+            
         elif isinstance(self.action_space, Discrete):
             self.actor_logstd = None
             self.actor_optimizer = optim.Adam(self.actor.parameters(),lr=self.hp.actor_step_size, eps=self.hp.actor_eps)
@@ -85,6 +98,23 @@ class PPOPolicy(BasePolicy):
         self.update_counter = 0   
         
 
+    def _squash(self, u):
+        # u in R^A -> a in [-1,1]
+        return torch.tanh(u)
+
+    def _unsquash(self, a):
+        # a in [-1,1] -> u in R^A (atanh); clamp for numerical safety
+        eps = 1e-6
+        a = torch.clamp(a, -1 + eps, 1 - eps)
+        return 0.5 * (torch.log1p(a) - torch.log1p(-a))  # atanh(a)
+
+    def _scale_to_env(self, a):
+        # a in [-1,1] -> env bounds
+        return a * self._action_scale + self._action_bias
+
+    def _unscale_from_env(self, a_env):
+        # env bounds -> [-1,1]
+        return (a_env - self._action_bias) / self._action_scale
 
     def get_logprob_entropy(self, state, action_t=None):
         """
@@ -128,16 +158,45 @@ class PPOPolicy(BasePolicy):
                 )
             
             std = torch.exp(logstd)
-
             dist = Normal(mean, std)
+            
+            if self.hp.enable_transform_action:
+                greedy_action = self._scale_to_env(self._squash(mean))
+                if action_t is None:
+                    u = dist.rsample()                     # [B, A]
+                    action_t = self._scale_to_env(self._squash(u))  # [B, A]
+                else:
+                    action_t = torch.clamp(action_t, self._action_low, self._action_high)  # [B, A]
+                    # action_t is in env bounds (from buffer); map back to pre-tanh u
+                    u = self._unsquash(self._unscale_from_env(action_t))
+                    
                 
-            greedy_action = mean
-            if action_t is None:
-                action_t = dist.sample()                 # [B, A]
+                # log prob with change-of-variables:
+                # log π(a_env) = log N(u;mean,std) - sum log(1 - tanh(u)^2) - sum log(scale)
+                logp_u = dist.log_prob(u).sum(dim=-1)
 
-            # For multivariate Normal with factorized dims, sum over action dim
-            log_prob = dist.log_prob(action_t).sum(dim=-1)   # [B, A] -> [B]
-            entropy = dist.entropy().sum(dim=-1)             # [B, A] -> [B]
+                # tanh correction uses a = tanh(u)
+                # but we already have a; safer to recompute from u for consistency:
+                a_from_u = self._squash(u)
+                log_det_tanh = torch.log(1 - a_from_u.pow(2) + 1e-6).sum(dim=-1)
+
+                # scaling correction: a_env = a * scale + bias  => |det J| = prod(scale)
+                # so subtract sum log(scale)
+                log_det_scale = torch.log(self._action_scale).sum()
+
+                log_prob = logp_u - log_det_tanh - log_det_scale
+
+                # "entropy" after squash isn't analytic; PPO usually uses base entropy as a proxy
+                entropy = dist.entropy().sum(dim=-1)
+    
+            else:
+                greedy_action = mean
+                if action_t is None:
+                    action_t = dist.rsample()                 # [B, A]
+
+                # For multivariate Normal with factorized dims, sum over action dim
+                log_prob = dist.log_prob(action_t).sum(dim=-1)   # [B, A] -> [B]
+                entropy = dist.entropy().sum(dim=-1)             # [B, A] -> [B]
         else:
             raise NotImplementedError(
                 f"PPOPolicy:get_logprob_entropy does not support action space of type {type(self.action_space)}"

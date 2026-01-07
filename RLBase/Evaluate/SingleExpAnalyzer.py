@@ -400,9 +400,436 @@ class SingleExpAnalyzer:
 
         return fig, axs
         
+    def plot_option_embedding1(self, fig=None, ax=None, save_dir=None, show=False,
+                              color='blue', marker='o', label="", show_legend=True,
+                              title="", index=None, total_index=None):  
+        data = []
+        for r, run in enumerate(self.metrics):
+            for e, ep in enumerate(run):
+                for l, logs in enumerate(ep.get("agent_logs")):
+                    if isinstance(logs, list):
+                        data.extend(logs)
+                    else:
+                        data.append(logs)
+                    
+        # Group points by index
+        by_ind = defaultdict(list)
+        for d in data:
+            by_ind[d['ind']].append(d)
+
+        # Create a color map (5 distinct colors)
+        cmap = plt.cm.get_cmap("tab10", len(by_ind))
+
+        plt.figure(figsize=(7, 7))
+
+        for idx, (ind, items) in enumerate(by_ind.items()):
+            color = cmap(idx)
+
+            # Plot all proto_e for this ind
+            proto_es = np.stack([d['proto_e'] for d in items])
+            plt.scatter(
+                proto_es[:, 0],
+                proto_es[:, 1],
+                color=color,
+                # marker='x',
+                s=8,              # 👈 make markers small (try 4–12)
+                linewidths=0.5,   # 👈 thin the 'x' strokes
+                alpha=0.1,
+                label=f'proto_e (ind={ind})'
+            )
+
+            # Plot the corresponding e (usually one per ind)
+            e_vals = np.stack([d['e'].cpu().numpy() for d in items])
+            plt.scatter(
+                e_vals[:, 0],
+                e_vals[:, 1],
+                color=color,
+                marker='o',
+                s=32,
+                edgecolors='black',
+                label=f'e (ind={ind})'
+            )
+            
+
+        plt.axhline(0, color='gray', linewidth=0.5)
+        plt.axvline(0, color='gray', linewidth=0.5)
+        plt.xlabel("Dim 1")
+        plt.ylabel("Dim 2")
+        plt.title("e vs proto_e embeddings")
+        # plt.legend()
+        plt.grid(True)
+        plt.axis("equal")
+        plt.show()
         
-        
+    def plot_option_embedding2(
+        self,
+        fig=None,
+        ax=None,
+        save_dir=None,
+        show=False,
+        show_legend=True,
+        title="e vs proto_e embeddings",
+        # marker/size controls
+        proto_marker="x",
+        e_marker="o",
+        proto_s=8,
+        e_s=32,
+        proto_alpha=0.15,
+        e_alpha=0.9,
+        proto_lw=0.5,
+        e_edge_lw=0.8,
+        draw_lines=False,      # connect proto_e -> e (useful but can clutter)
+    ):
+        # -------------------------
+        # 1) Collect logs robustly
+        # -------------------------
+        data = []
+        for run in getattr(self, "metrics", []):
+            for ep in run:
+                for logs in ep.get("agent_logs", []):
+                    if isinstance(logs, list):
+                        data.extend(logs)
+                    elif isinstance(logs, dict):
+                        data.append(logs)
+
+        if len(data) == 0:
+            print("plot_option_embedding: no data found in agent_logs.")
+            return
+
+        # -------------------------
+        # 2) Infer dimensionality
+        # -------------------------
+        def to_np_vec(v):
+            if hasattr(v, "detach"):  # torch tensor
+                v = v.detach().cpu().numpy()
+            else:
+                v = np.asarray(v)
+            return np.asarray(v, dtype=float).reshape(-1)
+
+        first = data[0]
+        d_proto = to_np_vec(first["proto_e"]).shape[0]
+        d_e = to_np_vec(first["e"]).shape[0]
+        dim = d_proto  # assume they match
+
+        if dim not in (2, 3):
+            raise ValueError(f"Expected 2D or 3D embeddings, got dim={dim}. (proto_e={d_proto}, e={d_e})")
+        if d_proto != d_e:
+            raise ValueError(f"proto_e dim != e dim ({d_proto} vs {d_e}).")
+
+        # -------------------------
+        # 3) Group by ind safely
+        # -------------------------
+        by_ind = defaultdict(list)
+        for dct in data:
+            ind_val = dct.get("ind", 0)
+            # convert torch/numpy scalars to python int
+            if hasattr(ind_val, "item"):
+                ind_val = ind_val.item()
+            ind_val = int(ind_val)
+            by_ind[ind_val].append(dct)
+
+        # -------------------------
+        # 4) Create fig/ax
+        # -------------------------
+        created_fig = False
+        if fig is None or ax is None:
+            created_fig = True
+            if dim == 3:
+                fig = plt.figure(figsize=(8, 8))
+                ax = fig.add_subplot(111, projection="3d")
+            else:
+                fig, ax = plt.subplots(figsize=(7, 7))
+
+        # -------------------------
+        # 5) Colors per ind
+        # -------------------------
+        cmap = plt.cm.get_cmap("tab10", len(by_ind))
+
+        # -------------------------
+        # 6) Plot
+        # -------------------------
+        for color_i, (ind, items) in enumerate(sorted(by_ind.items())):
+            color = cmap(color_i)
+
+            proto_es = np.stack([to_np_vec(dct["proto_e"]) for dct in items])
+            e_vals  = np.stack([to_np_vec(dct["e"])       for dct in items])
+
+            if dim == 2:
+                ax.scatter(
+                    proto_es[:, 0], proto_es[:, 1],
+                    color=color,
+                    marker=proto_marker,
+                    s=proto_s,
+                    alpha=proto_alpha,
+                    linewidths=proto_lw,
+                    label=(f"proto_e (ind={ind})" if show_legend else None),
+                )
+                ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1],
+                    color=color,
+                    marker=e_marker,
+                    s=e_s,
+                    alpha=e_alpha,
+                    edgecolors="black",
+                    linewidths=e_edge_lw,
+                    label=(f"e (ind={ind})" if show_legend else None),
+                )
+
+                if draw_lines:
+                    for pe, ev in zip(proto_es, e_vals):
+                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]], color=color, alpha=0.2, linewidth=0.7)
+
+            else:  # dim == 3
+                ax.scatter(
+                    proto_es[:, 0], proto_es[:, 1], proto_es[:, 2],
+                    color=color,
+                    marker=proto_marker,
+                    s=proto_s,
+                    alpha=proto_alpha,
+                    linewidths=proto_lw,
+                    label=(f"proto_e (ind={ind})" if show_legend else None),
+                )
+                ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1], e_vals[:, 2],
+                    color=color,
+                    marker=e_marker,
+                    s=e_s,
+                    alpha=e_alpha,
+                    edgecolors="black",
+                    linewidths=e_edge_lw,
+                    label=(f"e (ind={ind})" if show_legend else None),
+                )
+
+                if draw_lines:
+                    for pe, ev in zip(proto_es, e_vals):
+                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]], color=color, alpha=0.2, linewidth=0.7)
+
+        # -------------------------
+        # 7) Cosmetics
+        # -------------------------
+        if dim == 2:
+            ax.axhline(0, color="gray", linewidth=0.5)
+            ax.axvline(0, color="gray", linewidth=0.5)
+            ax.set_xlabel("Dim 1")
+            ax.set_ylabel("Dim 2")
+            ax.grid(True)
+            ax.set_aspect("equal", adjustable="box")
+        else:
+            ax.set_xlabel("Dim 1")
+            ax.set_ylabel("Dim 2")
+            ax.set_zlabel("Dim 3")
+
+        ax.set_title(title)
+
+        if show_legend:
+            # Note: this will create 2 entries per ind; fine for 5 inds.
+            ax.legend(loc="best", fontsize=9)
+
+        # -------------------------
+        # 8) Save / show
+        # -------------------------
+        if save_dir is not None:
+            fig.savefig(save_dir, bbox_inches="tight", dpi=200)
+
+        if show or created_fig:
+            plt.show()
+
+        return fig, ax
     
+    def plot_option_embedding3(
+        self,
+        fig=None,
+        ax=None,
+        save_dir=None,
+        show=False,
+        show_legend=True,
+        title="e vs proto_e embeddings",
+        # sizes
+        proto_s=8,
+        e_s=32,
+        proto_alpha=0.15,
+        e_alpha=0.9,
+        proto_lw=0.5,
+        e_edge_lw=0.8,
+        draw_lines=False,
+        # NEW: episode bucketing
+        episode_buckets=5,   # 2=halves, 3=thirds, etc.
+    ):
+        # ---------- helpers ----------
+        def to_np_vec(v):
+            if hasattr(v, "detach"):
+                v = v.detach().cpu().numpy()
+            return np.asarray(v, dtype=float).reshape(-1)
+
+        # Marker pool for buckets (repeat if needed)
+        bucket_markers = ['x', '^', 's', 'D', 'P', 'v', '*', '<', '>', '1', '2', '3', '4']
+        if episode_buckets > len(bucket_markers):
+            # just cycle if user picks a huge number
+            pass
+
+        # ---------- collect logs + attach ep index ----------
+        data = []
+        for run in getattr(self, "metrics", []):
+            for ep_idx, ep in enumerate(run):
+                for logs in ep.get("agent_logs", []):
+                    if isinstance(logs, list):
+                        for d in logs:
+                            if isinstance(d, dict):
+                                dd = dict(d)
+                                dd["_ep_idx"] = ep_idx
+                                data.append(dd)
+                    elif isinstance(logs, dict):
+                        dd = dict(logs)
+                        dd["_ep_idx"] = ep_idx
+                        data.append(dd)
+
+        if not data:
+            print("plot_option_embedding: no data found in agent_logs.")
+            return
+
+        # ---------- infer dimension ----------
+        dim = to_np_vec(data[0]["proto_e"]).shape[0]
+        if dim not in (2, 3):
+            raise ValueError(f"Expected 2D or 3D embeddings, got dim={dim}.")
+
+        # ---------- compute bucket id for each point ----------
+        max_ep = max(d["_ep_idx"] for d in data)
+        denom = max(1, max_ep + 1)  # number of episodes in run
+        for d in data:
+            # bucket = floor(ep_idx / num_eps * episode_buckets)
+            b = int(np.floor(d["_ep_idx"] * episode_buckets / denom))
+            d["_bucket"] = min(b, episode_buckets - 1)
+
+        # ---------- group by ind ----------
+        by_ind = defaultdict(list)
+        for d in data:
+            ind_val = d.get("ind", 0)
+            if hasattr(ind_val, "item"):
+                ind_val = ind_val.item()
+            ind_val = int(ind_val)
+            by_ind[ind_val].append(d)
+
+        # ---------- fig/ax ----------
+        created_fig = False
+        if fig is None or ax is None:
+            created_fig = True
+            if dim == 3:
+                fig = plt.figure(figsize=(8, 8))
+                ax = fig.add_subplot(111, projection="3d")
+            else:
+                fig, ax = plt.subplots(figsize=(7, 7))
+
+        # ---------- colors for ind ----------
+        cmap = plt.cm.get_cmap("tab10", len(by_ind))
+
+        # ---------- plot ----------
+        # We'll create legend entries more carefully to avoid exploding legends:
+        # - one legend for ind colors (optional)
+        # - one legend for episode buckets (markers)
+        ind_handles = []
+        bucket_handles = []
+
+        for color_i, (ind, items) in enumerate(sorted(by_ind.items())):
+            color = cmap(color_i)
+
+            # plot e as one marker per ind (constant marker)
+            e_vals = np.stack([to_np_vec(d["e"]) for d in items])
+            if dim == 2:
+                sc_e = ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1],
+                    color=color, marker='o', s=e_s,
+                    alpha=e_alpha, edgecolors="black",
+                    linewidths=e_edge_lw,
+                    label=None
+                )
+            else:
+                sc_e = ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1], e_vals[:, 2],
+                    color=color, marker='o', s=e_s,
+                    alpha=e_alpha, edgecolors="black",
+                    linewidths=e_edge_lw,
+                    label=None
+                )
+
+            # keep a handle for ind legend (just once per ind)
+            ind_handles.append((sc_e, f"ind={ind}"))
+
+            # plot proto_e with marker depending on episode bucket
+            for b in range(episode_buckets):
+                b_items = [d for d in items if d["_bucket"] == b]
+                if not b_items:
+                    continue
+                proto_es = np.stack([to_np_vec(d["proto_e"]) for d in b_items])
+                m = bucket_markers[b % len(bucket_markers)]
+
+                if dim == 2:
+                    sc_p = ax.scatter(
+                        proto_es[:, 0], proto_es[:, 1],
+                        color=color, marker=m,
+                        s=proto_s, alpha=proto_alpha,
+                        linewidths=proto_lw,
+                        label=None
+                    )
+                else:
+                    sc_p = ax.scatter(
+                        proto_es[:, 0], proto_es[:, 1], proto_es[:, 2],
+                        color=color, marker=m,
+                        s=proto_s, alpha=proto_alpha,
+                        linewidths=proto_lw,
+                        label=None
+                    )
+
+                # optional lines (can get busy fast)
+                if draw_lines:
+                    e_bucket = np.stack([to_np_vec(d["e"]) for d in b_items])
+                    for pe, ev in zip(proto_es, e_bucket):
+                        if dim == 2:
+                            ax.plot([pe[0], ev[0]], [pe[1], ev[1]], color=color, alpha=0.15, linewidth=0.6)
+                        else:
+                            ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]], color=color, alpha=0.15, linewidth=0.6)
+
+        # ---------- cosmetics ----------
+        if dim == 2:
+            ax.axhline(0, color="gray", linewidth=0.5)
+            ax.axvline(0, color="gray", linewidth=0.5)
+            ax.set_xlabel("Dim 1"); ax.set_ylabel("Dim 2")
+            ax.grid(True)
+            ax.set_aspect("equal", adjustable="box")
+        else:
+            ax.set_xlabel("Dim 1"); ax.set_ylabel("Dim 2"); ax.set_zlabel("Dim 3")
+
+        ax.set_title(title)
+
+        # ---------- legends (two separate legends: colors for ind, markers for time buckets) ----------
+        if show_legend:
+            # legend 1: ind colors (use e circles as handles)
+            handles1 = [h for h, _ in ind_handles]
+            labels1  = [lab for _, lab in ind_handles]
+            leg1 = ax.legend(handles1, labels1, loc="upper right", title="Option index (color)")
+            ax.add_artist(leg1)
+
+            # legend 2: episode buckets (create dummy handles)
+            dummy = []
+            dummy_labels = []
+            for b in range(episode_buckets):
+                m = bucket_markers[b % len(bucket_markers)]
+                # create a dummy scatter for legend
+                if dim == 2:
+                    h = ax.scatter([], [], marker=m, color="black", s=proto_s*2, alpha=0.8)
+                else:
+                    h = ax.scatter([], [], [], marker=m, color="black", s=proto_s*2, alpha=0.8)
+                dummy.append(h)
+                # label ranges nicely
+                dummy_labels.append(f"bucket {b+1}/{episode_buckets}")
+            ax.legend(dummy, dummy_labels, loc="lower right", title="Episode bucket (marker)")
+
+        if save_dir is not None:
+            fig.savefig(save_dir, bbox_inches="tight", dpi=200)
+
+        if show or created_fig:
+            plt.show()
+
+        return fig, ax
     # ---------------------------
     # Misc: seed saver and video generator
     # ---------------------------

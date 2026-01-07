@@ -16,6 +16,7 @@ plt.rcParams.update({
 
 
 def _build_analyzer(payload):
+    
     if isinstance(payload, str):
         return SingleExpAnalyzer(exp_path=payload)
     elif isinstance(payload, list):

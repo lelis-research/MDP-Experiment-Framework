@@ -85,7 +85,7 @@ MINIGRID_ENV_LST = [
     "MiniGrid-Playground-v0",
     
     "MazeRoomsEnv-v0",
-    "MiniGrid-EmptyTwoGoals-6x6-v0",
+    "MiniGrid-EmptyTwoGoals-v0",
     
 ]
 

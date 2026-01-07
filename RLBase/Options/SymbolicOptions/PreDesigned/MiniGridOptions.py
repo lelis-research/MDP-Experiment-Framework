@@ -173,3 +173,56 @@ class GoToRedGoalOption(BaseOption, GridNavMixin):
     def reset(self, seed = None):
         super().reset(seed)
         self.counter = 0
+        
+@register_option
+class GoToBlueGoalOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "go_to_blue_goal", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+
+    def _path_to_blue_goal(self, obs):
+        return self._find_nearest_of_type(
+            obs,
+            obj_id_filter=OID["goal"],
+            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["blue"]),
+            avoid_lava=True,
+        )
+
+    def _standing_on_blue_goal(self, obs) -> bool:
+        img = self._img(obs)
+        agent = self._find_agent(obs)  # (x,y)
+        c = img[int(agent[0]), int(agent[1])]
+        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["blue"])
+    
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._path_to_blue_goal(observation)
+        return path is not None and len(path) >= 2
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any) -> float:
+        return 1.0 if self._standing_on_blue_goal(observation) else 0.0
+
+    def select_action(self, observation: Any, internal_state: Optional[Any] = None):
+        if self._standing_on_blue_goal(observation):
+            return int(A_DONE)
+
+        path = self._path_to_blue_goal(observation)
+        if path is None or len(path) < 2:
+            return int(A_LEFT)
+
+        act = self._step_towards(observation, path)
+        
+        self.counter += 1
+        
+        return int(A_LEFT if act is None else act)
+
+    def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
+        terminated = self._standing_on_blue_goal(observation) or (self._path_to_blue_goal(observation) is None) or self.counter >= 10
+        if terminated:
+            self.counter = 0
+        return terminated
+    def reset(self, seed = None):
+        super().reset(seed)
+        self.counter = 0

@@ -30,6 +30,8 @@ from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
 from ....FeatureExtractors import get_batch_features
 
 
+from ....Options.SymbolicOptions.PreDesigned import GoToBlueGoalOption
+
 class Encoder(RandomGenerator):
     def __init__(self, hyper_params, features_dict, device):
         self.features_dict = features_dict
@@ -80,7 +82,6 @@ class CodeBook(RandomGenerator):
         self._init_weights()
     
     def _init_weights(self):
-        """Init using torch RNG (assumes you seeded torch once at experiment start)."""
         with torch.no_grad():
             eps = 1.0 / max(1, self.num_codes)
             nn.init.uniform_(self.emb.weight, -eps, eps)
@@ -202,15 +203,15 @@ class VQOptionCriticAgent(BaseAgent):
         
         
         self.tmp_counter = 0
+        self.tmp_flag = False
+        self.log_lst = []
+    
+    def log(self):
+        logs = self.log_lst
+        self.log_lst = []
+        return logs
     
     def act(self, observation, greedy=False):
-        self.tmp_counter += 1
-        if self.tmp_counter % 5000 == 0 and self.tmp_counter > 60_000:
-            self.code_book.add_row()
-            rand_option_id = self._rand_index(len(self.options_lst))
-            self.options_lst.append(copy.deepcopy(self.options_lst[rand_option_id]))
-            print("[Info] VQOptionCriticAgent: Added new codebook entry. Total codes:", self.code_book.num_codes)
-            
         state = self.feature_extractor(observation)
         
         # 1) Determine which envs need a new option
@@ -253,6 +254,17 @@ class VQOptionCriticAgent(BaseAgent):
         return action
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
+        call_back({"tmp_counter": self.tmp_counter})
+        if terminated[0]:
+            # reached goal
+            self.tmp_counter += 1
+        # if not self.tmp_flag and self.tmp_counter >= 3000:
+        #     self.tmp_flag = True
+        #     self.code_book.add_row()
+        #     self.options_lst.append(GoToBlueGoalOption())
+        #     print("[Info] VQOptionCriticAgent: Added new codebook entry. Total codes:", self.code_book.num_codes)
+        call_back({"num_codes": self.code_book.num_codes})
+        
         self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
         
     def update_hl(self, observation, reward, terminated, truncated, call_back=None):
@@ -266,6 +278,11 @@ class VQOptionCriticAgent(BaseAgent):
             self.option_multiplier[i] *= self.hp.hl.gamma
             self.option_num_steps[i] += 1
             if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                self.log_lst.append({
+                    "proto_e": self.running_option_proto_emb[i],
+                    "e": self.running_option_emb[i],
+                    "ind": self.running_option_index[i],
+                })
                 call_back({"option": curr_option_idx})
                 
                 transition = (
@@ -323,6 +340,8 @@ class VQOptionCriticAgent(BaseAgent):
             
     def reset(self, seed):
         super().reset(seed)
+        self.code_book.reset(seed)
+        self.hl_policy.reset(seed)
         
         self.running_option_index = [None for _ in range(self.num_envs)]      
         self.running_option_emb = [None for _ in range(self.num_envs)]      

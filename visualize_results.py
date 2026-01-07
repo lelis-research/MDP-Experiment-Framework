@@ -2,30 +2,15 @@ from RLBase.Evaluate import plot_experiments, gather_experiments, plot_option_us
 
 if __name__ == "__main__":
     
-    Option_Random = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/OptionRandom"
-    Option_QLearning = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/OptionQLearning"
-    Option_DQN = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/OptionDQN"
-    Option_A2C = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/OptionA2C"
-    Option_PPO = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/OptionPPO"
-    
-    Random = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/Random"
-    QLearning = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/QLearning"
-    DQN = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/DQN"
-    A2C = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/A2C"
-    PPO = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/PPO"
+    VQOptionCritic = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs/VQOptionCritic"
+
     
     agent_dict = {       
-        # "Option_Random": gather_experiments(Option_Random, name_string_conditions=[], name_string_anti_conditions=[]),
-        # "Option_QLearning": gather_experiments(Option_QLearning, name_string_conditions=[], name_string_anti_conditions=[]),
-        # "Option_DQN": gather_experiments(Option_DQN, name_string_conditions=[], name_string_anti_conditions=[]),
-        # "Option_A2C": gather_experiments(Option_A2C, name_string_conditions=[], name_string_anti_conditions=[]),
-        # "Option_PPO": gather_experiments(Option_PPO, name_string_conditions=[], name_string_anti_conditions=[]),
-        
-        "Random": gather_experiments(Random, name_string_conditions=[], name_string_anti_conditions=[]),
-        "QLearning": gather_experiments(QLearning, name_string_conditions=[], name_string_anti_conditions=[]),
-        "DQN": gather_experiments(DQN, name_string_conditions=[], name_string_anti_conditions=[]),
-        "A2C": gather_experiments(A2C, name_string_conditions=[], name_string_anti_conditions=[]),
-        "PPO": gather_experiments(PPO, name_string_conditions=[], name_string_anti_conditions=[]),
+        "NoOption": gather_experiments(VQOptionCritic, name_string_conditions=["No_Options"], name_string_anti_conditions=[]),
+        "Two-Option": gather_experiments(VQOptionCritic, name_string_conditions=["2_Options"], name_string_anti_conditions=[]),
+        "Three-Option": gather_experiments(VQOptionCritic, name_string_conditions=["3_Options"], name_string_anti_conditions=["later", "very_later"]),
+        "Three-Option-Later": gather_experiments(VQOptionCritic, name_string_conditions=["3_Options_later"], name_string_anti_conditions=["very_later"]),
+        "Three-Option-Very-Later": gather_experiments(VQOptionCritic, name_string_conditions=["3_Options_very_later"], name_string_anti_conditions=[]),
     }
     
     plot_experiments(agent_dict, "Runs/Figures", name=f"Test_Agents", window_size=1, show_ci=True, ignore_last=True, 

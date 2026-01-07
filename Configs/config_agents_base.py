@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption(), GoToBlueGoalOption()],
         device=device
     ),
     
@@ -279,10 +279,11 @@ AGENT_DICT = {
             total_steps=info.get("total_steps", 500_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
             enable_advantage_normalization=info.get("enable_advantage_normalization", True),
+            enable_transform_action=info.get("enable_transform_action", True),
             
         ),
         get_num_envs(env),
-        OneHotFlattenFeature,
+        FlattenFeature,
         device=device
     ),
     
@@ -320,7 +321,7 @@ AGENT_DICT = {
             total_steps=info.get("total_steps", 100_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
             enable_advantage_normalization=info.get("enable_advantage_normalization", True),
-            
+            enable_transform_action=info.get("enable_transform_action", True),
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
@@ -403,9 +404,10 @@ AGENT_DICT = {
                 max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
                 
                 enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
-                total_steps=info.get("total_steps", 100_000), # used for anealing step size
+                total_steps=info.get("total_steps", 200_000), # used for anealing step size
                 # update_type=info.get("update_type", "per_env"), # sync, per_env
                 enable_advantage_normalization=info.get("enable_advantage_normalization", True),
+                enable_transform_action=info.get("enable_transform_action", True),
             ),
             
             
@@ -420,7 +422,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[ActionLeft(), ActionRight(), ActionForward()], #, GoToGreenGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=[ActionLeft(), ActionRight(), ActionForward(), GoToGreenGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
 }

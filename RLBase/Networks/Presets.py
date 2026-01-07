@@ -241,6 +241,7 @@ MINIGRID_PPO_MLP_ACTOR = [
 
     {"type":"linear", "id":"out", "from":"r2",
      "init_params":{"name":"orthogonal","gain":0.01}},
+    
 ]
 
 MINIGRID_PPO_MLP_CRITIC = [
@@ -256,6 +257,7 @@ MINIGRID_PPO_MLP_CRITIC = [
 
     {"type":"linear", "id":"out", "from":"r2",
      "init_params":{"name":"orthogonal","gain":1.0}},
+    
 ]
 
 
