@@ -102,13 +102,15 @@ class BaseAgent(RandomGenerator):
             'hyper_params': self.hp,
             'num_envs': self.num_envs,
             'feature_extractor_class': self.feature_extractor_class,
-
+            'device': self.device,
+            
             'policy': policy_checkpoint,
             'feature_extractor': feature_extractor_checkpoint,
             
             'rng_state': self.get_rng_state(),
 
             'agent_class': self.__class__.__name__,
+            
         }
         if file_path is not None:
             torch.save(checkpoint, f"{file_path}_agent.t")
@@ -123,7 +125,7 @@ class BaseAgent(RandomGenerator):
             checkpoint = torch.load(file_path, map_location='cpu', weights_only=False)
         instance = cls(checkpoint['action_space'], checkpoint['observation_space'], 
                        checkpoint['hyper_params'], checkpoint['num_envs'],
-                       checkpoint['feature_extractor_class'])
+                       checkpoint['feature_extractor_class'], checkpoint['device'])
         instance.set_rng_state(checkpoint['rng_state'])
         instance.feature_extractor = instance.feature_extractor.load(file_path=None, checkpoint=checkpoint['feature_extractor'])
         instance.policy = instance.policy.load(file_path=None, checkpoint=checkpoint['policy'])

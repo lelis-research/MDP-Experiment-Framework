@@ -1,7 +1,7 @@
 from RLBase.Evaluate import plot_experiments, gather_experiments, plot_option_usage
+from RLBase.Evaluate import SingleExpAnalyzer
 
-if __name__ == "__main__":
-    
+def multi_exp_results():
     VQOptionCritic = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs/VQOptionCritic"
 
     
@@ -24,6 +24,17 @@ if __name__ == "__main__":
     
     # plot_option_usage(agent_dict, "Runs/Figures", name=f"test2", window_size=1, show_ci=True, ignore_last=True,
     #                   x_type="s", plot_each=False, option_classes=ALL_OPTIONS)
+
+def single_exp_results():
+    exp_dir = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs/VQOptionCritic/test_moving_emb1_seed[123123]"
+    analyzer = SingleExpAnalyzer(exp_path=exp_dir)
+
+    analyzer.plot_option_embedding()
+
+if __name__ == "__main__":
+    multi_exp_results()
+    # single_exp_results()    
+    
     
     
     

@@ -57,7 +57,7 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "Runs/Train/MiniGrid-EmptyTwoGoals-6x6-v0_/FullyObs/QLearning/_seed[123123]"
+        exp_name = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs/VQOptionCritic/test_save_seed[123123]"
     else:
         exp_name = args.exp_dir
     

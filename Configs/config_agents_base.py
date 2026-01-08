@@ -378,45 +378,52 @@ AGENT_DICT = {
             # High Level Params
             hl = HyperParameters(
                 gamma=info.get("gamma", 0.99),
-                lamda=info.get("lamda", 0.95),
-                rollout_steps=info.get("rollout_steps", 2048),
+                lamda=info.get("hl_lamda", 0.95),
+                rollout_steps=info.get("hl_rollout_steps", 2048),
                 mini_batch_size=info.get("mini_batch_size", 64),
-                num_epochs=info.get("num_epochs", 10),
-                target_kl=info.get("target_kl", None), #None means no early stop
+                num_epochs=info.get("hl_num_epochs", 10),
+                target_kl=info.get("hl_target_kl", None), #None means no early stop
                 
-                actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
-                actor_step_size=info.get("actor_step_size", 3e-4),
-                actor_eps = info.get("actor_eps", 1e-8),
-                clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
-                anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
+                actor_network=NETWORK_PRESETS[info.get("hl_actor_network", "MiniGrid/PPO/mlp_actor")],
+                actor_step_size=info.get("hl_actor_step_size", 3e-4),
+                actor_eps = info.get("hl_actor_eps", 1e-8),
+                clip_range_actor_init=info.get("hl_clip_range_actor_init", 0.2),
+                anneal_clip_range_actor=info.get("hl_anneal_clip_range_actor", False),
                 
-                critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
-                critic_step_size=info.get("critic_step_size", 3e-4),
-                critic_eps = info.get("critic_eps", 1e-8),
-                clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
-                anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
+                critic_network=NETWORK_PRESETS[info.get("hl_critic_network", "MiniGrid/PPO/mlp_actor")],
+                critic_step_size=info.get("hl_critic_step_size", 3e-4),
+                critic_eps = info.get("hl_critic_eps", 1e-8),
+                clip_range_critic_init=info.get("hl_clip_range_critic_init", 0.2), # None means no clipping
+                anneal_clip_range_critic=info.get("hl_anneal_clip_range_critic", False),
                 
-                critic_coef=info.get("critic_coef", 0.5),
-                entropy_coef=info.get("entropy_coef", 0.0),
-                max_grad_norm=info.get("max_grad_norm", 0.5),
+                critic_coef=info.get("hl_critic_coef", 0.5),
+                entropy_coef=info.get("hl_entropy_coef", 0.0),
+                max_grad_norm=info.get("hl_max_grad_norm", 0.5),
                 
-                min_logstd=info.get("min_logstd", None), #None means no clipping for logstd
-                max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
+                min_logstd=info.get("hl_min_logstd", None), #None means no clipping for logstd
+                max_logstd=info.get("hl_max_logstd", None), #None means no clipping for logstd
                 
-                enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
-                total_steps=info.get("total_steps", 200_000), # used for anealing step size
-                # update_type=info.get("update_type", "per_env"), # sync, per_env
-                enable_advantage_normalization=info.get("enable_advantage_normalization", True),
-                enable_transform_action=info.get("enable_transform_action", True),
+                enable_stepsize_anneal=info.get("hl_enable_stepsize_anneal", False),
+                total_steps=info.get("hl_total_steps", 200_000), # used for anealing step size
+                # update_type=info.get("hl_update_type", "per_env"), # sync, per_env
+                enable_advantage_normalization=info.get("hl_enable_advantage_normalization", True),
+                enable_transform_action=info.get("hl_enable_transform_action", True),
+                
+                commit_coef = info.get("commit_coef", 0.2),
             ),
             
             
             
             # CodeBook Params
-            embedding_dim = info.get("embedding_dim", 3),
-            embedding_low = info.get("embedding_low", -1),
-            embedding_high = info.get("embedding_high", +1),
-            commit_coef = info.get("commit_coef", 0.1),
+            codebook = HyperParameters(
+                embedding_dim = info.get("codebook_embedding_dim", 2),
+                embedding_low = info.get("codebook_embedding_low", -1),
+                embedding_high = info.get("codebook_embedding_high", +1),
+                
+                step_size=info.get("codebook_step_size", 3e-4),
+                eps=info.get("codebook_eps", 1e-5),
+                max_grad_norm=info.get("codebook_max_grad_norm", 1.0)
+            )
             
             
         ),
