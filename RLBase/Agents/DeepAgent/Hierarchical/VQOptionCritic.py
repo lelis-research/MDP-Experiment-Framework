@@ -719,6 +719,12 @@ class VQOptionCriticAgent(BaseAgent):
                     "proto_e": self.running_option_proto_emb[i],
                     "e": self.running_option_emb[i],
                     "ind": self.running_option_index[i],
+                    
+                    "OptionUsageLog": True,
+                    "NumOptions": len(self.options_lst),
+                    "OptionIndex": curr_option_idx,
+                    "OptionClass": self.options_lst[curr_option_idx].__class__,
+
                 })
                 call_back({"curr_hl_option_idx": curr_option_idx})
                 
