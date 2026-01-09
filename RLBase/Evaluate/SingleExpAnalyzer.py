@@ -399,8 +399,317 @@ class SingleExpAnalyzer:
             plt.show()
 
         return fig, axs
-        
     def plot_option_embedding(
+        self,
+        fig=None,
+        ax=None,
+        save_dir=None,
+        show=False,
+        show_legend=True,
+        title="e vs proto_e embeddings",
+
+        # sizes / styling
+        proto_s=8,
+        e_s=32,
+        proto_alpha=0.15,
+        e_alpha=0.9,
+        proto_lw=0.5,
+        e_edge_lw=0.8,
+        draw_lines=False,
+
+        # optional episode filtering
+        max_ep=None,  # inclusive
+        min_ep=None,  # inclusive
+
+        # ---- new: dimensionality reduction controls ----
+        reduce_if_dim_gt=3,          # if dim > this -> reduce
+        reducer="umap",              # "umap" or "pca"
+        reduce_to=2,                 # 2 (recommended)
+        normalize_before_reduce=True,# L2-normalize before reduce (good for cosine-ish embeddings)
+
+        # PCA params
+        pca_n_components_pre=50,     # used before UMAP (and as cap for PCA-only too)
+        pca_whiten=False,
+        pca_random_state=0,
+
+        # UMAP params
+        umap_n_neighbors=30,
+        umap_min_dist=0.1,
+        umap_metric="cosine",
+        umap_random_state=0,
+    ):
+        """
+        Scatter plot of:
+        - e embeddings: large circles (colored by 'ind')
+        - proto_e embeddings: small x markers (colored by 'ind')
+
+        Notes:
+        - Plots ALL points from ALL runs (no averaging).
+        - Supports ANY dim>=2:
+            - if dim in {2,3}: plots directly (2D/3D)
+            - if dim > 3: reduces to 2D (PCA or UMAP) and plots in 2D
+        """
+
+        def _to_np_vec(v):
+            if hasattr(v, "detach"):
+                v = v.detach().cpu().numpy()
+            return np.asarray(v, dtype=float).reshape(-1)
+
+        def _l2_normalize_rows(x, eps=1e-12):
+            norms = np.linalg.norm(x, axis=1, keepdims=True)
+            return x / (norms + eps)
+
+        # ---------------------------
+        # Collect logs (flatten agent_logs) + attach ep index
+        # ---------------------------
+        data = []
+        for run in getattr(self, "metrics", []):
+            for ep_idx, ep in enumerate(run):
+                logs = ep.get("agent_logs", [])
+                if not logs:
+                    continue
+
+                for item in logs:
+                    if isinstance(item, list):
+                        for d in item:
+                            if isinstance(d, dict):
+                                dd = dict(d)
+                                dd["_ep_idx"] = ep_idx
+                                data.append(dd)
+                    elif isinstance(item, dict):
+                        dd = dict(item)
+                        dd["_ep_idx"] = ep_idx
+                        data.append(dd)
+
+        if not data:
+            print("plot_option_embedding: no data found in agent_logs.")
+            return None
+
+        # ---------------------------
+        # Optional episode range filtering
+        # ---------------------------
+        if min_ep is not None or max_ep is not None:
+            lo = -float("inf") if min_ep is None else int(min_ep)
+            hi = float("inf") if max_ep is None else int(max_ep)
+            data = [d for d in data if lo <= d["_ep_idx"] <= hi]
+            if not data:
+                print(f"plot_option_embedding: no data in episode range [{min_ep}, {max_ep}].")
+                return None
+
+        # ---------------------------
+        # Infer embedding dimension (>=2)
+        # ---------------------------
+        dim = _to_np_vec(data[0]["proto_e"]).shape[0]
+        if dim < 2:
+            raise ValueError(f"Expected dim>=2, got dim={dim}.")
+
+        # ---------------------------
+        # Group by option index 'ind'
+        # ---------------------------
+        by_ind = defaultdict(list)
+        for d in data:
+            ind_val = d.get("ind", 0)
+            if hasattr(ind_val, "item"):
+                ind_val = ind_val.item()
+            by_ind[int(ind_val)].append(d)
+
+        # ---------------------------
+        # If dim > reduce_if_dim_gt: reduce to 2D (jointly for e & proto_e)
+        # ---------------------------
+        reduced = False
+        if dim > reduce_if_dim_gt:
+            # Gather all points in consistent order so we can map back
+            e_list = []
+            p_list = []
+            pairs_meta = []  # stores (ind, local_index_in_ind_list)
+            for ind, items in sorted(by_ind.items()):
+                for d in items:
+                    if "e" in d and "proto_e" in d:
+                        e_list.append(_to_np_vec(d["e"]))
+                        p_list.append(_to_np_vec(d["proto_e"]))
+                        pairs_meta.append((ind, d))  # keep dict ref
+
+            if len(e_list) == 0:
+                print("plot_option_embedding: no 'e'/'proto_e' pairs found.")
+                return None
+
+            E = np.stack(e_list)   # (N, D)
+            P = np.stack(p_list)   # (N, D)
+            X = np.vstack([E, P])  # (2N, D) reduce jointly
+
+            if normalize_before_reduce:
+                X = _l2_normalize_rows(X)
+
+            reducer = str(reducer).lower()
+            if reducer not in ("pca", "umap"):
+                raise ValueError(f"reducer must be 'pca' or 'umap', got: {reducer}")
+
+            # --- PCA stage (always used as pre-step for UMAP; also used if reducer='pca') ---
+            from sklearn.decomposition import PCA
+
+            # can't have n_components > min(n_samples, n_features)
+            n_samples, n_features = X.shape
+            pre_k = min(pca_n_components_pre, n_features, n_samples)
+            if pre_k < 2:
+                # pathological tiny data; just slice
+                Y = X[:, :reduce_to]
+            else:
+                pca = PCA(n_components=pre_k, whiten=pca_whiten, random_state=pca_random_state)
+                Xp = pca.fit_transform(X)
+
+                if reducer == "pca":
+                    # final to reduce_to (e.g. 2)
+                    k2 = min(reduce_to, Xp.shape[1])
+                    Y = Xp[:, :k2]
+                else:
+                    # --- UMAP stage ---
+                    try:
+                        import umap
+                    except Exception as ex:
+                        raise ImportError(
+                            "UMAP reducer requested but 'umap-learn' is not installed. "
+                            "Install via: pip install umap-learn"
+                        ) from ex
+
+                    um = umap.UMAP(
+                        n_components=reduce_to,
+                        n_neighbors=umap_n_neighbors,
+                        min_dist=umap_min_dist,
+                        metric=umap_metric,
+                        random_state=umap_random_state,
+                    )
+                    Y = um.fit_transform(Xp)
+
+            # Split back into reduced E and P
+            N = E.shape[0]
+            E2 = Y[:N, :]
+            P2 = Y[N:, :]
+
+            # Write reduced coords back into each dict (so plotting below stays clean)
+            for i, (_, dref) in enumerate(pairs_meta):
+                dref["_e_red"] = E2[i]
+                dref["_p_red"] = P2[i]
+
+            dim = reduce_to
+            reduced = True
+
+        # ---------------------------
+        # Setup figure / axes
+        # ---------------------------
+        created_fig = False
+        if fig is None or ax is None:
+            created_fig = True
+            if dim == 3:
+                fig = plt.figure(figsize=(8, 8))
+                ax = fig.add_subplot(111, projection="3d")
+            else:
+                fig, ax = plt.subplots(figsize=(7, 7))
+        fig.subplots_adjust(top=0.88, bottom=0.15)
+
+        # ---------------------------
+        # Plot
+        # ---------------------------
+        cmap = plt.cm.get_cmap("Set1", max(1, len(by_ind)))
+        ind_handles = []
+
+        for color_i, (ind, items) in enumerate(sorted(by_ind.items())):
+            color = cmap(color_i)
+
+            # use reduced if present, else original
+            if reduced:
+                e_vals = np.stack([d["_e_red"] for d in items if "_e_red" in d])
+                p_vals = np.stack([d["_p_red"] for d in items if "_p_red" in d])
+            else:
+                e_vals = np.stack([_to_np_vec(d["e"]) for d in items if "e" in d])
+                p_vals = np.stack([_to_np_vec(d["proto_e"]) for d in items if "proto_e" in d])
+
+            if e_vals.size == 0 or p_vals.size == 0:
+                continue
+
+            if dim == 2:
+                sc_e = ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1],
+                    color=color, marker="o", s=e_s,
+                    alpha=e_alpha, edgecolors="black",
+                    linewidths=e_edge_lw,
+                )
+                ax.scatter(
+                    p_vals[:, 0], p_vals[:, 1],
+                    color=color, marker="x", s=proto_s,
+                    alpha=proto_alpha, linewidths=proto_lw,
+                )
+                if draw_lines:
+                    m = min(len(p_vals), len(e_vals))
+                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
+                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]],
+                                color=color, alpha=0.15, linewidth=0.6)
+            elif dim == 3:
+                sc_e = ax.scatter(
+                    e_vals[:, 0], e_vals[:, 1], e_vals[:, 2],
+                    color=color, marker="o", s=e_s,
+                    alpha=e_alpha, edgecolors="black",
+                    linewidths=e_edge_lw,
+                )
+                ax.scatter(
+                    p_vals[:, 0], p_vals[:, 1], p_vals[:, 2],
+                    color=color, marker="x", s=proto_s,
+                    alpha=proto_alpha, linewidths=proto_lw,
+                )
+                if draw_lines:
+                    m = min(len(p_vals), len(e_vals))
+                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
+                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]],
+                                color=color, alpha=0.15, linewidth=0.6)
+            else:
+                raise ValueError(f"Internal error: dim must be 2 or 3 at plot time, got {dim}")
+
+            ind_handles.append((sc_e, f"ind={ind}"))
+
+        # ---------------------------
+        # Cosmetics
+        # ---------------------------
+        extra = ""
+        if reduced:
+            extra = f"  (reduced→{reduce_to}D via {reducer.upper()})"
+        ax.set_title(title + extra)
+
+        if dim == 2:
+            ax.axhline(0, color="gray", linewidth=0.5)
+            ax.axvline(0, color="gray", linewidth=0.5)
+            ax.set_xlabel("Dim 1")
+            ax.set_ylabel("Dim 2")
+            ax.grid(True)
+            ax.set_aspect("equal", adjustable="box")
+        else:
+            ax.set_xlabel("Dim 1")
+            ax.set_ylabel("Dim 2")
+            ax.set_zlabel("Dim 3")
+
+        if show_legend and ind_handles:
+            handles = [h for h, _ in ind_handles]
+            labels = [l for _, l in ind_handles]
+            fig.legend(
+                handles, labels,
+                loc="upper center",
+                bbox_to_anchor=(0.5, 0.98),
+                ncol=min(5, len(handles)),
+                frameon=True,
+                fontsize=9,
+            )
+
+        # ---------------------------
+        # Save / show
+        # ---------------------------
+        if save_dir is not None:
+            os.makedirs(save_dir, exist_ok=True)
+            fig.savefig(os.path.join(save_dir, "OptionEmbedding.png"), bbox_inches="tight", dpi=200)
+
+        if show or created_fig:
+            plt.show()
+
+        return fig, ax
+    
+    def plot_option_embedding2(
         self,
         fig=None,
         ax=None,

@@ -27,13 +27,14 @@ def multi_exp_results():
 
 def single_exp_results():
     exp_dir = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs/VQOptionCritic/test_moving_emb1_seed[123123]"
+    exp_dir = "Runs/Train/MazeRoomsEnv-v0_/VQOptionCritic/_seed[123123]"
     analyzer = SingleExpAnalyzer(exp_path=exp_dir)
 
-    analyzer.plot_option_embedding()
+    analyzer.plot_option_embedding(min_ep=998, max_ep=999)
 
 if __name__ == "__main__":
-    multi_exp_results()
-    # single_exp_results()    
+    # multi_exp_results()
+    single_exp_results()    
     
     
     

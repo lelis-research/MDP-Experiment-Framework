@@ -608,6 +608,7 @@ class VQOptionCriticAgent(BaseAgent):
     SUPPORTED_ACTION_SPACES = (Discrete, Box)
     
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=None, device='cpu'):
+        print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_option_lst) if init_option_lst is not None else 0)
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.options_lst = [] if init_option_lst is None else init_option_lst
         

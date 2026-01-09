@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption(), GoToBlueGoalOption()],
+        init_option_lst=custom_build_options(),
         device=device
     ),
     
@@ -416,7 +416,7 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 2),
+                embedding_dim = info.get("codebook_embedding_dim", 16),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 
@@ -429,7 +429,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[ActionLeft(), ActionRight(), ActionForward(), GoToGreenGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=custom_build_options(),
         device=device
     ),
 }

@@ -48,14 +48,12 @@ class BaseOption(RandomGenerator):
     def select_action(
         self,
         observation: Any,
-        internal_state: Optional[Any] = None,
     ) -> Tuple[Any, Optional[Any]]:
         """
-        Decide the *primitive action* given observation (+ optional internal state).
+        Decide the *primitive action* given observation.
 
         Returns:
             action: env-compatible action (e.g. int for Discrete, np.array for Box)
-            new_internal_state: updated internal state for the option (or None)
         """
         raise NotImplementedError(
             "select_action must be implemented by option subclasses."
@@ -64,7 +62,6 @@ class BaseOption(RandomGenerator):
     def is_terminated(
         self,
         observation: Any,
-        internal_state: Optional[Any] = None,
     ) -> bool:
         """
         Termination condition β_o(s). Called after each step.
@@ -80,11 +77,6 @@ class BaseOption(RandomGenerator):
         if seed is not None:
             self.set_seed(seed)
             
-        # Subclasses can override if they have internal state to clear.
-
-    # --------- (Optional) batched API ---------
-    # add vectorized versions later if you want:
-    # def select_action_batch(self, observations, internal_states=None): ...
 
     # --------- Saving / Loading ---------
 

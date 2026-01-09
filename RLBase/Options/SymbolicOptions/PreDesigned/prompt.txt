@@ -1,0 +1,832 @@
+You are a senior reinforcement-learning engineer contributing to my MiniGrid codebase. Your task is to generate a COMPLETE, READY-TO-DROP-IN Python module that defines a comprehensive library of “Options” (temporally-extended skills) for arbitrary MiniGrid puzzle domains.
+
+You must strictly follow the style, structure, signatures, and conventions demonstrated by my provided BaseOption class and helper mixins/utilities. Do NOT invent APIs. If something is unclear, infer from examples and stay consistent.
+
+====================================
+(1) BASE CLASS YOU MUST EXTEND
+====================================
+
+Here is the BaseOption (you MUST inherit from this and override only the intended methods, preserving exact signatures):
+
+import torch
+
+from ..utils import RandomGenerator
+from typing import Any, Dict, Optional, Tuple, List, Sequence
+
+class BaseOption(RandomGenerator):
+    """
+    Base class for a single option.
+
+    Works for both:
+      - Neural options (with networks, parameters on `device`)
+      - Symbolic options (pure Python programs, no torch required)
+    """
+
+    def __init__(
+        self,
+        option_id: Optional[str] = None,
+        hyper_params: Optional[Any] = None,
+        device: str = "cpu",
+    ):
+        super().__init__()
+        self.option_id = option_id  # e.g. "go_to_door", or index as string
+        self.hp = hyper_params
+        self.device = device
+
+    # --------- Core interface ---------
+    def can_initiate(self, observation: Any) -> bool:
+        """
+        Initiation set I_o(s) – by default always true.
+        Override if your option has a restricted initiation set.
+        """
+        return True
+    
+    def should_initiate(self, observation: Any) -> bool:
+        """
+        It is a subset of the I_o that will suggest the agent to take this option
+        """
+        return False
+    
+    def reward_func(self, observation: Any) -> float:
+        """
+        Decide the intrinsic reward given to the agent related to the completeness of the option
+        """
+        raise NotImplementedError(
+            "reward_func must be implemented by option subclasses"
+        )
+
+    def select_action(
+        self,
+        observation: Any,
+    ) -> Tuple[Any, Optional[Any]]:
+        """
+        Decide the *primitive action* given observation.
+
+        Returns:
+            action: env-compatible action (e.g. int for Discrete, np.array for Box)
+        """
+        raise NotImplementedError(
+            "select_action must be implemented by option subclasses."
+        )
+
+    def is_terminated(
+        self,
+        observation: Any,
+    ) -> bool:
+        """
+        Termination condition β_o(s). Called after each step.
+        """
+        raise NotImplementedError(
+            "is_terminated must be implemented by option subclasses."
+        )
+
+    def reset(self, seed: Optional[int] = None):
+        """
+        Reset any internal state and RNG.
+        """
+        if seed is not None:
+            self.set_seed(seed)
+            
+
+    # --------- Saving / Loading ---------
+
+    def save(self, file_path: Optional[str] = None) -> Dict[str, Any]:
+        checkpoint = {
+            "option_class": self.__class__.__name__,
+            "option_id": self.option_id,
+            "hyper_params": self.hp,
+            "device": self.device,
+            "rng_state": self.get_rng_state(),
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_option.t")
+        return checkpoint
+
+    @classmethod
+    def load(cls, file_path: Optional[str] = None, checkpoint: Optional[Dict] = None):
+        """
+        Generic load that calls subclass _load_state_dict.
+        Subclasses only need to override _state_dict/_load_state_dict.
+        """
+        if checkpoint is None:
+            if file_path is None:
+                raise ValueError("Either file_path or checkpoint must be provided.")
+            checkpoint = torch.load(file_path, map_location="cpu", weights_only=False)
+
+        instance = cls(
+            option_id=checkpoint.get("option_id", None),
+            hyper_params=checkpoint.get("hyper_params", None),
+            device=checkpoint.get("device", "cpu"),
+        )
+        instance.set_rng_state(checkpoint["rng_state"])
+        return instance
+
+    def __repr__(self) -> str:
+        name = self.__class__.__name__
+        return f"{name}(id={self.option_id}, hp={self.hp})"
+
+=========================================
+(2) HELPER CLASSES YOU MAY INHERIT FROM
+=========================================
+
+These are helper classes / mixins / utilities you can use. Use them when helpful; do not modify them:
+
+# options_minigrid_toolkit_auto.py
+# Fully aligned with (x, y) coordinates = (column, row).
+# All array access to obs["image"] uses img[y, x], while positions and motion use (x, y).
+
+from __future__ import annotations
+
+from collections import deque
+from typing import Callable, Dict, List, Optional, Tuple
+
+import numpy as np
+from minigrid.core.constants import (
+    COLORS,
+    COLOR_NAMES,
+    COLOR_TO_IDX,
+    IDX_TO_COLOR,
+    OBJECT_TO_IDX as OID,
+    IDX_TO_OBJECT,
+    STATE_TO_IDX as SID,
+    DIR_TO_VEC,  # (dx, dy) where x = columns (left→right), y = rows (top→down)
+)
+
+# ACTION indices (keep consistent with your env)
+A_LEFT, A_RIGHT, A_FORWARD, A_PICKUP, A_DROP, A_TOGGLE, A_DONE = 0, 1, 2, 3, 4, 5, 6
+
+# -----------------------------------------------------------------------------
+# Deterministic, explicit direction updates (no arithmetic shortcuts)
+# DIR indices follow MiniGrid:
+#   0 = right (+x), 1 = down (+y), 2 = left (-x), 3 = up (-y)
+# -----------------------------------------------------------------------------
+TURN_RIGHT = {0: 1, 1: 2, 2: 3, 3: 0}
+TURN_LEFT  = {0: 3, 3: 2, 2: 1, 1: 0}
+
+def turn_action_towards(cur_dir: int, want_dir: int) -> Optional[int]:
+    """
+    Return the atomic turn action (LEFT/RIGHT) that moves one step toward want_dir.
+    Uses explicit transition tables, no modulo arithmetic.
+    If already facing want_dir, return None.
+    For 180° we choose LEFT deterministically.
+    """
+    if cur_dir == want_dir:
+        return None
+    if TURN_RIGHT[cur_dir] == want_dir:
+        return A_RIGHT
+    if TURN_LEFT[cur_dir] == want_dir:
+        return A_LEFT
+    # 180° away: choose LEFT (two lefts over two rights is arbitrary but consistent)
+    if TURN_RIGHT[TURN_RIGHT[cur_dir]] == want_dir:
+        return A_LEFT
+    # 270° away: one LEFT reaches want_dir
+    if TURN_LEFT[cur_dir] == TURN_LEFT[want_dir]:
+        return A_LEFT
+    # Fallback (shouldn't happen)
+    return A_LEFT
+
+
+# ============================== Grid / Navigation helpers ==============================
+
+class GridNavMixin:
+    """
+    Utilities for fully/ego observable MiniGrid with (x, y) world coords:
+      - x = column (0..W-1), left → right
+      - y = row    (0..H-1), top → down
+    The image tensor is still indexed as img[y, x] for numpy correctness.
+    """
+
+    # ---------- Primitive reads ----------
+    def _img(self, obs) -> np.ndarray:
+        return obs["image"]
+
+    def _width_height(self, obs) -> tuple[int, int]:
+        img = self._img(obs)
+        W, H = int(img.shape[0]), int(img.shape[1])
+        return W, H
+
+    def _dir(self, obs) -> int:
+        return int(obs["direction"])
+
+    def _dirvec_xy(self, obs) -> np.ndarray:
+        """Return direction vector (dx, dy) in world coords."""
+        v = DIR_TO_VEC[self._dir(obs)]  # MiniGrid defines (dx, dy)
+        return np.array([int(v[0]), int(v[1])], dtype=int)
+
+    def _inside(self, obs, xy: np.ndarray) -> bool:
+        W, H = self._width_height(obs)
+        x, y = int(xy[0]), int(xy[1])
+        return 0 <= x < W and 0 <= y < H
+
+    def _cell_xy(self, obs, xy: np.ndarray) -> np.ndarray:
+        """Access a cell using (x, y) world coords; underlying array uses [y, x]."""
+        img = self._img(obs)
+        x, y = int(xy[0]), int(xy[1])
+        return img[x, y]
+
+    def _find_agent(self, obs) -> np.ndarray:
+        """
+        Fully observable: agent is rendered (OID['agent']).
+        Return agent position in (x, y). (np.where gives (ys, xs).)
+        """
+        img = self._img(obs)
+        xs, ys = np.where(img[..., 0] == OID["agent"])
+        if len(xs) > 0:
+            return np.array([int(xs[0]), int(ys[0])], dtype=int)
+        # Fallback center (for egocentric crops)
+        W, H = self._width_height(obs)
+        return np.array([W // 2, H // 2], dtype=int)
+
+    # ---------- Terrain semantics ----------
+    def _passable(self, cell: np.ndarray) -> bool:
+        oid, st = int(cell[0]), int(cell[2])
+        if oid in (OID["unseen"], OID["wall"], OID["lava"]):
+            return False
+        if oid == OID["door"] and st != SID["open"]:
+            return False
+        # empty, floor, goal, key, ball, box, agent => traversable
+        return True
+
+    def _forward_is_safe(self, obs) -> bool:
+        pos = self._find_agent(obs)
+        fwd = pos + self._dirvec_xy(obs)  # explicit forward = pos + dir
+        if not self._inside(obs, fwd):
+            return False
+        return self._passable(self._cell_xy(obs, fwd))
+
+    def _door_is_open(self, obs, xy: np.ndarray) -> bool:
+        c = self._cell_xy(obs, xy)
+        return int(c[0]) == OID["door"] and int(c[2]) == SID["open"]
+
+    def _door_is_closed(self, obs, xy: np.ndarray) -> bool:
+        c = self._cell_xy(obs, xy)
+        return int(c[0]) == OID["door"] and int(c[2]) == SID["closed"]
+    
+    def _door_is_locked(self, obs, xy: np.ndarray) -> bool:
+        c = self._cell_xy(obs, xy)
+        return int(c[0]) == OID["door"] and int(c[2]) == SID["locked"]
+
+    # ---------- Geometry ----------
+    def _ahead_xy(self, obs) -> np.ndarray:
+        """
+        World coords (x, y) of the tile directly in front of the agent:
+        ahead = agent_xy + DIR_TO_VEC[direction]  (DIR_TO_VEC is (dx, dy)).
+        """
+        return self._find_agent(obs) + self._dirvec_xy(obs)
+
+    def _ahead_cell(self, obs) -> Optional[np.ndarray]:
+        """
+        The image cell directly ahead of the agent, or None if out of bounds.
+        """
+        ahead = self._ahead_xy(obs)
+        if not self._inside(obs, ahead):
+            return None
+        return self._cell_xy(obs, ahead)
+    
+    def _neighbors4(self, obs, xy: Tuple[int, int]) -> list[np.ndarray]:
+        W, H = self._width_height(obs)
+        x, y = int(xy[0]), int(xy[1])
+        cands = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
+        return [np.array(p, dtype=int) for p in cands if 0 <= p[0] < W and 0 <= p[1] < H]
+
+    def _at_cell(self, obs, target_xy: np.ndarray) -> bool:
+        return np.array_equal(self._find_agent(obs), target_xy)
+    
+    def _facing_cell(self, obs, target_xy: np.ndarray) -> bool:
+        """
+        True iff the agent is *directly facing* the given (x, y) tile.
+        In practice: target must be exactly the tile in front of the agent.
+        """
+        ahead = self._ahead_xy(obs)
+        return np.array_equal(ahead, target_xy)
+    
+    def _facing_is_oid(self, obs, oid: int) -> bool:
+        """
+        Convenience: True iff the cell directly ahead exists and its object id == oid.
+        """
+        c = self._ahead_cell(obs)
+        return c is not None and int(c[0]) == int(oid)
+    
+    
+
+    def _face_vec_action(self, obs, target_xy: np.ndarray) -> Optional[int]:
+        """Rotate to face the (x,y) target if needed, using explicit turn reasoning."""
+        agent = self._find_agent(obs)
+        cur_dir = self._dir(obs)
+        delta = target_xy - agent
+        if delta[0] == 0 and delta[1] == 0:
+            return None
+
+        # Map axial deltas → desired DIR indices (no inference by arithmetic)
+        # right, down, left, up:
+        if   delta[0] > 0 and delta[1] == 0: want_dir = 0
+        elif delta[0] == 0 and delta[1] > 0: want_dir = 1
+        elif delta[0] < 0 and delta[1] == 0: want_dir = 2
+        elif delta[0] == 0 and delta[1] < 0: want_dir = 3
+        else:
+            # Should not happen with 4-neighborhood BFS paths.
+            want_dir = cur_dir
+        return turn_action_towards(cur_dir, want_dir)
+
+    # ---------- BFS ----------
+    def _bfs_path(
+        self,
+        obs,
+        start_xy: np.ndarray,
+        goal_test: Callable[[Tuple[int, int]], bool],
+        avoid_lava: bool = True,
+        passable_override: Optional[Callable[[Tuple[int, int]], bool]] = None,
+    ) -> Optional[list[np.ndarray]]:
+        img = self._img(obs)
+        start = (int(start_xy[0]), int(start_xy[1]))
+        seen: set[Tuple[int, int]] = set([start])
+        parent: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        q = deque([start])
+
+        def ok(xy: Tuple[int, int]) -> bool:
+            if passable_override is not None:
+                return passable_override(xy)
+            c = img[xy[0], xy[1]]
+            if avoid_lava and int(c[0]) == OID["lava"]:
+                return False
+            return self._passable(c)
+        while q:
+            xy = q.popleft()
+            if goal_test(xy):
+                # reconstruct path: list of (x,y) numpy arrays
+                path = [np.array([xy[0], xy[1]], dtype=int)]
+                p = parent[xy]
+                while p is not None:
+                    path.append(np.array([p[0], p[1]], dtype=int))
+                    p = parent[p]
+                path.reverse()
+                return path
+
+            for nb in self._neighbors4(obs, xy):
+                nb_t = (int(nb[0]), int(nb[1]))
+                if nb_t in seen:
+                    continue
+                
+                # If neighbor itself is the goal, accept it even if not passable
+                if goal_test(nb_t):
+                    parent[nb_t] = xy
+                    # reconstruct ending at nb_t
+                    path = [np.array([nb_t[0], nb_t[1]], dtype=int)]
+                    p = xy
+                    while p is not None:
+                        path.append(np.array([p[0], p[1]], dtype=int))
+                        p = parent[p]
+                    path.reverse()
+                    return path
+            
+                if ok(nb_t):
+                    seen.add(nb_t)
+                    parent[nb_t] = xy
+                    q.append(nb_t)
+                    
+                    
+        return None
+
+    def _find_nearest_of_type(
+        self,
+        obs,
+        obj_id_filter: int,
+        also_require: Optional[Callable[[Tuple[int, int], np.ndarray], bool]] = None,
+        avoid_lava: bool = True,
+    ) -> Optional[list[np.ndarray]]:
+        img = self._img(obs)
+        start = self._find_agent(obs)
+        def is_goal(xy: Tuple[int, int]) -> bool:
+            c = img[xy[0], xy[1]]
+            if int(c[0]) != obj_id_filter:
+                return False
+            return True if also_require is None else also_require(xy, c)
+
+        return self._bfs_path(obs, start, is_goal, avoid_lava=avoid_lava)
+
+    def _step_towards(self, obs, path):
+        """
+        Rotate toward the next waypoint and step if aligned; else turn a single step.
+        Forward is strictly position + dirvec in (x,y).
+        """
+        if not path or len(path) < 2:
+            return None
+
+        agent = self._find_agent(obs)
+        # Find the waypoint immediately after agent
+        nxt = None
+        if np.array_equal(path[0], agent):
+            nxt = path[1]
+        else:
+            for i in range(len(path) - 1):
+                if np.array_equal(path[i], agent):
+                    nxt = path[i + 1]
+                    break
+        if nxt is None:
+            return None
+        
+        # Turn one step toward the waypoint if not facing it yet
+        turn = self._face_vec_action(obs, nxt)
+        if turn is not None:
+            return turn
+
+        # Move forward if the next cell equals the waypoint and is passable
+        dirvec = self._dirvec_xy(obs)
+        ahead = agent + dirvec  # explicit forward
+        if np.array_equal(ahead, nxt) and self._inside(obs, ahead) and self._passable(self._cell_xy(obs, ahead)):
+            return A_FORWARD
+
+        # Misaligned or blocked—turn left to search next tick
+        return A_LEFT
+
+
+
+=========================================
+(3) EXAMPLE OPTIONS (STYLE REFERENCE)
+=========================================
+
+Here are 2–5 example options I already implemented. You MUST match this style exactly (docstring style, comments, logging, termination rules, etc.):
+
+import numpy as np
+from typing import Any, Optional, Tuple
+from minigrid.core.constants import OBJECT_TO_IDX as OID, COLOR_TO_IDX
+
+from ...Base import BaseOption
+from ....registry import register_option
+from .MiniGridHelper import *
+
+@register_option
+class ActionLeft(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Turn Left", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation):
+        self.counter += 1
+        return 0
+    
+    def is_terminated(self, observation):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+
+@register_option
+class ActionRight(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Turn Right", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation):
+        self.counter += 1
+        return 1
+    
+    def is_terminated(self, observation):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+
+@register_option
+class ActionForward(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Move Forward", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation):
+        self.counter += 1
+        return 2
+    
+    def is_terminated(self, observation):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+
+@register_option
+class GoToGreenGoalOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "go_to_green_goal", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+
+    def _path_to_green_goal(self, obs):
+        return self._find_nearest_of_type(
+            obs,
+            obj_id_filter=OID["goal"],
+            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["green"]),
+            avoid_lava=True,
+        )
+
+    def _standing_on_green_goal(self, obs) -> bool:
+        img = self._img(obs)
+        agent = self._find_agent(obs)  # (x,y)
+        c = img[int(agent[0]), int(agent[1])]
+        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["green"])
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._path_to_green_goal(observation)
+        return path is not None and len(path) >= 2
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any) -> float:
+        return 1.0 if self._standing_on_green_goal(observation) else 0.0
+
+    def select_action(self, observation: Any):
+        if self._standing_on_green_goal(observation):
+            return int(A_DONE)
+
+        path = self._path_to_green_goal(observation)
+        if path is None or len(path) < 2:
+            return int(A_LEFT)
+
+        act = self._step_towards(observation, path)
+
+        self.counter += 1
+
+        return int(A_LEFT if act is None else act)
+
+    def is_terminated(self, observation: Any) -> bool:
+        terminated = (
+            self._standing_on_green_goal(observation)
+            or (self._path_to_green_goal(observation) is None)
+            or self.counter >= 10
+        )
+        if terminated:
+            self.counter = 0
+        return terminated
+
+    def reset(self, seed=None):
+        super().reset(seed)
+        self.counter = 0
+
+@register_option
+class GoToRedGoalOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "go_to_red_goal", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+
+    def _path_to_red_goal(self, obs):
+        return self._find_nearest_of_type(
+            obs,
+            obj_id_filter=OID["goal"],
+            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["red"]),
+            avoid_lava=True,
+        )
+
+    def _standing_on_red_goal(self, obs) -> bool:
+        img = self._img(obs)
+        agent = self._find_agent(obs)  # (x,y)
+        c = img[int(agent[0]), int(agent[1])]
+        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["red"])
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._path_to_red_goal(observation)
+        return path is not None and len(path) >= 2
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any) -> float:
+        return 1.0 if self._standing_on_red_goal(observation) else 0.0
+
+    def select_action(self, observation: Any):
+        if self._standing_on_red_goal(observation):
+            return int(A_DONE)
+
+        path = self._path_to_red_goal(observation)
+        if path is None or len(path) < 2:
+            return int(A_LEFT)
+
+        act = self._step_towards(observation, path)
+        
+        self.counter += 1
+        
+        return int(A_LEFT if act is None else act)
+
+    def is_terminated(self, observation: Any) -> bool:
+        terminated = self._standing_on_red_goal(observation) or (self._path_to_red_goal(observation) is None) or self.counter >= 10
+        if terminated:
+            self.counter = 0
+        return terminated
+    def reset(self, seed = None):
+        super().reset(seed)
+        self.counter = 0
+        
+@register_option
+class GoToBlueGoalOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "go_to_blue_goal", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+
+    def _path_to_blue_goal(self, obs):
+        return self._find_nearest_of_type(
+            obs,
+            obj_id_filter=OID["goal"],
+            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["blue"]),
+            avoid_lava=True,
+        )
+
+    def _standing_on_blue_goal(self, obs) -> bool:
+        img = self._img(obs)
+        agent = self._find_agent(obs)  # (x,y)
+        c = img[int(agent[0]), int(agent[1])]
+        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["blue"])
+    
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._path_to_blue_goal(observation)
+        return path is not None and len(path) >= 2
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any) -> float:
+        return 1.0 if self._standing_on_blue_goal(observation) else 0.0
+
+    def select_action(self, observation: Any):
+        if self._standing_on_blue_goal(observation):
+            return int(A_DONE)
+
+        path = self._path_to_blue_goal(observation)
+        if path is None or len(path) < 2:
+            return int(A_LEFT)
+
+        act = self._step_towards(observation, path)
+        
+        self.counter += 1
+        
+        return int(A_LEFT if act is None else act)
+
+    def is_terminated(self, observation: Any) -> bool:
+        terminated = self._standing_on_blue_goal(observation) or (self._path_to_blue_goal(observation) is None) or self.counter >= 10
+        if terminated:
+            self.counter = 0
+        return terminated
+    def reset(self, seed = None):
+        super().reset(seed)
+        self.counter = 0
+
+=========================================
+(4) MINIGRID OBJECTS + COLORS AVAILABLE
+=========================================
+
+Below is the full set of objects and colors that can appear. You must use this list to propose a broad and useful skill library that generalizes across many puzzle domains:
+
+from __future__ import annotations
+
+import numpy as np
+
+TILE_PIXELS = 32
+
+# Map of color names to RGB values
+COLORS = {
+    "red": np.array([255, 0, 0]),
+    "green": np.array([0, 255, 0]),
+    "blue": np.array([0, 0, 255]),
+    "purple": np.array([112, 39, 195]),
+    "yellow": np.array([255, 255, 0]),
+    "grey": np.array([100, 100, 100]),
+}
+
+COLOR_NAMES = sorted(list(COLORS.keys()))
+
+# Used to map colors to integers
+COLOR_TO_IDX = {"red": 0, "green": 1, "blue": 2, "purple": 3, "yellow": 4, "grey": 5}
+
+IDX_TO_COLOR = dict(zip(COLOR_TO_IDX.values(), COLOR_TO_IDX.keys()))
+
+# Map of object type to integers
+OBJECT_TO_IDX = {
+    "unseen": 0,
+    "empty": 1,
+    "wall": 2,
+    "floor": 3,
+    "door": 4,
+    "key": 5,
+    "ball": 6,
+    "box": 7,
+    "goal": 8,
+    "lava": 9,
+    "agent": 10,
+}
+
+IDX_TO_OBJECT = dict(zip(OBJECT_TO_IDX.values(), OBJECT_TO_IDX.keys()))
+
+# Map of state names to integers
+STATE_TO_IDX = {
+    "open": 0,
+    "closed": 1,
+    "locked": 2,
+}
+
+# Map of agent direction indices to vectors
+DIR_TO_VEC = [
+    # Pointing right (positive X)
+    np.array((1, 0)),
+    # Down (positive Y)
+    np.array((0, 1)),
+    # Pointing left (negative X)
+    np.array((-1, 0)),
+    # Up (negative Y)
+    np.array((0, -1)),
+]
+
+
+(Optional but helpful) Object properties / interactions:
+- doors: Door could be open, closed, or locked and to open the locked door it should be toggled with a same colour key
+- keys: Opens doors using the same colour and toggled when facing the door
+- boxes: Can be picked up or toggled with (even when you have an object in your hand)
+- balls: Can be picked up or toggle
+- lava / water / traps: lava is deadly and should be avoided
+- goals / target tiles: goals are terminal or non-terminal and they usually give rewards
+- pickups / toggles / switches: can be used on objects
+- visibility / partial obs: The env is fully observable
+
+
+=========================================
+(5) OUTPUT REQUIREMENTS (VERY IMPORTANT)
+=========================================
+
+You must output a SINGLE python file containing:
+
+A) A clear header comment describing:
+   - purpose of the library
+   - categories of options
+   - how options decide termination
+   - safety constraints (don’t loop forever)
+
+B) A set of options that is:
+   - comprehensive: includes navigation, manipulation, unlocking, avoidance, exploration, positioning, and composite skills
+   - general: not hardcoded to any single env instance
+   - robust: each option has explicit termination conditions and a max_step budget
+   - consistent: same patterns for init/reset/act/should_terminate
+   - readable: docstrings for each option explaining preconditions, behavior, and termination
+
+C) Registration:
+   - If my codebase uses a registry decorator or a dict mapping name->class, you MUST implement it exactly as in examples.
+   - Every option must have a unique string name stable across runs.
+
+
+=========================================
+(6) DESIGN RULES (CRITICAL)
+=========================================
+
+- Each option must:
+  - declare preconditions (what must be true for it to succeed)
+  - implement graceful failure (terminate with failure reason, no infinite loops)
+  - include a max_steps parameter with a default
+  - not mutate global state
+  - not rely on random choices unless seeded or explicitly allowed
+
+- Termination must be explicit:
+  - success termination condition
+  - failure termination conditions (blocked, cannot find target, no key, etc.)
+  - timeout termination (max_steps)
+
+- Planning:
+  - Prefer BFS for shortest path on 4-neighbor grids.
+  - If partial observability, plan over known cells only and include an exploration fallback.
+
+- Action selection:
+  - MUST return actions strictly from the provided primitive action set.
+  - If the option uses turning + forward moves, include logic to orient agent then move.
+
+- Documentation:
+  - Each class needs a docstring with:
+    * What it does
+    * Inputs/parameters
+    * Preconditions
+    * Termination conditions
+    * Failure modes
+
+=========================================
+(7) WHAT YOU SHOULD GENERATE NOW
+=========================================
+
+Generate:
+1) The full Python code file described above.
+2) NOTHING ELSE (no extra commentary). Only the code.
+
+Before writing code, internally plan:
+- a taxonomy of options based on provided objects/colors
+- reusable pathfinding + target-finding helpers (but do not modify my helper classes)
+- consistent termination semantics aligned with examples
+
+If any provided base/helper APIs conflict, follow the BaseOption and the examples as ground truth.
+
+========================
+(8) OPTIONAL: DOMAIN-SPECIFIC EXTENSIONS
+========================
+If the object list includes special objects (e.g., “bridge”, “switch”, “teleporter”), create specialized options for them too.
+
+Now produce the python module.
