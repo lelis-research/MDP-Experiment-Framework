@@ -417,273 +417,169 @@ class SingleExpAnalyzer:
         e_edge_lw=0.8,
         draw_lines=False,
 
-        # optional episode filtering
+        # optional episode filtering (episode index within each run)
         max_ep=None,  # inclusive
         min_ep=None,  # inclusive
 
-        # ---- new: dimensionality reduction controls ----
-        reduce_if_dim_gt=3,          # if dim > this -> reduce
-        reducer="umap",              # "umap" or "pca"
-        reduce_to=2,                 # 2 (recommended)
-        normalize_before_reduce=True,# L2-normalize before reduce (good for cosine-ish embeddings)
-
-        # PCA params
-        pca_n_components_pre=50,     # used before UMAP (and as cap for PCA-only too)
+        # PCA controls
+        normalize_before_pca=True,   # L2-normalize rows before PCA (often good for cosine-like embeddings)
         pca_whiten=False,
         pca_random_state=0,
-
-        # UMAP params
-        umap_n_neighbors=30,
-        umap_min_dist=0.1,
-        umap_metric="cosine",
-        umap_random_state=0,
     ):
         """
-        Scatter plot of:
-        - e embeddings: large circles (colored by 'ind')
-        - proto_e embeddings: small x markers (colored by 'ind')
+        NEW expected format:
+        episode["agent_logs"] is either None or a dict-of-numpy-arrays:
+            agent_logs["e"]        : (T, D)
+            agent_logs["proto_e"]  : (T, D)
+            agent_logs["ind"]      : (T,) or (T,1)
 
-        Notes:
-        - Plots ALL points from ALL runs (no averaging).
-        - Supports ANY dim>=2:
-            - if dim in {2,3}: plots directly (2D/3D)
-            - if dim > 3: reduces to 2D (PCA or UMAP) and plots in 2D
+        Behavior:
+        - collects ALL points from ALL runs/episodes (optionally filtered by ep range)
+        - ALWAYS reduces to 2D using PCA (even if D==2 already; it will be identity-ish)
+        - plots:
+            e       as circles
+            proto_e as x markers
+            both colored by ind
         """
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from collections import defaultdict
+        from sklearn.decomposition import PCA
 
-        def _to_np_vec(v):
+        def _to_np(v):
             if hasattr(v, "detach"):
                 v = v.detach().cpu().numpy()
-            return np.asarray(v, dtype=float).reshape(-1)
+            return np.asarray(v)
 
         def _l2_normalize_rows(x, eps=1e-12):
-            norms = np.linalg.norm(x, axis=1, keepdims=True)
-            return x / (norms + eps)
+            n = np.linalg.norm(x, axis=1, keepdims=True)
+            return x / (n + eps)
 
         # ---------------------------
-        # Collect logs (flatten agent_logs) + attach ep index
+        # Collect dict-of-arrays logs across runs/episodes (vectorized)
         # ---------------------------
-        data = []
-        for run in getattr(self, "metrics", []):
+        E_list, P_list, I_list = [], [], []
+
+        runs = getattr(self, "metrics", [])
+        for run in runs:
             for ep_idx, ep in enumerate(run):
-                logs = ep.get("agent_logs", [])
-                if not logs:
+
+                if min_ep is not None and ep_idx < int(min_ep):
+                    continue
+                if max_ep is not None and ep_idx > int(max_ep):
                     continue
 
-                for item in logs:
-                    if isinstance(item, list):
-                        for d in item:
-                            if isinstance(d, dict):
-                                dd = dict(d)
-                                dd["_ep_idx"] = ep_idx
-                                data.append(dd)
-                    elif isinstance(item, dict):
-                        dd = dict(item)
-                        dd["_ep_idx"] = ep_idx
-                        data.append(dd)
+                logs = ep.get("agent_logs", None)
+                if logs is None or not isinstance(logs, dict):
+                    continue
 
-        if not data:
-            print("plot_option_embedding: no data found in agent_logs.")
+                if ("e" not in logs) or ("proto_e" not in logs) or ("ind" not in logs):
+                    continue
+
+                e = _to_np(logs["e"])
+                p = _to_np(logs["proto_e"])
+                ind = _to_np(logs["ind"])
+
+                if e.ndim != 2 or p.ndim != 2:
+                    continue
+
+                if ind.ndim != 1:
+                    ind = ind.reshape(-1)
+
+                # align lengths (just in case)
+                T = min(e.shape[0], p.shape[0], ind.shape[0])
+                if T <= 0:
+                    continue
+
+                E_list.append(e[:T])
+                P_list.append(p[:T])
+                I_list.append(ind[:T].astype(np.int32, copy=False))
+
+        if not E_list:
+            print("plot_option_embedding: no dict-of-arrays data found in agent_logs.")
             return None
 
-        # ---------------------------
-        # Optional episode range filtering
-        # ---------------------------
-        if min_ep is not None or max_ep is not None:
-            lo = -float("inf") if min_ep is None else int(min_ep)
-            hi = float("inf") if max_ep is None else int(max_ep)
-            data = [d for d in data if lo <= d["_ep_idx"] <= hi]
-            if not data:
-                print(f"plot_option_embedding: no data in episode range [{min_ep}, {max_ep}].")
-                return None
+        E = np.concatenate(E_list, axis=0)   # (N, D)
+        P = np.concatenate(P_list, axis=0)   # (N, D)
+        I = np.concatenate(I_list, axis=0)   # (N,)
+
+        if E.shape[1] < 2:
+            raise ValueError(f"Expected embedding dim>=2, got D={E.shape[1]}")
 
         # ---------------------------
-        # Infer embedding dimension (>=2)
+        # PCA to 2D (jointly for E and P so they share the same projection)
         # ---------------------------
-        dim = _to_np_vec(data[0]["proto_e"]).shape[0]
-        if dim < 2:
-            raise ValueError(f"Expected dim>=2, got dim={dim}.")
+        X = np.vstack([E, P])  # (2N, D)
+        if normalize_before_pca:
+            X = _l2_normalize_rows(X)
 
-        # ---------------------------
-        # Group by option index 'ind'
-        # ---------------------------
-        by_ind = defaultdict(list)
-        for d in data:
-            ind_val = d.get("ind", 0)
-            if hasattr(ind_val, "item"):
-                ind_val = ind_val.item()
-            by_ind[int(ind_val)].append(d)
+        n_samples, n_features = X.shape
+        if min(n_samples, n_features) < 2:
+            # pathological tiny case: just slice/pad
+            Y = X[:, :2] if n_features >= 2 else np.pad(X, ((0, 0), (0, 2 - n_features)))
+        else:
+            pca = PCA(n_components=2, whiten=pca_whiten, random_state=pca_random_state)
+            Y = pca.fit_transform(X)
 
-        # ---------------------------
-        # If dim > reduce_if_dim_gt: reduce to 2D (jointly for e & proto_e)
-        # ---------------------------
-        reduced = False
-        if dim > reduce_if_dim_gt:
-            # Gather all points in consistent order so we can map back
-            e_list = []
-            p_list = []
-            pairs_meta = []  # stores (ind, local_index_in_ind_list)
-            for ind, items in sorted(by_ind.items()):
-                for d in items:
-                    if "e" in d and "proto_e" in d:
-                        e_list.append(_to_np_vec(d["e"]))
-                        p_list.append(_to_np_vec(d["proto_e"]))
-                        pairs_meta.append((ind, d))  # keep dict ref
-
-            if len(e_list) == 0:
-                print("plot_option_embedding: no 'e'/'proto_e' pairs found.")
-                return None
-
-            E = np.stack(e_list)   # (N, D)
-            P = np.stack(p_list)   # (N, D)
-            X = np.vstack([E, P])  # (2N, D) reduce jointly
-
-            if normalize_before_reduce:
-                X = _l2_normalize_rows(X)
-
-            reducer = str(reducer).lower()
-            if reducer not in ("pca", "umap"):
-                raise ValueError(f"reducer must be 'pca' or 'umap', got: {reducer}")
-
-            # --- PCA stage (always used as pre-step for UMAP; also used if reducer='pca') ---
-            from sklearn.decomposition import PCA
-
-            # can't have n_components > min(n_samples, n_features)
-            n_samples, n_features = X.shape
-            pre_k = min(pca_n_components_pre, n_features, n_samples)
-            if pre_k < 2:
-                # pathological tiny data; just slice
-                Y = X[:, :reduce_to]
-            else:
-                pca = PCA(n_components=pre_k, whiten=pca_whiten, random_state=pca_random_state)
-                Xp = pca.fit_transform(X)
-
-                if reducer == "pca":
-                    # final to reduce_to (e.g. 2)
-                    k2 = min(reduce_to, Xp.shape[1])
-                    Y = Xp[:, :k2]
-                else:
-                    # --- UMAP stage ---
-                    try:
-                        import umap
-                    except Exception as ex:
-                        raise ImportError(
-                            "UMAP reducer requested but 'umap-learn' is not installed. "
-                            "Install via: pip install umap-learn"
-                        ) from ex
-
-                    um = umap.UMAP(
-                        n_components=reduce_to,
-                        n_neighbors=umap_n_neighbors,
-                        min_dist=umap_min_dist,
-                        metric=umap_metric,
-                        random_state=umap_random_state,
-                    )
-                    Y = um.fit_transform(Xp)
-
-            # Split back into reduced E and P
-            N = E.shape[0]
-            E2 = Y[:N, :]
-            P2 = Y[N:, :]
-
-            # Write reduced coords back into each dict (so plotting below stays clean)
-            for i, (_, dref) in enumerate(pairs_meta):
-                dref["_e_red"] = E2[i]
-                dref["_p_red"] = P2[i]
-
-            dim = reduce_to
-            reduced = True
+        N = E.shape[0]
+        E2 = Y[:N, :]   # (N, 2)
+        P2 = Y[N:, :]   # (N, 2)
 
         # ---------------------------
-        # Setup figure / axes
+        # Setup figure / axes (always 2D)
         # ---------------------------
         created_fig = False
         if fig is None or ax is None:
             created_fig = True
-            if dim == 3:
-                fig = plt.figure(figsize=(8, 8))
-                ax = fig.add_subplot(111, projection="3d")
-            else:
-                fig, ax = plt.subplots(figsize=(7, 7))
+            fig, ax = plt.subplots(figsize=(7, 7))
         fig.subplots_adjust(top=0.88, bottom=0.15)
 
         # ---------------------------
-        # Plot
+        # Plot grouped by ind
         # ---------------------------
-        cmap = plt.cm.get_cmap("Set1", max(1, len(by_ind)))
+        inds = sorted(set(int(x) for x in I.tolist()))
+        cmap = plt.cm.get_cmap("Set1", max(1, len(inds)))
         ind_handles = []
 
-        for color_i, (ind, items) in enumerate(sorted(by_ind.items())):
-            color = cmap(color_i)
-
-            # use reduced if present, else original
-            if reduced:
-                e_vals = np.stack([d["_e_red"] for d in items if "_e_red" in d])
-                p_vals = np.stack([d["_p_red"] for d in items if "_p_red" in d])
-            else:
-                e_vals = np.stack([_to_np_vec(d["e"]) for d in items if "e" in d])
-                p_vals = np.stack([_to_np_vec(d["proto_e"]) for d in items if "proto_e" in d])
-
-            if e_vals.size == 0 or p_vals.size == 0:
+        for color_i, ind in enumerate(inds):
+            mask = (I == ind)
+            if not np.any(mask):
                 continue
 
-            if dim == 2:
-                sc_e = ax.scatter(
-                    e_vals[:, 0], e_vals[:, 1],
-                    color=color, marker="o", s=e_s,
-                    alpha=e_alpha, edgecolors="black",
-                    linewidths=e_edge_lw,
-                )
-                ax.scatter(
-                    p_vals[:, 0], p_vals[:, 1],
-                    color=color, marker="x", s=proto_s,
-                    alpha=proto_alpha, linewidths=proto_lw,
-                )
-                if draw_lines:
-                    m = min(len(p_vals), len(e_vals))
-                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
-                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]],
-                                color=color, alpha=0.15, linewidth=0.6)
-            elif dim == 3:
-                sc_e = ax.scatter(
-                    e_vals[:, 0], e_vals[:, 1], e_vals[:, 2],
-                    color=color, marker="o", s=e_s,
-                    alpha=e_alpha, edgecolors="black",
-                    linewidths=e_edge_lw,
-                )
-                ax.scatter(
-                    p_vals[:, 0], p_vals[:, 1], p_vals[:, 2],
-                    color=color, marker="x", s=proto_s,
-                    alpha=proto_alpha, linewidths=proto_lw,
-                )
-                if draw_lines:
-                    m = min(len(p_vals), len(e_vals))
-                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
-                        ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]],
-                                color=color, alpha=0.15, linewidth=0.6)
-            else:
-                raise ValueError(f"Internal error: dim must be 2 or 3 at plot time, got {dim}")
+            color = cmap(color_i)
+            e_vals = E2[mask]
+            p_vals = P2[mask]
+
+            sc_e = ax.scatter(
+                e_vals[:, 0], e_vals[:, 1],
+                color=color, marker="o", s=e_s,
+                alpha=e_alpha, edgecolors="black",
+                linewidths=e_edge_lw,
+            )
+            ax.scatter(
+                p_vals[:, 0], p_vals[:, 1],
+                color=color, marker="x", s=proto_s,
+                alpha=proto_alpha, linewidths=proto_lw,
+            )
+
+            if draw_lines:
+                m = min(len(p_vals), len(e_vals))
+                for pe, ev in zip(p_vals[:m], e_vals[:m]):
+                    ax.plot([pe[0], ev[0]], [pe[1], ev[1]],
+                            color=color, alpha=0.15, linewidth=0.6)
 
             ind_handles.append((sc_e, f"ind={ind}"))
 
         # ---------------------------
         # Cosmetics
         # ---------------------------
-        extra = ""
-        if reduced:
-            extra = f"  (reduced→{reduce_to}D via {reducer.upper()})"
-        ax.set_title(title + extra)
-
-        if dim == 2:
-            ax.axhline(0, color="gray", linewidth=0.5)
-            ax.axvline(0, color="gray", linewidth=0.5)
-            ax.set_xlabel("Dim 1")
-            ax.set_ylabel("Dim 2")
-            ax.grid(True)
-            ax.set_aspect("equal", adjustable="box")
-        else:
-            ax.set_xlabel("Dim 1")
-            ax.set_ylabel("Dim 2")
-            ax.set_zlabel("Dim 3")
+        ax.set_title(f"{title}  (PCA→2D)")
+        ax.axhline(0, color="gray", linewidth=0.5)
+        ax.axvline(0, color="gray", linewidth=0.5)
+        ax.set_xlabel("PC 1")
+        ax.set_ylabel("PC 2")
+        ax.grid(True)
+        ax.set_aspect("equal", adjustable="box")
 
         if show_legend and ind_handles:
             handles = [h for h, _ in ind_handles]
@@ -701,6 +597,7 @@ class SingleExpAnalyzer:
         # Save / show
         # ---------------------------
         if save_dir is not None:
+            import os
             os.makedirs(save_dir, exist_ok=True)
             fig.savefig(os.path.join(save_dir, "OptionEmbedding.png"), bbox_inches="tight", dpi=200)
 
@@ -708,7 +605,6 @@ class SingleExpAnalyzer:
             plt.show()
 
         return fig, ax
-    
     def plot_option_embedding2(
         self,
         fig=None,
@@ -734,69 +630,74 @@ class SingleExpAnalyzer:
         - e embeddings: large circles (colored by 'ind')
         - proto_e embeddings: small x markers (colored by 'ind')
 
-        Notes:
-        - Plots ALL points from ALL runs (no averaging).
-        - Supports 2D or 3D embeddings.
+        New expected format:
+        episode["agent_logs"] is either None or a dict-of-numpy-arrays:
+            agent_logs["e"]        : (T, d)
+            agent_logs["proto_e"]  : (T, d)
+            agent_logs["ind"]      : (T,)
         """
 
-        def _to_np_vec(v):
+        def _to_np(v):
             if hasattr(v, "detach"):
                 v = v.detach().cpu().numpy()
-            return np.asarray(v, dtype=float).reshape(-1)
+            return np.asarray(v)
 
         # ---------------------------
-        # Collect logs (flatten agent_logs) + attach ep index
+        # Collect arrays across all runs/episodes (vectorized)
         # ---------------------------
-        data = []
-        for run in getattr(self, "metrics", []):
+        E_list, P_list, I_list = [], [], []
+
+        runs = getattr(self, "metrics", [])
+        for run in runs:
             for ep_idx, ep in enumerate(run):
-                logs = ep.get("agent_logs", [])
-                if not logs:
+
+                # episode filtering (kept same semantics as before)
+                if min_ep is not None and ep_idx < int(min_ep):
+                    continue
+                if max_ep is not None and ep_idx > int(max_ep):
                     continue
 
-                for item in logs:
-                    if isinstance(item, list):
-                        for d in item:
-                            if isinstance(d, dict):
-                                dd = dict(d)
-                                dd["_ep_idx"] = ep_idx
-                                data.append(dd)
-                    elif isinstance(item, dict):
-                        dd = dict(item)
-                        dd["_ep_idx"] = ep_idx
-                        data.append(dd)
+                logs = ep.get("agent_logs", None)
+                if logs is None:
+                    continue
+                if not isinstance(logs, dict):
+                    # old-format experiment -> ignore (or add backward compat here)
+                    continue
 
-        if not data:
-            print("plot_option_embedding: no data found in agent_logs.")
+                if ("e" not in logs) or ("proto_e" not in logs) or ("ind" not in logs):
+                    continue
+
+                e = _to_np(logs["e"])
+                p = _to_np(logs["proto_e"])
+                ind = _to_np(logs["ind"])
+
+                if e.ndim != 2 or p.ndim != 2:
+                    continue
+
+                # ensure ind is (T,)
+                if ind.ndim != 1:
+                    ind = ind.reshape(-1)
+
+                # align lengths just in case
+                T = min(e.shape[0], p.shape[0], ind.shape[0])
+                if T <= 0:
+                    continue
+
+                E_list.append(e[:T])
+                P_list.append(p[:T])
+                I_list.append(ind[:T].astype(np.int32, copy=False))
+
+        if not E_list:
+            print("plot_option_embedding2: no dict-of-arrays data found in agent_logs.")
             return None
 
-        # ---------------------------
-        # Optional episode range filtering
-        # ---------------------------
-        if min_ep is not None or max_ep is not None:
-            lo = -float("inf") if min_ep is None else int(min_ep)
-            hi = float("inf") if max_ep is None else int(max_ep)
-            data = [d for d in data if lo <= d["_ep_idx"] <= hi]
-            if not data:
-                print(f"plot_option_embedding: no data in episode range [{min_ep}, {max_ep}].")
-                return None
+        E = np.concatenate(E_list, axis=0)   # (N, d)
+        P = np.concatenate(P_list, axis=0)   # (N, d)
+        I = np.concatenate(I_list, axis=0)   # (N,)
 
-        # ---------------------------
-        # Infer embedding dimension (2D or 3D)
-        # ---------------------------
-        dim = _to_np_vec(data[0]["proto_e"]).shape[0]
+        dim = E.shape[1]
         if dim not in (2, 3):
             raise ValueError(f"Expected 2D or 3D embeddings, got dim={dim}.")
-
-        # ---------------------------
-        # Group by option index 'ind'
-        # ---------------------------
-        by_ind = defaultdict(list)
-        for d in data:
-            ind_val = d.get("ind", 0)
-            if hasattr(ind_val, "item"):
-                ind_val = ind_val.item()
-            by_ind[int(ind_val)].append(d)
 
         # ---------------------------
         # Setup figure / axes
@@ -812,16 +713,20 @@ class SingleExpAnalyzer:
         fig.subplots_adjust(top=0.88, bottom=0.15)
 
         # ---------------------------
-        # Plot
+        # Plot grouped by ind
         # ---------------------------
-        cmap = plt.cm.get_cmap("Set1", max(1, len(by_ind)))
+        inds = sorted(set(int(x) for x in I.tolist()))
+        cmap = plt.cm.get_cmap("Set1", max(1, len(inds)))
         ind_handles = []
 
-        for color_i, (ind, items) in enumerate(sorted(by_ind.items())):
-            color = cmap(color_i)
+        for color_i, ind in enumerate(inds):
+            mask = (I == ind)
+            if not np.any(mask):
+                continue
 
-            e_vals = np.stack([_to_np_vec(d["e"]) for d in items if "e" in d])
-            p_vals = np.stack([_to_np_vec(d["proto_e"]) for d in items if "proto_e" in d])
+            color = cmap(color_i)
+            e_vals = E[mask]
+            p_vals = P[mask]
 
             if dim == 2:
                 sc_e = ax.scatter(
@@ -836,7 +741,8 @@ class SingleExpAnalyzer:
                     alpha=proto_alpha, linewidths=proto_lw,
                 )
                 if draw_lines:
-                    for pe, ev in zip(p_vals, e_vals):
+                    m = min(len(p_vals), len(e_vals))
+                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
                         ax.plot([pe[0], ev[0]], [pe[1], ev[1]], color=color, alpha=0.15, linewidth=0.6)
             else:
                 sc_e = ax.scatter(
@@ -851,7 +757,8 @@ class SingleExpAnalyzer:
                     alpha=proto_alpha, linewidths=proto_lw,
                 )
                 if draw_lines:
-                    for pe, ev in zip(p_vals, e_vals):
+                    m = min(len(p_vals), len(e_vals))
+                    for pe, ev in zip(p_vals[:m], e_vals[:m]):
                         ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]],
                                 color=color, alpha=0.15, linewidth=0.6)
 
@@ -890,121 +797,152 @@ class SingleExpAnalyzer:
         # ---------------------------
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
-            fig.savefig(os.path.join(save_dir, "OptionEmbedding.png"), bbox_inches="tight", dpi=200)
+            save_path = os.path.join(save_dir, "OptionEmbedding.png")
+            fig.savefig(save_path, bbox_inches="tight", dpi=200)
+            print(f"Saved {save_path}")
 
         if show or created_fig:
             plt.show()
 
         return fig, ax
-    
     def plot_option_embedding_gif(
-        self,
-        name_tag="",
-        show=True,
-        title="e vs proto_e embeddings",
-        # styling
-        proto_s=16,
-        e_s=32,
-        proto_alpha=0.6,
-        e_alpha=0.9,
-        proto_lw=0.5,
-        e_edge_lw=0.8,
-        draw_lines=False,
-        # episode controls
-        min_ep=0,
-        max_ep=None,
-        every=1,
-        fps=6,
-        dpi=80,
-        # multi-run behavior
-        run_idx=None,
-        cumulative_mode=False,
+    self,
+    name_tag="",
+    show=True,
+    title="e vs proto_e embeddings",
+    # styling
+    proto_s=16,
+    e_s=32,
+    proto_alpha=0.6,
+    e_alpha=0.9,
+    proto_lw=0.5,
+    e_edge_lw=0.8,
+    draw_lines=False,
+    # episode controls
+    min_ep=0,
+    max_ep=None,
+    every=1,
+    fps=6,
+    dpi=80,
+    # multi-run behavior
+    run_idx=None,
+    cumulative_mode=False,
     ):
         """
         Create a GIF showing embedding scatter evolution over episodes.
+
+        Expects per-episode agent_logs to be a dict of numpy arrays:
+        agent_logs["e"]        : (T, d)
+        agent_logs["proto_e"]  : (T, d)
+        agent_logs["ind"]      : (T,)
         """
 
         print("[OptionEmbeddingGIF] Collecting agent logs...")
 
-        def _to_np_vec(v):
+        def _to_np(v):
+            # allow torch -> numpy, but your logs should already be numpy
             if hasattr(v, "detach"):
                 v = v.detach().cpu().numpy()
-            return np.asarray(v, dtype=float).reshape(-1)
+            return np.asarray(v)
 
         # ---------------------------
-        # Collect data
+        # Collect data in a vectorized way
+        # by_ep[ep_idx] = list of chunks (dicts of arrays)
+        # each chunk is already "one episode" data, but we keep list for cumulative mode
         # ---------------------------
-        data = []
+        by_ep = defaultdict(list)
         runs = getattr(self, "metrics", [])
 
         if run_idx is None:
             run_iter = enumerate(runs)
         else:
-            run_iter = [(int(run_idx), runs[int(run_idx)])]
+            r = int(run_idx)
+            run_iter = [(r, runs[r])]
 
         for r, run in run_iter:
             for ep_idx, ep in enumerate(run):
-                logs = ep.get("agent_logs", [])
-                if not logs:
+                logs = ep.get("agent_logs", None)
+                if logs is None:
                     continue
-                for item in logs:
-                    if isinstance(item, list):
-                        for d in item:
-                            if isinstance(d, dict):
-                                dd = dict(d)
-                                dd["_ep_idx"] = ep_idx
-                                dd["_run_idx"] = r
-                                data.append(dd)
-                    elif isinstance(item, dict):
-                        dd = dict(item)
-                        dd["_ep_idx"] = ep_idx
-                        dd["_run_idx"] = r
-                        data.append(dd)
+                if not isinstance(logs, dict):
+                    # If you still have some old experiments saved in old format, skip or handle separately
+                    continue
 
-        if not data:
-            print("[OptionEmbeddingGIF] No data found. Aborting.")
+                if ("e" not in logs) or ("proto_e" not in logs) or ("ind" not in logs):
+                    continue
+
+                e = _to_np(logs["e"])
+                p = _to_np(logs["proto_e"])
+                ind = _to_np(logs["ind"])
+
+                if e.ndim != 2 or p.ndim != 2:
+                    continue
+                if ind.ndim != 1:
+                    ind = ind.reshape(-1)
+
+                T = min(len(ind), e.shape[0], p.shape[0])
+                if T <= 0:
+                    continue
+
+                chunk = {
+                    "e": e[:T],
+                    "proto_e": p[:T],
+                    "ind": ind[:T].astype(np.int32, copy=False),
+                    "_run_idx": r,
+                    "_ep_idx": ep_idx,
+                }
+                by_ep[ep_idx].append(chunk)
+
+        if not by_ep:
+            print("[OptionEmbeddingGIF] No dict-of-arrays logs found. Aborting.")
             return None
-
-        print("[OptionEmbeddingGIF] Filtering episodes...")
 
         # ---------------------------
         # Episode range
         # ---------------------------
-        last_ep = max(d["_ep_idx"] for d in data)
+        last_ep = max(by_ep.keys())
         lo = int(min_ep) if min_ep is not None else 0
         hi = int(last_ep) if max_ep is None else int(max_ep)
-        data = [d for d in data if lo <= d["_ep_idx"] <= hi]
 
-        if not data:
+        # keep only eps in range
+        by_ep = {k: v for k, v in by_ep.items() if lo <= k <= hi}
+        if not by_ep:
             print("[OptionEmbeddingGIF] No data in episode range. Aborting.")
             return None
 
         print("[OptionEmbeddingGIF] Inferring embedding dimension...")
 
         # ---------------------------
-        # Infer dimension
+        # Infer dimension (2D or 3D)
         # ---------------------------
-        dim = _to_np_vec(data[0]["proto_e"]).shape[0]
+        # find first chunk
+        first_chunk = None
+        for ep_chunks in by_ep.values():
+            if ep_chunks:
+                first_chunk = ep_chunks[0]
+                break
+        if first_chunk is None:
+            print("[OptionEmbeddingGIF] No usable chunks. Aborting.")
+            return None
+
+        dim = first_chunk["proto_e"].shape[1]
         if dim not in (2, 3):
             raise ValueError(f"Expected 2D or 3D embeddings, got dim={dim}.")
-
-        print("[OptionEmbeddingGIF] Grouping by episode...")
-
-        # ---------------------------
-        # Group by episode
-        # ---------------------------
-        by_ep = defaultdict(list)
-        for d in data:
-            if "e" in d and "proto_e" in d:
-                by_ep[d["_ep_idx"]].append(d)
 
         print("[OptionEmbeddingGIF] Computing axis limits...")
 
         # ---------------------------
-        # Axis limits
+        # Axis limits from ALL points in range
         # ---------------------------
-        all_e = np.stack([_to_np_vec(d["e"]) for d in data if "e" in d])
-        all_p = np.stack([_to_np_vec(d["proto_e"]) for d in data if "proto_e" in d])
+        all_e = []
+        all_p = []
+        for ep_chunks in by_ep.values():
+            for ch in ep_chunks:
+                all_e.append(ch["e"])
+                all_p.append(ch["proto_e"])
+
+        all_e = np.concatenate(all_e, axis=0)
+        all_p = np.concatenate(all_p, axis=0)
         all_pts = np.concatenate([all_e, all_p], axis=0)
 
         mins = all_pts.min(axis=0)
@@ -1016,19 +954,22 @@ class SingleExpAnalyzer:
         print("[OptionEmbeddingGIF] Preparing colors...")
 
         # ---------------------------
-        # Colors
+        # Colors by ind across all data in range
         # ---------------------------
-        inds = sorted({
-            int(d.get("ind", 0).item() if hasattr(d.get("ind", 0), "item") else d.get("ind", 0))
-            for d in data
-        })
+        all_inds = []
+        for ep_chunks in by_ep.values():
+            for ch in ep_chunks:
+                all_inds.append(ch["ind"])
+        all_inds = np.concatenate(all_inds, axis=0)
+        inds = sorted(set(int(x) for x in all_inds.tolist()))
+
         ind_to_color_i = {ind: i for i, ind in enumerate(inds)}
         cmap = plt.cm.get_cmap("Set1", max(1, len(inds)))
 
         print("[OptionEmbeddingGIF] Rendering frames...")
 
         # ---------------------------
-        # Render frames
+        # Output path
         # ---------------------------
         if self.exp_path is not None:
             out_path = os.path.join(self.exp_path, f"OptionEmbeddingOverTime_run_{run_idx}_{name_tag}.gif")
@@ -1037,17 +978,28 @@ class SingleExpAnalyzer:
 
         ep_list = list(range(lo, hi + 1, max(1, int(every))))
         frames = []
-        cumulative = []
+        cumulative_chunks = []
 
         for i, t in enumerate(ep_list):
             if i % max(1, len(ep_list)//10) == 0:
                 print(f"[OptionEmbeddingGIF]  ├─ rendering frame {i+1}/{len(ep_list)} (ep {t})")
 
             if cumulative_mode:
-                cumulative.extend(by_ep.get(t, []))
-                current = cumulative
+                cumulative_chunks.extend(by_ep.get(t, []))
+                chunks = cumulative_chunks
             else:
-                current = by_ep.get(t, [])
+                chunks = by_ep.get(t, [])
+
+            # flatten chunks into one set of arrays for this frame
+            if not chunks:
+                # still render empty frame to keep timing consistent
+                E = np.zeros((0, dim))
+                P = np.zeros((0, dim))
+                I = np.zeros((0,), dtype=np.int32)
+            else:
+                E = np.concatenate([ch["e"] for ch in chunks], axis=0)
+                P = np.concatenate([ch["proto_e"] for ch in chunks], axis=0)
+                I = np.concatenate([ch["ind"] for ch in chunks], axis=0)
 
             # setup fig
             if dim == 3:
@@ -1065,29 +1017,56 @@ class SingleExpAnalyzer:
                 ax.set_aspect("equal", adjustable="box")
                 ax.grid(True)
 
-            by_ind = defaultdict(list)
-            for d in current:
-                ind_val = d.get("ind", 0)
-                if hasattr(ind_val, "item"):
-                    ind_val = ind_val.item()
-                by_ind[int(ind_val)].append(d)
+            # group by ind and plot
+            for ind in inds:
+                mask = (I == ind)
+                if not np.any(mask):
+                    continue
+                color = cmap(ind_to_color_i[ind])
 
-            for ind, items in by_ind.items():
-                color = cmap(ind_to_color_i.get(ind, 0))
-                e_vals = np.stack([_to_np_vec(d["e"]) for d in items])
-                p_vals = np.stack([_to_np_vec(d["proto_e"]) for d in items])
+                e_vals = E[mask]
+                p_vals = P[mask]
 
-                ax.scatter(e_vals[:, 0], e_vals[:, 1],
+                if dim == 2:
+                    ax.scatter(
+                        e_vals[:, 0], e_vals[:, 1],
                         color=color, marker="o", s=e_s,
                         alpha=e_alpha, edgecolors="black",
-                        linewidths=e_edge_lw)
-                ax.scatter(p_vals[:, 0], p_vals[:, 1],
+                        linewidths=e_edge_lw
+                    )
+                    ax.scatter(
+                        p_vals[:, 0], p_vals[:, 1],
                         color=color, marker="x", s=proto_s,
-                        alpha=proto_alpha, linewidths=proto_lw)
+                        alpha=proto_alpha, linewidths=proto_lw
+                    )
+                    if draw_lines:
+                        m = min(len(p_vals), len(e_vals))
+                        for pe, ev in zip(p_vals[:m], e_vals[:m]):
+                            ax.plot([pe[0], ev[0]], [pe[1], ev[1]],
+                                    color=color, alpha=0.15, linewidth=0.6)
+                else:
+                    ax.scatter(
+                        e_vals[:, 0], e_vals[:, 1], e_vals[:, 2],
+                        color=color, marker="o", s=e_s,
+                        alpha=e_alpha, edgecolors="black",
+                        linewidths=e_edge_lw
+                    )
+                    ax.scatter(
+                        p_vals[:, 0], p_vals[:, 1], p_vals[:, 2],
+                        color=color, marker="x", s=proto_s,
+                        alpha=proto_alpha, linewidths=proto_lw
+                    )
+                    if draw_lines:
+                        m = min(len(p_vals), len(e_vals))
+                        for pe, ev in zip(p_vals[:m], e_vals[:m]):
+                            ax.plot([pe[0], ev[0]], [pe[1], ev[1]], [pe[2], ev[2]],
+                                    color=color, alpha=0.15, linewidth=0.6)
 
             ax.set_title(f"{title} | ep {t}")
             ax.set_xlabel("Dim 1")
             ax.set_ylabel("Dim 2")
+            if dim == 3:
+                ax.set_zlabel("Dim 3")
 
             fig.set_dpi(dpi)
             fig.canvas.draw()
@@ -1096,15 +1075,14 @@ class SingleExpAnalyzer:
             plt.close(fig)
 
         print("[OptionEmbeddingGIF] Writing GIF to disk...")
-
         imageio.mimsave(out_path, frames, fps=fps)
-
         print("[OptionEmbeddingGIF] Done.")
 
         if show:
             print(f"GIF saved: {out_path}")
 
         return out_path
+    
     # ---------------------------
     # Misc: seed saver and video generator
     # ---------------------------

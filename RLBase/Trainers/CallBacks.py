@@ -72,23 +72,34 @@ class JsonlCallback:
             self._f.close()
 
 class TBCallBack:
-    def __init__(self, log_dir, flush_every=1000):
+    def __init__(self, log_dir, flush_every=1000, flush_mode="avg"):
         """
         Parameters
         ----------
         log_dir : str
             Directory for TensorBoard logs.
         flush_every : int
-            Number of __call__ invocations between flushes of the averaged data.
+            Number of __call__ invocations between flushes.
+        flush_mode : str
+            "avg" -> average over the last N calls (your current behavior)
+            "raw" -> log the most recent value every N calls (no averaging)
         """
+        assert flush_mode in ("avg", "raw"), "flush_mode must be 'avg' or 'raw'"
+
         self.writer = SummaryWriter(log_dir=log_dir)
         self.global_counter = 0
         self.flush_every = flush_every
+        self.flush_mode = flush_mode
 
-        # Buffer: (tag, key) -> { "sum_value": ..., "sum_counter": ..., "count": ... }
-        self._buffer = defaultdict(lambda: {"sum_value": 0.0,
-                                            "sum_counter": 0.0,
-                                            "count": 0})
+        # Buffer: (tag, key) -> stats
+        # Added: last_value, last_counter for raw mode (and for avg mode if you prefer last counter)
+        self._buffer = defaultdict(lambda: {
+            "sum_value": 0.0,
+            "sum_counter": 0.0,
+            "count": 0,
+            "last_value": None,
+            "last_counter": None,
+        })
 
     def __call__(self, data_dict, tag, counter, force=False):
         """
@@ -102,38 +113,45 @@ class TBCallBack:
             X-axis value (step) for this log *if* it gets written.
         force : bool
             If True, write this point immediately to TensorBoard without
-            touching the averaging buffer or global_counter.
+            touching the buffer or global_counter.
         """
         if force:
-            # Log this call immediately, bypassing averaging & global_counter
             for key, value in data_dict.items():
                 self.writer.add_scalar(f"{tag}/{key}", value, counter)
             return
 
-        # Normal averaged logging: count this call
         self.global_counter += 1
 
         # Accumulate into buffers
         for key, value in data_dict.items():
             buf = self._buffer[(tag, key)]
-            buf["sum_value"] += float(value)
-            buf["sum_counter"] += float(counter)
+            v = float(value)
+            c = float(counter)
+            buf["sum_value"] += v
+            buf["sum_counter"] += c
             buf["count"] += 1
+            buf["last_value"] = v
+            buf["last_counter"] = c
 
         # Flush every N calls (across all tags/keys)
         if self.flush_every > 0 and (self.global_counter % self.flush_every == 0):
             self._flush_buffer()
 
     def _flush_buffer(self):
-        """Write averaged metrics from buffer to TensorBoard, then clear the buffer."""
+        """Write metrics from buffer to TensorBoard, then clear the buffer."""
         for (tag, key), buf in self._buffer.items():
             if buf["count"] == 0:
                 continue
-            avg_value = buf["sum_value"] / buf["count"]
-            avg_counter = buf["sum_counter"] / buf["count"]
-            self.writer.add_scalar(f"{tag}/{key}", avg_value, avg_counter)
 
-        # Clear buffer after flushing
+            if self.flush_mode == "avg":
+                out_value = buf["sum_value"] / buf["count"]
+                out_counter = buf["sum_counter"] / buf["count"]
+            else:  # "raw"
+                out_value = buf["last_value"]
+                out_counter = buf["last_counter"]
+
+            self.writer.add_scalar(f"{tag}/{key}", out_value, out_counter)
+
         self._buffer.clear()
 
     def reset(self):
@@ -143,7 +161,6 @@ class TBCallBack:
 
     def close(self):
         """Flush any remaining buffered data and close the writer."""
-        # Flush leftovers that didn't hit an exact multiple of flush_every
         if self._buffer:
             self._flush_buffer()
         self.writer.close()

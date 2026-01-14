@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=3G
-#SBATCH --time=0-01:00
+#SBATCH --mem=4G
+#SBATCH --time=0-02:00
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -38,21 +38,21 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="$IDX"
+NAME_TAG="fake_update_01_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="A2C"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="VQOptionCritic"
+ENV="MiniGrid-EmptyTwoGoals-v0"
 
-ENV_WRAPPING='["FullyObs", "FixedSeed", "OneHotImageDir", "DropMission"]'
-WRAPPING_PARAMS='[{}, {"seed":5}, {}, {}]'
+ENV_WRAPPING='[]'
+WRAPPING_PARAMS='[]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=100
 
@@ -61,19 +61,38 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "actor_eps": 1e-05,
-  "actor_step_size": 0.001,
-  "anneal_step_size_flag": false,
-  "critic_coef": 0.5,
-  "critic_eps": 1e-05,
-  "critic_step_size": 0.003,
-  "entropy_coef": 0.02,
+  "codebook_embedding_high": 1.0,
+  "codebook_embedding_low": -1.0,
+  "codebook_eps": 1e-05,
+  "codebook_max_grad_norm": 1.0,
+  "codebook_num_embeddings": 2,
+  "codebook_step_size": 0.0003,
+  "commit_coef": 0.2,
   "gamma": 0.99,
-  "lamda": 0.95,
-  "norm_adv_flag": true,
-  "rollout_steps": 256,
-  "total_steps": 500000,
-  "update_type": "sync"
+  "hl_actor_eps": 1e-08,
+  "hl_actor_network": "MiniGrid/PPO/mlp_actor",
+  "hl_actor_step_size": 0.0003,
+  "hl_anneal_clip_range_actor": false,
+  "hl_anneal_clip_range_critic": false,
+  "hl_clip_range_actor_init": 0.3,
+  "hl_clip_range_critic_init": 0.1,
+  "hl_critic_coef": 0.5,
+  "hl_critic_eps": 1e-08,
+  "hl_critic_network": "MiniGrid/PPO/mlp_critic",
+  "hl_critic_step_size": 0.0003,
+  "hl_enable_advantage_normalization": true,
+  "hl_enable_stepsize_anneal": false,
+  "hl_enable_transform_action": true,
+  "hl_entropy_coef": 0.0,
+  "hl_lamda": 0.95,
+  "hl_max_grad_norm": 0.5,
+  "hl_max_logstd": null,
+  "hl_min_logstd": null,
+  "hl_mini_batch_size": 64,
+  "hl_num_epochs": 10,
+  "hl_rollout_steps": 2048,
+  "hl_target_kl": null,
+  "hl_total_steps": 200000
 }'
 # ------------------------------
 

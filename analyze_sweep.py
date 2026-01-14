@@ -8,11 +8,15 @@ Utilities for analyzing sweeps:
 
 import os
 import pickle
+import time
 import numpy as np
 import yaml
 import json
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from tqdm import tqdm
+from multiprocessing import get_context
+from functools import partial
 
 SYMLINK_PREFIX = 'trial_'   # prefix for trial directories
 METRICS_FILE   = 'all_metrics.pkl'
@@ -149,7 +153,7 @@ def find_best_hyperparameters(exp_dir, ratio, auc_type):
     and return (overall_avg, run_avgs, agent_str, trial_name) for the best.
     """
     results = []  # (overall_avg, run_avgs, agent_str, trial)
-    for trial in find_trials(exp_dir):
+    for trial in tqdm(find_trials(exp_dir)):
         trial_dir = os.path.join(exp_dir, trial)
         metrics_path = os.path.join(trial_dir, METRICS_FILE)
         agent_path   = os.path.join(trial_dir, AGENT_FILE)
@@ -157,6 +161,7 @@ def find_best_hyperparameters(exp_dir, ratio, auc_type):
             continue
         with open(metrics_path, 'rb') as f:
             metrics = pickle.load(f)
+        
         with open(agent_path, 'r') as f:
             agent_str = f.read().strip()
         if auc_type == "episode":
@@ -170,6 +175,48 @@ def find_best_hyperparameters(exp_dir, ratio, auc_type):
         return None
     return max(results, key=lambda x: x[0])
 
+
+def _score_one_trial(trial, exp_dir, ratio, auc_type):
+    trial_dir = os.path.join(exp_dir, trial)
+    metrics_path = os.path.join(trial_dir, METRICS_FILE)
+    agent_path   = os.path.join(trial_dir, AGENT_FILE)
+    if not (os.path.isfile(metrics_path) and os.path.isfile(agent_path)):
+        return None
+
+    with open(metrics_path, "rb") as f:
+        metrics = pickle.load(f)
+
+    if auc_type == "episode":
+        run_avgs = compute_run_avgs_by_episodes_AUC(metrics, ratio=ratio)
+    else:
+        run_avgs = compute_run_avgs_by_steps_AUC(metrics, ratio_steps=ratio)
+
+    overall_avg = float(np.mean(run_avgs)) if run_avgs else 0.0
+
+    with open(agent_path, "r") as f:
+        agent_str = f.read().strip()
+
+    # IMPORTANT: return only small stuff
+    return (overall_avg, run_avgs, agent_str, trial)
+
+def find_best_hyperparameters_parallel(exp_dir, ratio, auc_type, workers=16):
+    trials = find_trials(exp_dir)
+    fn = partial(_score_one_trial, exp_dir=exp_dir, ratio=ratio, auc_type=auc_type)
+
+    ctx = get_context("fork") if hasattr(os, "fork") else get_context("spawn")
+
+    results = []
+    with ctx.Pool(processes=workers) as pool:
+        for r in tqdm(
+            pool.imap_unordered(fn, trials, chunksize=1),
+            total=len(trials),
+            desc="Scoring trials",
+            unit="trial",
+        ):
+            if r is not None:
+                results.append(r)
+
+    return max(results, key=lambda x: x[0]) if results else None
 
 def load_args_yaml(trial_dir):
     """
@@ -234,7 +281,7 @@ def collect_trial_records(exp_dir, ratio, auc_type):
         agent_path   = os.path.join(trial_dir, AGENT_FILE)
         if not (os.path.isfile(metrics_path) and os.path.isfile(agent_path)):
             continue
-
+        
         with open(metrics_path, 'rb') as f:
             metrics = pickle.load(f)
         
@@ -505,7 +552,9 @@ def main(exp_dir, ratio, auc_type):
     print(f"{num_complete} trials have metrics and agent info.")
 
     # 2) Best hyperparams
-    best = find_best_hyperparameters(exp_dir, ratio, auc_type)
+    # best = find_best_hyperparameters(exp_dir, ratio, auc_type)
+    best = find_best_hyperparameters_parallel(exp_dir, ratio, auc_type, workers=16)
+    
     if best is None:
         print("No completed trials found to analyze.")
         return
@@ -544,7 +593,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-SimpleCrossingS9N1-v0_/FullyObs_FixedSeed(seed-10)_OneHotImageDir_DropMission/A2C/_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-EmptyTwoGoals-v0_/VQOptionCritic/_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------

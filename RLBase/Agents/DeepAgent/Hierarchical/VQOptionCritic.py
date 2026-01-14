@@ -635,8 +635,9 @@ class VQOptionCriticAgent(BaseAgent):
         
         self.tmp_counter = 0
         self.tmp_flag = False
-        self.log_lst = []
-        # self.tmp_direction_t = torch.randn((self.hp.codebook.embedding_dim,), device=self.device)
+        self._init_log_buf()
+        
+        self.tmp_direction_t = torch.randn((self.hp.codebook.embedding_dim,), device=self.device)
         # self.tmp_direction_t = torch.tensor([[0.0, 1.0], 
         #                                      [-0.6, -1.0], 
         #                                      [0.6, -1.0],
@@ -645,9 +646,56 @@ class VQOptionCriticAgent(BaseAgent):
         
     
     def log(self):
-        logs = self.log_lst
-        self.log_lst = []
-        return logs
+        # returns list length num_envs, each item either None or dict-of-arrays
+        return self._flush_log_buf()
+    
+    def _init_log_buf(self):
+        # one buffer per env slot, to avoid mixing logs between envs
+        self.log_buf = []
+        for _ in range(self.num_envs):
+            self.log_buf.append({
+                "proto_e": [],       # list of (d,) arrays
+                "e": [],             # list of (d,) arrays
+                "ind": [],           # list of ints
+                "num_options": [],   # list of ints
+                "option_index": [],  # list of ints
+            })
+
+    def _flush_log_buf(self):
+        """
+        Return a list of per-env logs, each as dict-of-numpy-arrays.
+        Also clears buffers.
+        Shape conventions:
+        proto_e: (T, d)
+        e      : (T, d)
+        ind    : (T,)
+        num_options: (T,)
+        option_index: (T,)
+        """
+        out = []
+        for b in self.log_buf:
+            T = len(b["ind"])
+            if T == 0:
+                out.append(None)  # no logs for this env since last flush
+                continue
+
+            # stack embeddings (assume consistent dim)
+            proto_e = np.stack(b["proto_e"]).astype(np.float32, copy=False)
+            e       = np.stack(b["e"]).astype(np.float32, copy=False)
+
+            out.append({
+                "proto_e": proto_e,
+                "e": e,
+                "ind": np.asarray(b["ind"], dtype=np.int32),
+                "num_options": np.asarray(b["num_options"], dtype=np.int32),
+                "option_index": np.asarray(b["option_index"], dtype=np.int32),
+            })
+
+            # clear
+            for k in b:
+                b[k].clear()
+        return out
+
     
     def act(self, observation, greedy=False):
         state = self.feature_extractor(observation)
@@ -716,17 +764,13 @@ class VQOptionCriticAgent(BaseAgent):
             self.option_multiplier[i] *= self.hp.hl.gamma
             self.option_num_steps[i] += 1
             if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
-                self.log_lst.append({
-                    "proto_e": self.running_option_proto_emb[i],
-                    "e": self.running_option_emb[i],
-                    "ind": self.running_option_index[i],
-                    
-                    "OptionUsageLog": True,
-                    "NumOptions": len(self.options_lst),
-                    "OptionIndex": curr_option_idx,
-                    "OptionClass": self.options_lst[curr_option_idx].__class__,
+                
+                self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
+                self.log_buf[i]["e"].append(self.running_option_emb[i].cpu().numpy())
+                self.log_buf[i]["ind"].append(int(self.running_option_index[i]))
+                self.log_buf[i]["num_options"].append(int(len(self.options_lst)))
+                self.log_buf[i]["option_index"].append(int(curr_option_idx))
 
-                })
                 call_back({"curr_hl_option_idx": curr_option_idx})
                 
                 transition = (
@@ -784,14 +828,16 @@ class VQOptionCriticAgent(BaseAgent):
                 self.code_book.update(rollout_option_proto_emb,
                                       call_back=call_back)
                 
-                # self.code_book.fake_update(rollout_option_proto_emb,
-                #                       direction=self.tmp_direction_t,
-                #                       call_back=call_back)
+                self.code_book.fake_update(rollout_option_proto_emb,
+                                      direction=None,
+                                      step_size=0.1,
+                                      call_back=call_back)
                 
                 self.rollout_buffer[i].clear()
             
     def reset(self, seed):
         super().reset(seed)
+        
         self.code_book.reset(seed)
         self.hl_policy.reset(seed)
         
@@ -805,6 +851,7 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
 
+        self._init_log_buf()
     
     def save(self, file_path: str | None = None):
         """

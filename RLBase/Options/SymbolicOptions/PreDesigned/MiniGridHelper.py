@@ -174,8 +174,6 @@ class GridNavMixin:
         c = self._ahead_cell(obs)
         return c is not None and int(c[0]) == int(oid)
     
-    
-
     def _face_vec_action(self, obs, target_xy: np.ndarray) -> Optional[int]:
         """Rotate to face the (x,y) target if needed, using explicit turn reasoning."""
         agent = self._find_agent(obs)

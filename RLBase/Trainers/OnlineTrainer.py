@@ -61,8 +61,8 @@ class OnlineTrainer:
         
         
         
-        self.call_back = TBCallBack(log_dir=exp_dir, flush_every=1) #makes it super slow on compute canada
-        # self.call_back = EmptyCallBack(log_dir=exp_dir)
+        # self.call_back = TBCallBack(log_dir=exp_dir, flush_every=100, flush_mode="raw") #makes it super slow on compute canada
+        self.call_back = EmptyCallBack(log_dir=exp_dir)
         # self.call_back = JsonlCallback(log_path=os.path.join(exp_dir, "metrics.jsonl"), flush_every=100)
         
     @staticmethod
@@ -129,11 +129,6 @@ class OnlineTrainer:
         while episodes_done < num_episodes:
             action = agent.act(observation, greedy=not self._train)
             
-            if hasattr(agent, 'log'):
-                log_entry = agent.log()
-                for i in range(num_envs):
-                    agent_logs[i].append(log_entry)
-            
             next_observation, reward, terminated, truncated, info = env.step(action)  
             
             if env.render_mode == "human":
@@ -159,7 +154,13 @@ class OnlineTrainer:
             if self._train:
                 agent.update(next_observation, reward, terminated, truncated,
                             call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
-                
+            
+            if hasattr(agent, 'log'):
+                log_entries = agent.log()  # list length num_envs
+                for env_i in range(num_envs):
+                    entry = log_entries[env_i]
+                    if entry is not None:
+                        agent_logs[env_i].append(entry)
             
             observation = next_observation
             
@@ -182,7 +183,7 @@ class OnlineTrainer:
                     "actions": actions_log[i],
                     "agent_seed": seed,
                     "episode_index": episodes_done,
-                    "agent_logs": agent_logs[i]
+                    "agent_logs": self.concat_dicts_of_arrays(agent_logs[i], axis=0)
                 }
                 all_metrics.append(metrics)
 
@@ -270,11 +271,6 @@ class OnlineTrainer:
         while steps_so_far < total_steps:
             action = agent.act(observation, greedy=not self._train)
             
-            if hasattr(agent, 'log'):
-                log_entry = agent.log()
-                for i in range(num_envs):
-                    agent_logs[i].append(log_entry)
-            
             next_observation, reward, terminated, truncated, info = env.step(action)  
     
             if env.render_mode == "human":
@@ -304,6 +300,13 @@ class OnlineTrainer:
                 agent.update(next_observation, reward, terminated, truncated, 
                             call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
             
+            if hasattr(agent, 'log'):
+                log_entries = agent.log()  # list length num_envs
+                for env_i in range(num_envs):
+                    entry = log_entries[env_i]
+                    if entry is not None:
+                        agent_logs[env_i].append(entry)
+            
             pbar.update(num_envs)
             observation = next_observation
             
@@ -331,7 +334,7 @@ class OnlineTrainer:
                     "actions": actions_log[i],
                     "agent_seed": seed,
                     "episode_index": episodes_done,
-                    "agent_logs": agent_logs[i]
+                    "agent_logs": self.concat_dicts_of_arrays(agent_logs[i], axis=0)
                 }
                 all_metrics.append(metrics)
                 
@@ -572,3 +575,37 @@ class OnlineTrainer:
         spec.loader.exec_module(config)
         
         return config
+
+    
+    @staticmethod
+    def concat_dicts_of_arrays(chunks, axis=0):
+        """
+        Generic concat for a list of dicts where each value is a numpy array.
+        Assumes:
+        - chunks is a list of dicts
+        - all dicts share the same keys (or at least consistent keys you want to keep)
+        - for each key, arrays are concat-compatible along `axis`
+
+        Returns:
+        - None if chunks empty
+        - dict[key] = np.concatenate([chunk[key] ...], axis=axis)
+        """
+        if not chunks:
+            return None
+
+        # Use keys from the first chunk; ignore missing keys in later chunks (or raise)
+        keys = list(chunks[0].keys())
+
+        out = {}
+        for k in keys:
+            arrs = []
+            for c in chunks:
+                if k not in c:
+                    raise KeyError(f"Missing key '{k}' in one of the chunks")
+                v = c[k]
+                if not isinstance(v, np.ndarray):
+                    raise TypeError(f"Value for key '{k}' must be np.ndarray, got {type(v)}")
+                arrs.append(v)
+            out[k] = np.concatenate(arrs, axis=axis)
+
+        return out

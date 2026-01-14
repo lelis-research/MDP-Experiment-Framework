@@ -380,7 +380,7 @@ AGENT_DICT = {
                 gamma=info.get("gamma", 0.99),
                 lamda=info.get("hl_lamda", 0.95),
                 rollout_steps=info.get("hl_rollout_steps", 2048),
-                mini_batch_size=info.get("mini_batch_size", 64),
+                mini_batch_size=info.get("hl_mini_batch_size", 64),
                 num_epochs=info.get("hl_num_epochs", 10),
                 target_kl=info.get("hl_target_kl", None), #None means no early stop
                 
@@ -390,7 +390,7 @@ AGENT_DICT = {
                 clip_range_actor_init=info.get("hl_clip_range_actor_init", 0.2),
                 anneal_clip_range_actor=info.get("hl_anneal_clip_range_actor", False),
                 
-                critic_network=NETWORK_PRESETS[info.get("hl_critic_network", "MiniGrid/PPO/mlp_actor")],
+                critic_network=NETWORK_PRESETS[info.get("hl_critic_network", "MiniGrid/PPO/mlp_critic")],
                 critic_step_size=info.get("hl_critic_step_size", 3e-4),
                 critic_eps = info.get("hl_critic_eps", 1e-8),
                 clip_range_critic_init=info.get("hl_clip_range_critic_init", 0.2), # None means no clipping
@@ -416,7 +416,7 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 16),
+                embedding_dim = info.get("codebook_embedding_dim", 2),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 
@@ -429,7 +429,9 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=custom_build_options(),
+        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption(), 
+                         ActionForward(), ActionLeft(), ActionRight(), 
+                         GoToRedGoalOption(), GoToGreenGoalOption()],
         device=device
     ),
 }

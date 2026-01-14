@@ -5,6 +5,8 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .SingleExpAnalyzer import SingleExpAnalyzer
 
@@ -73,7 +75,7 @@ def plot_experiments(
                             constrained_layout=True)
 
     generated_name = []
-    for i, (exp_label, payload) in enumerate(agent_dict.items()):
+    for i, (exp_label, payload) in tqdm(enumerate(agent_dict.items())):
         analyzer = _build_analyzer(payload)
         fmt = _fmt_for_idx(i)
         color = colors[i % len(colors)]
@@ -190,13 +192,23 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
     """
     name_string_conditions = name_string_conditions or []
     name_string_anti_conditions = name_string_anti_conditions or []
+    
+    exp_sub_folders = []
+    for exp in os.listdir(exp_dir):
+        satisfy_conditions = all(s in exp for s in name_string_conditions) if name_string_conditions else True
+        satisfy_anti = not any(s in exp for s in name_string_anti_conditions) if name_string_anti_conditions else True
 
+        if not (satisfy_conditions and satisfy_anti):
+            continue
+        
+        exp_sub_folders.append(exp)
+    
     run_counter = 0
     file_counter = 0
     metrics_lst = []
     no_metrics_file_lst = []
 
-    for exp in os.listdir(exp_dir):
+    for exp in tqdm(exp_sub_folders):
         satisfy_conditions = all(s in exp for s in name_string_conditions) if name_string_conditions else True
         satisfy_anti = not any(s in exp for s in name_string_anti_conditions) if name_string_anti_conditions else True
 
@@ -211,6 +223,7 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
             file_counter += 1
         except FileNotFoundError:
             no_metrics_file_lst.append(exp_path)
+        
 
     print("***")
     if file_counter == 0:
@@ -221,3 +234,128 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
 
     print(f"Found {run_counter} runs from {file_counter} folders")
     return metrics_lst
+
+
+def plot_option_embeddings(
+    agent_dict,
+    save_dir,
+    name="",
+    # pass-through to SingleExpAnalyzer.plot_option_embedding(...)
+    title="e vs proto_e embeddings",
+    proto_s=8,
+    e_s=32,
+    proto_alpha=0.15,
+    e_alpha=0.9,
+    proto_lw=0.5,
+    e_edge_lw=0.8,
+    draw_lines=False,
+    min_ep=None,
+    max_ep=None,
+    normalize_before_pca=True,
+    pca_whiten=False,
+    pca_random_state=0,
+    show=False,
+    show_legend=True,
+):
+    """
+    Like plot_experiments(): builds a SingleExpAnalyzer per entry, but for embeddings.
+    Creates ONE figure with one axis per experiment and passes (fig, ax) into
+    analyzer.plot_option_embedding(fig=fig, ax=ax, ...).
+
+    NOTE: This assumes your SingleExpAnalyzer.plot_option_embedding has been updated to:
+      - read NEW data format (episode["agent_logs"] is dict-of-arrays)
+      - ALWAYS PCA to 2D (no UMAP; works for any embedding dim >= 2)
+      - accept (fig, ax) without creating its own figure
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    n = len(agent_dict)
+    if n == 0:
+        raise ValueError("agent_dict is empty.")
+
+    # Grid layout similar vibe to plot_experiments, but 1 axis per experiment
+    n_cols = int(np.ceil(np.sqrt(n)))
+    n_rows = int(np.ceil(n / n_cols))
+
+    fig, axs_grid = plt.subplots(
+        n_rows, n_cols,
+        figsize=(7 * n_cols, 7 * n_rows),
+        constrained_layout=True
+    )
+    axs = np.array(axs_grid).ravel().tolist()
+
+    # Hide unused axes
+    for ax in axs[n:]:
+        ax.set_visible(False)
+    axs = axs[:n]
+
+    colors = _colors()
+
+    generated_name = []
+    for i, (exp_label, payload) in tqdm(enumerate(agent_dict.items())):
+        analyzer = _build_analyzer(payload)
+        ax = axs[i]
+
+        # If your SingleExpAnalyzer.plot_option_embedding chooses colors by ind internally,
+        # we don't need to pass `color`; but we can still set a per-experiment title.
+        # analyzer.plot_option_embedding(
+        #     fig=fig,
+        #     ax=ax,
+        #     save_dir=None,          # we save once at the end from MultiExp
+        #     show=False,
+        #     show_legend=(show_legend and i == n - 1),  # only last one shows legend (if you want)
+        #     title=f"{exp_label} | {title}",
+
+        #     proto_s=proto_s,
+        #     e_s=e_s,
+        #     proto_alpha=proto_alpha,
+        #     e_alpha=e_alpha,
+        #     proto_lw=proto_lw,
+        #     e_edge_lw=e_edge_lw,
+        #     draw_lines=draw_lines,
+
+        #     min_ep=min_ep,
+        #     max_ep=max_ep,
+
+        #     # PCA controls (your updated plot_option_embedding should accept these)
+        #     normalize_before_pca=normalize_before_pca,
+        #     pca_whiten=pca_whiten,
+        #     pca_random_state=pca_random_state,
+        # )
+        
+        analyzer.plot_option_embedding2(
+            fig=fig,
+            ax=ax,
+            save_dir=None,          # save once globally
+            show=False,
+            show_legend=(show_legend and i == n - 1),
+            title=f"{exp_label} | {title}",
+
+            proto_s=proto_s,
+            e_s=e_s,
+            proto_alpha=proto_alpha,
+            e_alpha=e_alpha,
+            proto_lw=proto_lw,
+            e_edge_lw=e_edge_lw,
+            draw_lines=draw_lines,
+
+            min_ep=min_ep,
+            max_ep=max_ep,
+        )
+
+        generated_name.append(exp_label)
+
+    # Optional global title
+    if name:
+        fig.suptitle(name)
+
+    out_name = name if name else "_".join(generated_name)
+    out_path = os.path.join(save_dir, f"{out_name}.png")
+    fig.savefig(out_path, format="png", dpi=200, bbox_inches="tight", pad_inches=0.1)
+
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+
+    return fig, axs, out_path

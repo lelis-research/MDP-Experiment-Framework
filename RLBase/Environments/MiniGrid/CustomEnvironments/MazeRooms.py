@@ -1232,4 +1232,4 @@ class MazeRoomsEnv(MiniGridEnv):
                 output += "\n"
 
         return output
-register(id="MazeRoomsEnv-v0", entry_point=MazeRoomsEnv)
+register(id="MiniGrid-MazeRooms-v0", entry_point=MazeRoomsEnv)
