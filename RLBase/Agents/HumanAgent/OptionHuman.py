@@ -99,7 +99,12 @@ class OptionHumanAgent(HumanAgent):
         else:
             print(f"Atomic actions: 0 .. {self.action_space.n - 1}")
         
-        print(f"Options: {self.action_space.n} .. {self.action_space.n + len(self.options_lst) - 1}")
+        for i, option in enumerate(self.options_lst):
+            if hasattr(option, 'option_id'):
+                print(f"Option {i + self.action_space.n}: {option.option_id}")
+            else:
+                print(f"Option {i + self.action_space.n}: {option.__class__.__name__}")
+        # print(f"Options: {self.action_space.n} .. {self.action_space.n + len(self.options_lst) - 1}")
 
         print("=" * 40)
 

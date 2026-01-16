@@ -19,7 +19,7 @@ from collections import deque
 from gymnasium import spaces
 import gymnasium as gym
 from gymnasium.envs.registration import register
-from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, COLORS, STATE_TO_IDX
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, COLORS, STATE_TO_IDX, COLOR_NAMES
 
 # MiniGrid
 from minigrid.minigrid_env import MiniGridEnv
@@ -39,7 +39,8 @@ MAX_STEPS = 1000
 FINAL_GOAL_REWARD = 1.0
 LAVA_PLACE_MAX_TRIES = 200
 OBJ_PLACE_MAX_TRIES = 200
-
+CARRY_EMPTY_ON_ROOM_IMPROVEMENT = True
+DOOR_COLORS = ["red", "green", "blue", "yellow", "purple"]
 # ---------- Reward-carrying Goal ----------
 class RewardGoal(Goal):
     """A Goal that carries a custom reward and optional terminal flag."""
@@ -101,29 +102,29 @@ rooms_spec: List[Dict[str, Any]] = [
     
 
     {"id": 1, "subgoal": True,
-     "exit_door": {"locked": False},
+     "exit_door": {"locked": False, "color": "random"},
      "requirements": {"open_exit": "none"}},
     
     {"id": 2, "subgoal": True,
      "corridors": {"pattern": "L", "material": "door"},
-     "exit_door": {"locked": False},
+     "exit_door": {"locked": False, "color": "random"},
      "requirements": {"open_exit": "none"}},
 
     {"id": 3, "subgoal": True,
      "corridors": {"pattern": "T", "material": "wall"},
-     "exit_door": {"locked": False},
+     "exit_door": {"locked": False, "color": "random"},
      "requirements": {"open_exit": "none"}},
 
     {"id": 4, "subgoal": True,
      "corridors": {"pattern": "L", "material": "wall"},
      "lava": {"count": 2},
-     "exit_door": {"locked": False},
+     "exit_door": {"locked": False, "color": "random"},
      "requirements": {"open_exit": "none"}},
 
     {"id": 5, "subgoal": True,
      "corridors": {"pattern": "T", "material": "door"},
      "lava": {"count": 3},
-     "exit_door": {"locked": False},
+     "exit_door": {"locked": False, "color": "random"},
      "requirements": {"open_exit": "none"}},
 
     # ----------------------------- Phase B (6–10): Keys & locked exits ------------------------------
@@ -419,6 +420,8 @@ class MazeRoomsEnv(MiniGridEnv):
         self.entrance_approach: Dict[int, Tuple[int, int]] = {}
         self.final_goal_pos: Optional[Tuple[int, int]] = None
         self.key_used_ok: Dict[int, bool] = {}
+        
+        self._prev_room_id: Optional[int] = None
 
     @staticmethod
     def _gen_mission():
@@ -641,7 +644,9 @@ class MazeRoomsEnv(MiniGridEnv):
                 continue
             ex, ey = self.exit_doors[room_id]
             exit_cfg = spec.get("exit_door", {})
-            color = exit_cfg.get("color", "red")
+            color = exit_cfg.get("color", None)
+            if color is None or color == "random":
+                color = self.np_random.choice(DOOR_COLORS)
             is_locked = exit_cfg.get("locked", False)
             req = spec.get("requirements", {"open_exit": "none"})
             mode = req.get("open_exit", "none")
@@ -830,6 +835,16 @@ class MazeRoomsEnv(MiniGridEnv):
     def step(self, action: int):
         obs, reward, terminated, truncated, info = super().step(action)
 
+        # room AFTER move
+        new_rid = self._room_id_from_pos(tuple(self.agent_pos))
+        
+        # If we moved to a higher-index room, drop/clear whatever we were carrying
+        if CARRY_EMPTY_ON_ROOM_IMPROVEMENT and self._prev_room_id is not None and new_rid is not None and new_rid > self._prev_room_id:
+            self.carrying = None
+
+        self._prev_room_id = new_rid
+
+
         # RewardGoal pickup
         curr_obj = self.grid.get(*self.agent_pos)
         if isinstance(curr_obj, RewardGoal):
@@ -904,6 +919,7 @@ class MazeRoomsEnv(MiniGridEnv):
         else:
             self.start_room_idx = 0
         obs, info = super().reset(seed=seed, options=options)
+        self._prev_room_id = self._room_id_from_pos(tuple(self.agent_pos))
         return obs, info
 
     # ---------- OBSERVATION OVERRIDES (room-with-walls) ----------

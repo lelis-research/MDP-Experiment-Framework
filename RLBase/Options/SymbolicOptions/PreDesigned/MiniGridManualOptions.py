@@ -1,10 +1,11 @@
 import numpy as np
 from typing import Any, Optional, Tuple
-from minigrid.core.constants import OBJECT_TO_IDX as OID, COLOR_TO_IDX
+from minigrid.core.constants import OBJECT_TO_IDX as OID, COLOR_TO_IDX, STATE_TO_IDX
 
 from ...Base import BaseOption
 from ....registry import register_option
 from .MiniGridHelper import *
+from ....Agents.Utils.HyperParams import HyperParameters
 
 @register_option
 class ActionLeft(BaseOption):
@@ -64,55 +65,61 @@ class ActionForward(BaseOption):
         self.counter = 0
 
 @register_option
-class GoToGreenGoalOption(BaseOption, GridNavMixin):
-    def __init__(self, option_id: Optional[str] = "go_to_green_goal", hyper_params=None, device: str = "cpu"):
+class GetNearestGoalOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "get_nearest_goal", hyper_params=None, device: str = "cpu"):
         super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
         self.counter = 0
-
-    def _path_to_green_goal(self, obs):
-        return self._find_nearest_of_type(
-            obs,
-            obj_id_filter=OID["goal"],
-            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["green"]),
-            avoid_lava=True,
-        )
-
-    def _standing_on_green_goal(self, obs) -> bool:
-        img = self._img(obs)
-        agent = self._find_agent(obs)  # (x,y)
-        c = img[int(agent[0]), int(agent[1])]
-        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["green"])
+        if not hasattr(self.hp, 'goal_color'):
+            self.hp.goal_color = None
 
     def can_initiate(self, observation: Any) -> bool:
-        path = self._path_to_green_goal(observation)
-        return path is not None and len(path) >= 2
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["goal"],
+            color_id=COLOR_TO_IDX.get(self.hp.goal_color, None),
+            avoid_lava=True,
+        )
+        return path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
 
-    def reward_func(self, observation: Any) -> float:
-        return 1.0 if self._standing_on_green_goal(observation) else 0.0
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["goal"],
+            color_id=COLOR_TO_IDX.get(self.hp.goal_color, None),
+            avoid_lava=True,
+        )
+        reward = -len(path) if path is not None else 0
+        return reward
 
     def select_action(self, observation: Any, internal_state: Optional[Any] = None):
-        if self._standing_on_green_goal(observation):
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["goal"],
+            color_id=COLOR_TO_IDX.get(self.hp.goal_color, None),
+            avoid_lava=True,
+        )
+        
+        if path is None:
             return int(A_DONE)
 
-        path = self._path_to_green_goal(observation)
-        if path is None or len(path) < 2:
-            return int(A_LEFT)
-
-        act = self._step_towards(observation, path)
-
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
         self.counter += 1
-
-        return int(A_LEFT if act is None else act)
+        
+        return action
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        terminated = (
-            self._standing_on_green_goal(observation)
-            or (self._path_to_green_goal(observation) is None)
-            or self.counter >= 10
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["goal"],
+            color_id=COLOR_TO_IDX.get(self.hp.goal_color, None),
+            avoid_lava=True,
         )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+    
         if terminated:
             self.counter = 0
         return terminated
@@ -122,107 +129,531 @@ class GoToGreenGoalOption(BaseOption, GridNavMixin):
         self.counter = 0
 
 @register_option
-class GoToRedGoalOption(BaseOption, GridNavMixin):
-    def __init__(self, option_id: Optional[str] = "go_to_red_goal", hyper_params=None, device: str = "cpu"):
+class ToggleNearestDoorOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "toggle_nearest_door", hyper_params=None, device: str = "cpu"):
         super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
         self.counter = 0
-
-    def _path_to_red_goal(self, obs):
-        return self._find_nearest_of_type(
-            obs,
-            obj_id_filter=OID["goal"],
-            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["red"]),
-            avoid_lava=True,
-        )
-
-    def _standing_on_red_goal(self, obs) -> bool:
-        img = self._img(obs)
-        agent = self._find_agent(obs)  # (x,y)
-        c = img[int(agent[0]), int(agent[1])]
-        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["red"])
+        self.toggled = False
+        if not hasattr(self.hp, 'door_color'):
+            self.hp.door_color = None
+        if not hasattr(self.hp, 'door_state'):
+            self.hp.door_state = None  # 'open' or 'closed' or 'locked'
 
     def can_initiate(self, observation: Any) -> bool:
-        path = self._path_to_red_goal(observation)
-        return path is not None and len(path) >= 2
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["door"],
+            color_id=COLOR_TO_IDX.get(self.hp.door_color, None),
+            state_id=STATE_TO_IDX.get(self.hp.door_state, None),
+            avoid_lava=True,
+        )
+        return path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
 
-    def reward_func(self, observation: Any) -> float:
-        return 1.0 if self._standing_on_red_goal(observation) else 0.0
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["door"],
+            color_id=COLOR_TO_IDX.get(self.hp.door_color, None),
+            state_id=STATE_TO_IDX.get(self.hp.door_state, None),
+            avoid_lava=True,
+        )
+        reward = -len(path) if path is not None else 0
+        return reward
 
     def select_action(self, observation: Any, internal_state: Optional[Any] = None):
-        if self._standing_on_red_goal(observation):
-            return int(A_DONE)
-
-        path = self._path_to_red_goal(observation)
-        if path is None or len(path) < 2:
-            return int(A_LEFT)
-
-        act = self._step_towards(observation, path)
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["door"],
+            color_id=COLOR_TO_IDX.get(self.hp.door_color, None),
+            state_id=STATE_TO_IDX.get(self.hp.door_state, None),
+            avoid_lava=True,
+        )
         
+        if path is None:
+            return int(A_DONE)
+        
+        door_xy = path[-1]
+        agent = self._find_agent(observation)
+        
+        # Adjacent check using existing helper (no Manhattan)
+        adjacent = any(np.array_equal(nb, door_xy) for nb in self._neighbors4(observation, (int(agent[0]), int(agent[1]))))
+
+        if adjacent:
+            # Face the door using existing helper
+            turn = self._face_vec_action(observation, door_xy)
+            if turn is not None:
+                self.counter += 1
+                return int(turn)
+
+            # Now we are facing the door tile
+            # (equivalently: self._facing_cell(observation, door_xy) should be True)
+            if not self.toggled:
+                self.toggled = True
+                self.counter += 1
+                return int(A_TOGGLE)
+
+            # Already toggled -> finish
+            return int(A_DONE)
+        
+
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
         self.counter += 1
         
-        return int(A_LEFT if act is None else act)
+        return action
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        terminated = self._standing_on_red_goal(observation) or (self._path_to_red_goal(observation) is None) or self.counter >= 10
+        if self.toggled:
+            self.toggled = False
+            self.counter = 0
+            return True
+        
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["door"],
+            color_id=COLOR_TO_IDX.get(self.hp.door_color, None),
+            state_id=STATE_TO_IDX.get(self.hp.door_state, None),
+            avoid_lava=True,
+        )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+    
         if terminated:
             self.counter = 0
+            self.toggled = False
         return terminated
-    def reset(self, seed = None):
+
+    def reset(self, seed=None):
         super().reset(seed)
         self.counter = 0
+        self.toggled = False
+
+@register_option
+class PickupNearestKeyOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "pickup_nearest_key", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+        self.picked = False
+
+        if not hasattr(self.hp, "key_color"):
+            self.hp.key_color = None  # e.g. "red", "green", ...
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["key"],
+            color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
+            avoid_lava=True,
+        )
+        return path is not None
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["key"],
+            color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
+            avoid_lava=True,
+        )
+        return -len(path) if path is not None else 0
+
+    def select_action(self, observation: Any, internal_state: Optional[Any] = None):
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["key"],
+            color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
+            avoid_lava=True,
+        )
+
+        if path is None:
+            return int(A_DONE)
+
+        key_xy = path[-1]
+        agent = self._find_agent(observation)
+
+        # Adjacent check using existing helper (no Manhattan)
+        adjacent = any(
+            np.array_equal(nb, key_xy)
+            for nb in self._neighbors4(observation, (int(agent[0]), int(agent[1])))
+        )
+
+        if adjacent:
+            # Face the key
+            turn = self._face_vec_action(observation, key_xy)
+            if turn is not None:
+                self.counter += 1
+                return int(turn)
+
+            # (Now facing the key tile)
+            if not self.picked:
+                self.picked = True
+                self.counter += 1
+                return int(A_PICKUP)
+
+            # Already attempted pickup -> finish
+            return int(A_DONE)
+
+        # Otherwise keep navigating
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
+        self.counter += 1
+        return int(action)
+
+    def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
+        if self.picked:
+            self.picked = False
+            self.counter = 0
+            return True
+
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["key"],
+            color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
+            avoid_lava=True,
+        )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+
+        if terminated:
+            self.counter = 0
+            self.picked = False
+        return terminated
+
+    def reset(self, seed=None):
+        super().reset(seed)
+        self.counter = 0
+        self.picked = False
+
+@register_option
+class PickupNearestBallOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "pickup_nearest_ball", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+        self.picked = False
+
+        if not hasattr(self.hp, "ball_color"):
+            self.hp.ball_color = None  # e.g. "red", "green", ...
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["ball"],
+            color_id=COLOR_TO_IDX.get(self.hp.ball_color, None),
+            avoid_lava=True,
+        )
+        return path is not None
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["ball"],
+            color_id=COLOR_TO_IDX.get(self.hp.ball_color, None),
+            avoid_lava=True,
+        )
+        return -len(path) if path is not None else 0
+
+    def select_action(self, observation: Any, internal_state: Optional[Any] = None):
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["ball"],
+            color_id=COLOR_TO_IDX.get(self.hp.ball_color, None),
+            avoid_lava=True,
+        )
+
+        if path is None:
+            return int(A_DONE)
+
+        ball_xy = path[-1]
+        agent = self._find_agent(observation)
+
+        adjacent = any(
+            np.array_equal(nb, ball_xy)
+            for nb in self._neighbors4(observation, (int(agent[0]), int(agent[1])))
+        )
+
+        if adjacent:
+            turn = self._face_vec_action(observation, ball_xy)
+            if turn is not None:
+                self.counter += 1
+                return int(turn)
+
+            if not self.picked:
+                self.picked = True
+                self.counter += 1
+                return int(A_PICKUP)
+
+            return int(A_DONE)
+
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
+        self.counter += 1
+        return int(action)
+
+    def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
+        if self.picked:
+            self.picked = False
+            self.counter = 0
+            return True
+
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["ball"],
+            color_id=COLOR_TO_IDX.get(self.hp.ball_color, None),
+            avoid_lava=True,
+        )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+
+        if terminated:
+            self.counter = 0
+            self.picked = False
+        return terminated
+
+    def reset(self, seed=None):
+        super().reset(seed)
+        self.counter = 0
+        self.picked = False
+
+@register_option
+class PickupNearestBoxOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "pickup_nearest_box", hyper_params=None, device: str = "cpu"):
+        super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
+        self.counter = 0
+        self.picked = False
+
+        if not hasattr(self.hp, "box_color"):
+            self.hp.box_color = None  # e.g. "red", "green", ...
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+        return path is not None
+
+    def should_initiate(self, observation: Any) -> bool:
+        return self.can_initiate(observation)
+
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+        return -len(path) if path is not None else 0
+
+    def select_action(self, observation: Any, internal_state: Optional[Any] = None):
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+
+        if path is None:
+            return int(A_DONE)
+
+        box_xy = path[-1]
+        agent = self._find_agent(observation)
+
+        adjacent = any(
+            np.array_equal(nb, box_xy)
+            for nb in self._neighbors4(observation, (int(agent[0]), int(agent[1])))
+        )
+
+        if adjacent:
+            turn = self._face_vec_action(observation, box_xy)
+            if turn is not None:
+                self.counter += 1
+                return int(turn)
+
+            if not self.picked:
+                self.picked = True
+                self.counter += 1
+                return int(A_PICKUP)
+
+            return int(A_DONE)
+
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
+        self.counter += 1
+        return int(action)
+
+    def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
+        if self.picked:
+            self.picked = False
+            self.counter = 0
+            return True
+
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+
+        if terminated:
+            self.counter = 0
+            self.picked = False
+        return terminated
+
+    def reset(self, seed=None):
+        super().reset(seed)
+        self.counter = 0
+        self.picked = False
         
 @register_option
-class GoToBlueGoalOption(BaseOption, GridNavMixin):
-    def __init__(self, option_id: Optional[str] = "go_to_blue_goal", hyper_params=None, device: str = "cpu"):
+class ToggleNearestBoxOption(BaseOption, GridNavMixin):
+    def __init__(self, option_id: Optional[str] = "toggle_nearest_box", hyper_params=None, device: str = "cpu"):
         super().__init__(option_id=option_id, hyper_params=hyper_params, device=device)
         self.counter = 0
+        self.toggled = False
 
-    def _path_to_blue_goal(self, obs):
-        return self._find_nearest_of_type(
-            obs,
-            obj_id_filter=OID["goal"],
-            also_require=lambda xy, c: int(c[1]) == int(COLOR_TO_IDX["blue"]),
+        if not hasattr(self.hp, "box_color"):
+            self.hp.box_color = None  # e.g. "red", "green", ...
+
+    def can_initiate(self, observation: Any) -> bool:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
             avoid_lava=True,
         )
-
-    def _standing_on_blue_goal(self, obs) -> bool:
-        img = self._img(obs)
-        agent = self._find_agent(obs)  # (x,y)
-        c = img[int(agent[0]), int(agent[1])]
-        return int(c[0]) == int(OID["goal"]) and int(c[1]) == int(COLOR_TO_IDX["blue"])
-    
-    def can_initiate(self, observation: Any) -> bool:
-        path = self._path_to_blue_goal(observation)
-        return path is not None and len(path) >= 2
+        return path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
 
-    def reward_func(self, observation: Any) -> float:
-        return 1.0 if self._standing_on_blue_goal(observation) else 0.0
+    def reward_func(self, observation: Any, action) -> float:
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+        return -len(path) if path is not None else 0
 
     def select_action(self, observation: Any, internal_state: Optional[Any] = None):
-        if self._standing_on_blue_goal(observation):
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+
+        if path is None:
             return int(A_DONE)
 
-        path = self._path_to_blue_goal(observation)
-        if path is None or len(path) < 2:
-            return int(A_LEFT)
+        box_xy = path[-1]
+        agent = self._find_agent(observation)
 
-        act = self._step_towards(observation, path)
-        
+        # Adjacent check using existing helper (no Manhattan)
+        adjacent = any(
+            np.array_equal(nb, box_xy)
+            for nb in self._neighbors4(observation, (int(agent[0]), int(agent[1])))
+        )
+
+        if adjacent:
+            # Face the box
+            turn = self._face_vec_action(observation, box_xy)
+            if turn is not None:
+                self.counter += 1
+                return int(turn)
+
+            # Now facing the box tile -> toggle once
+            if not self.toggled:
+                self.toggled = True
+                self.counter += 1
+                return int(A_TOGGLE)
+
+            # Already toggled -> finish
+            return int(A_DONE)
+
+        # Otherwise keep navigating
+        action = self._step_towards(observation, path)
+        action = A_DONE if action is None else action
         self.counter += 1
-        
-        return int(A_LEFT if act is None else act)
+        return int(action)
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        terminated = self._standing_on_blue_goal(observation) or (self._path_to_blue_goal(observation) is None) or self.counter >= 10
+        if self.toggled:
+            self.toggled = False
+            self.counter = 0
+            return True
+
+        path = self._find_nearest_of_object(
+            observation,
+            obj_id=OID["box"],
+            color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
+            avoid_lava=True,
+        )
+        terminated = path is None or self.counter >= self.hp.option_max_len
+
         if terminated:
             self.counter = 0
+            self.toggled = False
         return terminated
-    def reset(self, seed = None):
+
+    def reset(self, seed=None):
         super().reset(seed)
         self.counter = 0
+        self.toggled = False
+
+goal_options = [
+    GetNearestGoalOption(
+        option_id=f"get_nearest_goal_{color}",
+        hyper_params=HyperParameters(option_max_len=20, goal_color=color),
+    )
+    for color in COLOR_NAMES + [None]
+]
+key_options = [
+    PickupNearestKeyOption(
+        option_id=f"pickup_nearest_key_{color}",
+        hyper_params=HyperParameters(option_max_len=20, key_color=color),
+    )
+    for color in COLOR_NAMES + [None]
+]
+ball_options = [
+    PickupNearestBallOption(
+        option_id=f"pickup_nearest_ball_{color}",
+        hyper_params=HyperParameters(option_max_len=20, ball_color=color),
+    )
+    for color in COLOR_NAMES + [None]
+]
+box_pickup_options = [
+    PickupNearestBoxOption(
+        option_id=f"pickup_nearest_box_{color}",
+        hyper_params=HyperParameters(option_max_len=20, box_color=color),
+    )
+    for color in COLOR_NAMES + [None]
+]
+box_toggle_options = [
+    ToggleNearestBoxOption(
+        option_id=f"toggle_nearest_box_{color}",
+        hyper_params=HyperParameters(option_max_len=20, box_color=color),
+    )
+    for color in COLOR_NAMES + [None]
+]
+door_options = [
+    ToggleNearestDoorOption(
+        option_id=f"toggle_nearest_door_{color}_{state}",
+        hyper_params=HyperParameters(
+            option_max_len=20,
+            door_color=color,
+            door_state=state,
+        ),
+    )
+    for color in COLOR_NAMES + [None]
+    for state in STATE_TO_IDX.keys()
+]
+
+manual_options = goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options

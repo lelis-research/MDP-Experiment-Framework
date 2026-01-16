@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=custom_build_options(),
+        init_option_lst=manual_options,
         device=device
     ),
     

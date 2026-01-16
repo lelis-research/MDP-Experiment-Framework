@@ -30,9 +30,6 @@ from ....registry import register_agent, register_policy
 from ....Networks.NetworkFactory import NetworkGen, prepare_network_config
 from ....FeatureExtractors import get_batch_features
 
-
-from ....Options.SymbolicOptions.PreDesigned import GoToBlueGoalOption
-
 def _to_torch(x, device, dtype=torch.float32):
     if x is None:
         return None

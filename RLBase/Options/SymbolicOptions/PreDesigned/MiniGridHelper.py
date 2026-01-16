@@ -1,6 +1,6 @@
 # options_minigrid_toolkit_auto.py
 # Fully aligned with (x, y) coordinates = (column, row).
-# All array access to obs["image"] uses img[y, x], while positions and motion use (x, y).
+# All array access to obs["image"] uses img[x, y], while positions and motion use (x, y).
 
 from __future__ import annotations
 
@@ -60,7 +60,7 @@ class GridNavMixin:
     Utilities for fully/ego observable MiniGrid with (x, y) world coords:
       - x = column (0..W-1), left → right
       - y = row    (0..H-1), top → down
-    The image tensor is still indexed as img[y, x] for numpy correctness.
+    The image tensor is still indexed as img[x, y] for numpy correctness.
     """
 
     # ---------- Primitive reads ----------
@@ -98,6 +98,7 @@ class GridNavMixin:
         """
         img = self._img(obs)
         xs, ys = np.where(img[..., 0] == OID["agent"])
+        
         if len(xs) > 0:
             return np.array([int(xs[0]), int(ys[0])], dtype=int)
         # Fallback center (for egocentric crops)
@@ -111,7 +112,9 @@ class GridNavMixin:
             return False
         if oid == OID["door"] and st != SID["open"]:
             return False
-        # empty, floor, goal, key, ball, box, agent => traversable
+        if oid in (OID["box"], OID["ball"], OID["key"]):
+            return False
+        # empty, floor, goal, agent => traversable
         return True
 
     def _forward_is_safe(self, obs) -> bool:
@@ -251,21 +254,43 @@ class GridNavMixin:
                     
                     
         return None
-
-    def _find_nearest_of_type(
+    
+    def _find_nearest_of_object(
         self,
         obs,
-        obj_id_filter: int,
+        obj_id: int,
+        color_id: Optional[int] = None,
+        state_id: Optional[int] = None,
         also_require: Optional[Callable[[Tuple[int, int], np.ndarray], bool]] = None,
         avoid_lava: bool = True,
     ) -> Optional[list[np.ndarray]]:
+        """
+        Find a BFS path to the nearest cell matching:
+        - object id == obj_id
+        - (optional) color id == color_id
+        - (optional) state id == state_id
+        plus any additional predicate `also_require(xy, cell)`.
+
+        Returns:
+            path: list of np.array([x, y]) from start to goal (inclusive), or None.
+        """
         img = self._img(obs)
-        start = self._find_agent(obs)
+        start = self._find_agent(obs)  # np.array([x,y])
+
+        obj_id = int(obj_id)
+        color_id = None if color_id is None else int(color_id)
+        state_id = None if state_id is None else int(state_id)
+
         def is_goal(xy: Tuple[int, int]) -> bool:
-            c = img[xy[0], xy[1]]
-            if int(c[0]) != obj_id_filter:
+            # Your convention: img[x, y]
+            c = img[int(xy[0]), int(xy[1])]  # [obj, color, state]
+            if int(c[0]) != obj_id:
                 return False
-            return True if also_require is None else also_require(xy, c)
+            if color_id is not None and int(c[1]) != color_id:
+                return False
+            if state_id is not None and int(c[2]) != state_id:
+                return False
+            return True if also_require is None else bool(also_require(xy, c))
 
         return self._bfs_path(obs, start, is_goal, avoid_lava=avoid_lava)
 
