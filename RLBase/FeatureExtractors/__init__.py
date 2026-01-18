@@ -3,3 +3,4 @@ from .TabularExtractor import TabularFeature
 from .FlattenExtractor import FlattenFeature
 from .OneHotFlattenFeatureExtractor import OneHotFlattenFeature
 from .OneHotKeepDimExtractor import OneHotKeepDimFeature
+from .MirrorExtractor import MirrorFeature

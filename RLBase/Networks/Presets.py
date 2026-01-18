@@ -231,11 +231,11 @@ MINIGRID_PPO_CONV_CRITIC = [
 MINIGRID_PPO_MLP_ACTOR = [
     {"type":"input",  "id":"x", "input_key":"x"},
 
-    {"type":"linear", "id":"fc1", "from":"x", "out_features":64,
+    {"type":"linear", "id":"fc1", "from":"x", "out_features":256,
      "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
     {"type":"relu",   "id":"r1",  "from":"fc1"},
 
-    {"type":"linear", "id":"fc2", "from":"r1", "out_features":64,
+    {"type":"linear", "id":"fc2", "from":"r1", "out_features":256,
      "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
     {"type":"relu",   "id":"r2",  "from":"fc2"},
 
@@ -247,11 +247,11 @@ MINIGRID_PPO_MLP_ACTOR = [
 MINIGRID_PPO_MLP_CRITIC = [
     {"type":"input",  "id":"x", "input_key":"x"},
 
-    {"type":"linear", "id":"fc1", "from":"x", "out_features":64,
+    {"type":"linear", "id":"fc1", "from":"x", "out_features":256,
      "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
     {"type":"relu",   "id":"r1",  "from":"fc1"},
 
-    {"type":"linear", "id":"fc2", "from":"r1", "out_features":64,
+    {"type":"linear", "id":"fc2", "from":"r1", "out_features":256,
      "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
     {"type":"relu",   "id":"r2",  "from":"fc2"},
 
@@ -260,6 +260,84 @@ MINIGRID_PPO_MLP_CRITIC = [
     
 ]
 
+
+MINIGRID_PPO_CONV_FUSE_ACTOR = [
+    # ---- inputs ----
+    {"type": "input", "id": "img",   "input_key": "image"},
+    {"type": "input", "id": "dir",   "input_key": "direction"},
+    {"type": "input", "id": "carry", "input_key": "carrying"},
+
+    # ---- image tower ----
+    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img",  "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir+carry) ----
+    {"type":"concat", "id":"vec_in", "from":["dir", "carry"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_vec", "from":"vec_in", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_vec","from":"fc_vec"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_vec"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_fuse", "from":"fused", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_fuse","from":"fc_fuse"},
+
+    {"type":"linear", "id":"out", "from":"r_fuse",
+     "init_params":{"name":"orthogonal","gain":0.01}},
+]
+
+MINIGRID_PPO_CONV_FUSE_CRITIC = [
+    # ---- inputs ----
+    {"type": "input", "id": "img",   "input_key": "image"},
+    {"type": "input", "id": "dir",   "input_key": "direction"},
+    {"type": "input", "id": "carry", "input_key": "carrying"},
+
+    # ---- image tower ----
+    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img",  "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir+carry) ----
+    {"type":"concat", "id":"vec_in", "from":["dir", "carry"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_vec", "from":"vec_in", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_vec","from":"fc_vec"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_vec"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_fuse", "from":"fused", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_fuse","from":"fc_fuse"},
+
+    {"type":"linear", "id":"out", "from":"r_fuse",
+     "init_params":{"name":"orthogonal","gain":1.0}},
+]
 
 # =========================
 # MuJoCo — PPO (continuous)
@@ -403,6 +481,8 @@ NETWORK_PRESETS = {
     "MiniGrid/PPO/conv_critic": MINIGRID_PPO_CONV_CRITIC,
     "MiniGrid/PPO/mlp_actor": MINIGRID_PPO_MLP_ACTOR,
     "MiniGrid/PPO/mlp_critic": MINIGRID_PPO_MLP_CRITIC,
+    "MiniGrid/PPO/conv_fuse_actor": MINIGRID_PPO_CONV_FUSE_ACTOR,
+    "MiniGrid/PPO/conv_fuse_critic": MINIGRID_PPO_CONV_FUSE_CRITIC,
 
     # MuJoCo PPO
     "MuJoCo/PPO/mlp_actor_tanh": MUJOCO_PPO_MLP_ACTOR_TANH,

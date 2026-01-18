@@ -6,7 +6,7 @@ from minigrid.wrappers import (
     FullyObsWrapper,
 )
 from gymnasium import spaces
-from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX, IDX_TO_OBJECT, IDX_TO_COLOR
+from minigrid.core.constants import OBJECT_TO_IDX, COLOR_TO_IDX, STATE_TO_IDX, IDX_TO_OBJECT, IDX_TO_COLOR, DIR_TO_VEC
 
 
 class DropMissionWrapper(ObservationWrapper):
@@ -107,6 +107,115 @@ class OneHotImageDirWrapper(ObservationWrapper):
             "image": out_img,
             "direction": out_dir,
         }
+        
+class OneHotImageDirCarryWrapper(ObservationWrapper):
+    """
+    One-hot encode:
+      - partially observable agent view (obs["image"])
+      - agent direction (obs["direction"]) as a 4-dim one-hot vector.
+    """
+
+    def __init__(self, env, tile_size=8):
+        super().__init__(env)
+
+        self.tile_size = tile_size
+
+        # ---- Image one-hot shape (same as original wrapper) ----
+        obs_shape = env.observation_space["image"].shape
+        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1
+
+        new_image_space = spaces.Box(
+            low=0,
+            high=1,
+            shape=(obs_shape[0], obs_shape[1], num_bits),
+            dtype="uint8",
+        )
+
+        # ---- Direction one-hot space ----
+        # Original is usually Discrete(4) with values {0,1,2,3}
+        dir_space = env.observation_space["direction"]
+        assert isinstance(dir_space, spaces.Discrete)
+        assert dir_space.n <= len(DIR_TO_VEC), "Expected <= num_dirs directions"
+
+        new_dir_space = spaces.Box(
+            low=0,
+            high=1,
+            shape=(len(DIR_TO_VEC),),
+            dtype="uint8",
+        )
+        
+        # ---- Carrying one-hot space ----
+        carry_space = env.observation_space["carrying"]
+        assert isinstance(carry_space, spaces.Box)
+        assert carry_space.shape == (2,), f"Expected carrying shape (2,), got {carry_space.shape}"
+        self.num_carry_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + 1 # +1 for "none"/empty
+        new_carry_space = spaces.Box(
+            low=0,
+            high=1,
+            shape=(self.num_carry_bits,),
+            dtype="uint8",
+        )
+
+        # ---- Build new Dict observation space ----
+        self.observation_space = spaces.Dict(
+            {
+                **self.observation_space.spaces,
+                "image": new_image_space,
+                "direction": new_dir_space,
+                "carrying": new_carry_space,
+            }
+        )
+
+    def observation(self, obs):
+        # ----- One-hot the image (same as original wrapper) -----
+        img = obs["image"]
+        out_img = np.zeros(
+            self.observation_space.spaces["image"].shape,
+            dtype="uint8",
+        )
+
+        for i in range(img.shape[0]):
+            for j in range(img.shape[1]):
+                obj_type = img[i, j, 0]
+                color = img[i, j, 1]
+                state = img[i, j, 2]
+
+                out_img[i, j, obj_type] = 1
+                out_img[i, j, len(OBJECT_TO_IDX) + color] = 1
+                out_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
+
+        # ----- One-hot the direction -----
+        d = obs["direction"]  # integer in {0,1,2,3}
+        if not (0 <= d < len(DIR_TO_VEC)):
+            raise ValueError(f"direction out of range: {d}")
+        out_dir = np.zeros(len(DIR_TO_VEC), dtype="uint8")
+        out_dir[d] = 1
+        
+        
+        # ----- One-hot the carrying (object, color) -----
+        carry = obs["carrying"]  # shape (2,), int values
+        obj_type = int(carry[0])
+        color = int(carry[1])
+
+        out_carry = np.zeros(self.num_carry_bits, dtype="uint8")
+
+        if obj_type == -1 and color == -1:
+            out_carry[-1] = 1  # empty
+        else:
+            if not (0 <= obj_type < len(OBJECT_TO_IDX)):
+                raise ValueError(f"carrying obj_type out of range: {obj_type}")
+            if not (0 <= color < len(COLOR_TO_IDX)):
+                raise ValueError(f"carrying color out of range: {color}")
+            out_carry[obj_type] = 1
+            out_carry[len(OBJECT_TO_IDX) + color] = 1
+
+        # Keep other keys (e.g., "mission") unchanged
+        return {
+            **obs,
+            "image": out_img,
+            "direction": out_dir,
+            "carrying": out_carry,
+        }
 
 class FixedSeedWrapper(gym.Wrapper):
     """
@@ -184,6 +293,7 @@ WRAPPING_TO_WRAPPER = {
     "FullyObs": FullyObsWrapper,
     "DropMission": DropMissionWrapper,
     "OneHotImageDir": OneHotImageDirWrapper,
+    "OneHotImageDirCarry": OneHotImageDirCarryWrapper,
     "FixedSeed": FixedSeedWrapper,
     "TextObs" :TextObsWrapper,
 }

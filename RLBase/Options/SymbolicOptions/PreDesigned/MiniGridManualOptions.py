@@ -15,7 +15,7 @@ class ActionLeft(BaseOption):
     
     def select_action(self, observation, internal_state = None):
         self.counter += 1
-        return 0
+        return A_LEFT
     
     def is_terminated(self, observation, internal_state = None):
         if self.counter >= 1:
@@ -34,7 +34,7 @@ class ActionRight(BaseOption):
     
     def select_action(self, observation, internal_state = None):
         self.counter += 1
-        return 1
+        return A_RIGHT
     
     def is_terminated(self, observation, internal_state = None):
         if self.counter >= 1:
@@ -53,7 +53,7 @@ class ActionForward(BaseOption):
     
     def select_action(self, observation, internal_state = None):
         self.counter += 1
-        return 2
+        return A_FORWARD
     
     def is_terminated(self, observation, internal_state = None):
         if self.counter >= 1:
@@ -63,6 +63,84 @@ class ActionForward(BaseOption):
     
     def reset(self):
         self.counter = 0
+
+@register_option
+class ActionPickup(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Pick Up", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return A_PICKUP
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+
+
+@register_option
+class ActionDrop(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Drop", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return A_DROP
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+        
+@register_option
+class ActionToggle(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Toggle", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return A_TOGGLE
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+        
+@register_option
+class ActionDone(BaseOption):
+    def __init__(self, option_id: Optional[str] = "Done", hyper_params = None, device = "cpu"):
+        super().__init__(option_id, hyper_params, device)
+        self.counter = 0
+    
+    def select_action(self, observation, internal_state = None):
+        self.counter += 1
+        return A_DONE
+    
+    def is_terminated(self, observation, internal_state = None):
+        if self.counter >= 1:
+            self.counter = 0
+            return True
+        return False
+    
+    def reset(self):
+        self.counter = 0
+
 
 @register_option
 class GetNearestGoalOption(BaseOption, GridNavMixin):
@@ -608,6 +686,15 @@ class ToggleNearestBoxOption(BaseOption, GridNavMixin):
         self.counter = 0
         self.toggled = False
 
+actions = [
+    ActionLeft(), 
+    ActionRight(), 
+    ActionForward(), 
+    ActionPickup(), 
+    ActionDrop(), 
+    ActionToggle(), 
+    ActionDone()
+    ]
 goal_options = [
     GetNearestGoalOption(
         option_id=f"get_nearest_goal_{color}",
@@ -656,4 +743,4 @@ door_options = [
     for state in STATE_TO_IDX.keys()
 ]
 
-manual_options = goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options
+manual_options = actions + goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-02:00    # time (DD-HH:MM)
+#SBATCH --mem=20G          # memory per node
+#SBATCH --time=1-00:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-243     # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-81     # check HP_SEARCH_SPACE to calculate the space size
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -38,12 +38,12 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG=""
+NAME_TAG="cb-32d"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-EmptyTwoGoals-v0"
+ENV="MiniGrid-MazeRooms-v0"
 
 ENV_WRAPPING='[]'
 WRAPPING_PARAMS='[]'
@@ -52,9 +52,9 @@ ENV_PARAMS='{}'
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=500_000
+TOTAL_STEPS=3_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=100
+EPISODE_MAX_STEPS=500
 
 INFO='{
   "gamma": 0.99,
@@ -89,20 +89,18 @@ INFO='{
 
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
-  "codebook_num_embeddings": 2,
+  "codebook_num_embeddings": 32,
 
   "codebook_eps": 1e-5,
-  "codebook_max_grad_norm": 1.0
+  "codebook_max_grad_norm": 1.0,
+  "codebook_step_size": 3e-4
 }'
 
 HP_SEARCH_SPACE='{
   "hl_clip_range_actor_init": [0.1, 0.2, 0.3],
   "hl_clip_range_critic_init": [0.1, 0.2, 0.3],
   "hl_entropy_coef": [0.0, 0.01, 0.1],
-  "commit_coef": [0.1, 0.2, 0.3],
-
-  "codebook_step_size": [0.003, 0.0003, 0.00003]
-
+  "commit_coef": [0.1, 0.2, 0.3]
 }'
 
 

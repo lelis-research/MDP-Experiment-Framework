@@ -60,6 +60,8 @@ class OneHotKeepDimFeature(BaseFeature):
             low = np.array(space.low).astype(np.int64)
             high = np.array(space.high).astype(np.int64)
             if not (np.all(low == low.flat[0]) and np.all(high == high.flat[0])):
+                print(low, high)
+                exit(0)
                 raise NotImplementedError(
                     "OneHotKeepDimFeature: non-uniform Box low/high not supported yet."
                 )

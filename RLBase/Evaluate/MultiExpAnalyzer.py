@@ -207,7 +207,7 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
     file_counter = 0
     metrics_lst = []
     no_metrics_file_lst = []
-
+    
     for exp in tqdm(exp_sub_folders):
         satisfy_conditions = all(s in exp for s in name_string_conditions) if name_string_conditions else True
         satisfy_anti = not any(s in exp for s in name_string_anti_conditions) if name_string_anti_conditions else True

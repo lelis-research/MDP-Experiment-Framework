@@ -641,7 +641,7 @@ class VQOptionCriticAgent(BaseAgent):
         #                                      [1.0, 0.3], 
         #                                      [-1.0, 0.3]], device=device)
         
-    
+
     def log(self):
         # returns list length num_envs, each item either None or dict-of-arrays
         return self._flush_log_buf()
@@ -825,10 +825,10 @@ class VQOptionCriticAgent(BaseAgent):
                 self.code_book.update(rollout_option_proto_emb,
                                       call_back=call_back)
                 
-                self.code_book.fake_update(rollout_option_proto_emb,
-                                      direction=None,
-                                      step_size=0.1,
-                                      call_back=call_back)
+                # self.code_book.fake_update(rollout_option_proto_emb,
+                #                       direction=None,
+                #                       step_size=0.1,
+                #                       call_back=call_back)
                 
                 self.rollout_buffer[i].clear()
             

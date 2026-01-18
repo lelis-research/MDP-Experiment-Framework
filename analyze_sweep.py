@@ -593,7 +593,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-EmptyTwoGoals-v0_/VQOptionCritic/_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/VQOptionCritic/cb-32d_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------
