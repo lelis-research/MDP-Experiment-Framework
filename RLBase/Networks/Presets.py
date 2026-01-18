@@ -339,6 +339,81 @@ MINIGRID_PPO_CONV_FUSE_CRITIC = [
      "init_params":{"name":"orthogonal","gain":1.0}},
 ]
 
+MINIGRID_PPO_CONV_FUSE_IMGDIR_ACTOR = [
+    # ---- inputs ----
+    {"type": "input", "id": "img", "input_key": "image"},
+    {"type": "input", "id": "dir", "input_key": "direction"},
+
+    # ---- image tower ----
+    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img", "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir only) ----
+    {"type":"flatten","id":"dir_flat","from":"dir"},  # safe even if already (B,4)
+
+    {"type":"linear", "id":"fc_dir", "from":"dir_flat", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_dir","from":"fc_dir"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_dir"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_fuse", "from":"fused", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_fuse","from":"fc_fuse"},
+
+    {"type":"linear", "id":"out", "from":"r_fuse",
+     "init_params":{"name":"orthogonal","gain":0.01}},
+]
+
+MINIGRID_PPO_CONV_FUSE_IMGDIR_CRITIC = [
+    # ---- inputs ----
+    {"type": "input", "id": "img", "input_key": "image"},
+    {"type": "input", "id": "dir", "input_key": "direction"},
+
+    # ---- image tower ----
+    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img", "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir only) ----
+    {"type":"flatten","id":"dir_flat","from":"dir"},
+
+    {"type":"linear", "id":"fc_dir", "from":"dir_flat", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_dir","from":"fc_dir"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_dir"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_fuse", "from":"fused", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_fuse","from":"fc_fuse"},
+
+    {"type":"linear", "id":"out", "from":"r_fuse",
+     "init_params":{"name":"orthogonal","gain":1.0}},
+]
 # =========================
 # MuJoCo — PPO (continuous)
 # =========================
@@ -483,6 +558,8 @@ NETWORK_PRESETS = {
     "MiniGrid/PPO/mlp_critic": MINIGRID_PPO_MLP_CRITIC,
     "MiniGrid/PPO/conv_fuse_actor": MINIGRID_PPO_CONV_FUSE_ACTOR,
     "MiniGrid/PPO/conv_fuse_critic": MINIGRID_PPO_CONV_FUSE_CRITIC,
+    "MiniGrid/PPO/conv_fuse_imgdir_actor": MINIGRID_PPO_CONV_FUSE_IMGDIR_ACTOR,
+    "MiniGrid/PPO/conv_fuse_imgdir_critic": MINIGRID_PPO_CONV_FUSE_IMGDIR_CRITIC,
 
     # MuJoCo PPO
     "MuJoCo/PPO/mlp_actor_tanh": MUJOCO_PPO_MLP_ACTOR_TANH,

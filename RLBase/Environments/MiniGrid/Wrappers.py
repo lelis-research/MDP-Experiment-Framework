@@ -51,7 +51,7 @@ class OneHotImageDirWrapper(ObservationWrapper):
 
         new_image_space = spaces.Box(
             low=0,
-            high=255,
+            high=1,
             shape=(obs_shape[0], obs_shape[1], num_bits),
             dtype="uint8",
         )
