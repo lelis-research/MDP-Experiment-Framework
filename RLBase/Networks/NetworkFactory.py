@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Union, Optional
 
 from .LayerInit import apply_init
 from .NoisyLayer import NoisyLinear
-
+from .PermuteLayer import Permute
 # ---- New: small factory for module-creating layers ----
 def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
     t = layer_cfg.get("type", "").lower()
@@ -57,6 +57,11 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
         return nn.Sigmoid()
     elif t == "tanh":
         return nn.Tanh()
+    elif t == "permute":
+        return Permute(
+            dims=layer_cfg["dims"],
+            contiguous=layer_cfg.get("contiguous", True),
+        )
     # Non-module ops handled inside forward: input, concat, add, identity
     elif t in ("input", "concat", "add", "identity"):
         return None
@@ -337,6 +342,19 @@ def prepare_network_config(config,
                 raise ValueError(f"add '{layer_id}' shape mismatch: {[shapes[s] for s in src]}")
             shapes[layer_id] = base
 
+        elif layer_type == "permute":
+            s = shapes[src[0]]
+            if s is int:
+                shapes[layer_id] = s
+            else:
+                C,H,W = s
+                if layer["dims"] == [0,2,3,1]: 
+                    shapes[layer_id] = (H, W, C)
+                elif layer["dims"] == [0,3,1,2]: 
+                    shapes[layer_id] = (W, C, H)
+                else:
+                    raise ValueError("Unsupported permute for shape inference")
+                
         else:
             raise ValueError(f"Unsupported layer type in graph prep: {layer_type}")    
 

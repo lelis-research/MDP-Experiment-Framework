@@ -261,11 +261,11 @@ MINIGRID_PPO_MLP_CRITIC = [
 ]
 
 
-MINIGRID_PPO_CONV_FUSE_ACTOR = [
+MINIGRID_PPO_CONV_IMGDIRCARRY_ACTOR = [
     # ---- inputs ----
-    {"type": "input", "id": "img",   "input_key": "image"},
-    {"type": "input", "id": "dir",   "input_key": "direction"},
-    {"type": "input", "id": "carry", "input_key": "carrying"},
+    {"type": "input", "id": "img",   "input_key": "onehot_image"},
+    {"type": "input", "id": "dir",   "input_key": "onehot_direction"},
+    {"type": "input", "id": "carry", "input_key": "onehot_carrying"},
 
     # ---- image tower ----
     {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
@@ -300,11 +300,11 @@ MINIGRID_PPO_CONV_FUSE_ACTOR = [
      "init_params":{"name":"orthogonal","gain":0.01}},
 ]
 
-MINIGRID_PPO_CONV_FUSE_CRITIC = [
+MINIGRID_PPO_CONV_IMGDIRCARRY_CRITIC = [
     # ---- inputs ----
-    {"type": "input", "id": "img",   "input_key": "image"},
-    {"type": "input", "id": "dir",   "input_key": "direction"},
-    {"type": "input", "id": "carry", "input_key": "carrying"},
+    {"type": "input", "id": "img",   "input_key": "onehot_image"},
+    {"type": "input", "id": "dir",   "input_key": "onehot_direction"},
+    {"type": "input", "id": "carry", "input_key": "onehot_carrying"},
 
     # ---- image tower ----
     {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
@@ -339,13 +339,14 @@ MINIGRID_PPO_CONV_FUSE_CRITIC = [
      "init_params":{"name":"orthogonal","gain":1.0}},
 ]
 
-MINIGRID_PPO_CONV_FUSE_IMGDIR_ACTOR = [
+MINIGRID_PPO_CONV_IMGDIR_ACTOR = [
     # ---- inputs ----
-    {"type": "input", "id": "img", "input_key": "image"},
-    {"type": "input", "id": "dir", "input_key": "direction"},
+    {"type": "input", "id": "img", "input_key": "onehot_image"},
+    {"type": "input", "id": "dir", "input_key": "onehot_direction"},
 
     # ---- image tower ----
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
      "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
     {"type":"relu",   "id":"r1", "from":"c1"},
 
@@ -377,13 +378,14 @@ MINIGRID_PPO_CONV_FUSE_IMGDIR_ACTOR = [
      "init_params":{"name":"orthogonal","gain":0.01}},
 ]
 
-MINIGRID_PPO_CONV_FUSE_IMGDIR_CRITIC = [
+MINIGRID_PPO_CONV_IMGDIR_CRITIC = [
     # ---- inputs ----
-    {"type": "input", "id": "img", "input_key": "image"},
-    {"type": "input", "id": "dir", "input_key": "direction"},
+    {"type": "input", "id": "img", "input_key": "onehot_image"},
+    {"type": "input", "id": "dir", "input_key": "onehot_direction"},
 
     # ---- image tower ----
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
      "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
     {"type":"relu",   "id":"r1", "from":"c1"},
 
@@ -556,10 +558,10 @@ NETWORK_PRESETS = {
     "MiniGrid/PPO/conv_critic": MINIGRID_PPO_CONV_CRITIC,
     "MiniGrid/PPO/mlp_actor": MINIGRID_PPO_MLP_ACTOR,
     "MiniGrid/PPO/mlp_critic": MINIGRID_PPO_MLP_CRITIC,
-    "MiniGrid/PPO/conv_fuse_actor": MINIGRID_PPO_CONV_FUSE_ACTOR,
-    "MiniGrid/PPO/conv_fuse_critic": MINIGRID_PPO_CONV_FUSE_CRITIC,
-    "MiniGrid/PPO/conv_fuse_imgdir_actor": MINIGRID_PPO_CONV_FUSE_IMGDIR_ACTOR,
-    "MiniGrid/PPO/conv_fuse_imgdir_critic": MINIGRID_PPO_CONV_FUSE_IMGDIR_CRITIC,
+    "MiniGrid/PPO/conv_imgdircarry_actor": MINIGRID_PPO_CONV_IMGDIRCARRY_ACTOR,
+    "MiniGrid/PPO/conv_imgdircarry_critic": MINIGRID_PPO_CONV_IMGDIRCARRY_CRITIC,
+    "MiniGrid/PPO/conv_imgdir_actor": MINIGRID_PPO_CONV_IMGDIR_ACTOR,
+    "MiniGrid/PPO/conv_imgdir_critic": MINIGRID_PPO_CONV_IMGDIR_CRITIC,
 
     # MuJoCo PPO
     "MuJoCo/PPO/mlp_actor_tanh": MUJOCO_PPO_MLP_ACTOR_TANH,

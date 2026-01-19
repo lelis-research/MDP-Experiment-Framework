@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=20G          # memory per node
-#SBATCH --time=1-00:00    # time (DD-HH:MM)
+#SBATCH --mem=12G          # memory per node
+#SBATCH --time=0-04:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -38,23 +38,23 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="cb-32d"
+NAME_TAG="conv"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="VQOptionCritic"
-ENV="MiniGrid-MazeRooms-v0"
+AGENT="PPO"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
-ENV_WRAPPING='[]'
-WRAPPING_PARAMS='[]'
+ENV_WRAPPING='["OneHotImageDir"]'
+WRAPPING_PARAMS='[{}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=3_000_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=500
+EPISODE_MAX_STEPS=100
 
 INFO='{
   "gamma": 0.99,
@@ -64,12 +64,12 @@ INFO='{
   "hl_num_epochs": 10,
   "hl_target_kl": null,
 
-  "hl_actor_network": "MiniGrid/PPO/mlp_actor",
+  "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
   "hl_actor_eps": 1e-8,
   "hl_actor_step_size": 3e-4,
   "hl_anneal_clip_range_actor": false,
 
-  "hl_critic_network": "MiniGrid/PPO/mlp_critic",
+  "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
   "hl_critic_eps": 1e-8,
   "hl_critic_step_size": 3e-4,
   "hl_anneal_clip_range_critic": false,

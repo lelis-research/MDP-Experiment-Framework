@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
-#SBATCH --time=1-00:00
+#SBATCH --mem=12G
+#SBATCH --time=0-03:00
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
@@ -38,61 +38,29 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="cb-32d_$IDX"
+NAME_TAG="conv_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="VQOptionCritic"
-ENV="MiniGrid-MazeRooms-v0"
+AGENT="PPO"
+ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
-ENV_WRAPPING='[]'
-WRAPPING_PARAMS='[]'
+ENV_WRAPPING='["OneHotImageDir"]'
+WRAPPING_PARAMS='[{}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=5_000_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=500
+EPISODE_MAX_STEPS=100
 
 RENDER_MODE=""
 STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "codebook_embedding_high": 1.0,
-  "codebook_embedding_low": -1.0,
-  "codebook_eps": 1e-05,
-  "codebook_max_grad_norm": 1.0,
-  "codebook_num_embeddings": 32,
-  "codebook_step_size": 0.0003,
-  "commit_coef": 0.3,
-  "gamma": 0.99,
-  "hl_actor_eps": 1e-08,
-  "hl_actor_network": "MiniGrid/PPO/mlp_actor",
-  "hl_actor_step_size": 0.0003,
-  "hl_anneal_clip_range_actor": false,
-  "hl_anneal_clip_range_critic": false,
-  "hl_clip_range_actor_init": 0.2,
-  "hl_clip_range_critic_init": 0.2,
-  "hl_critic_coef": 0.5,
-  "hl_critic_eps": 1e-08,
-  "hl_critic_network": "MiniGrid/PPO/mlp_critic",
-  "hl_critic_step_size": 0.0003,
-  "hl_enable_advantage_normalization": true,
-  "hl_enable_stepsize_anneal": false,
-  "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.01,
-  "hl_lamda": 0.95,
-  "hl_max_grad_norm": 0.5,
-  "hl_max_logstd": null,
-  "hl_min_logstd": null,
-  "hl_mini_batch_size": 64,
-  "hl_num_epochs": 10,
-  "hl_rollout_steps": 2048,
-  "hl_target_kl": null,
-  "hl_total_steps": 200000
 }'
 # ------------------------------
 

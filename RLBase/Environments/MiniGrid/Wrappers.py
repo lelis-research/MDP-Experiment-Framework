@@ -39,17 +39,16 @@ class OneHotImageDirWrapper(ObservationWrapper):
       - agent direction (obs["direction"]) as a 4-dim one-hot vector.
     """
 
-    def __init__(self, env, tile_size=8, num_dirs=4):
+    def __init__(self, env, tile_size=8):
         super().__init__(env)
 
         self.tile_size = tile_size
-        self.num_dirs = num_dirs
 
         # ---- Image one-hot shape (same as original wrapper) ----
         obs_shape = env.observation_space["image"].shape
-        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1
+        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1 # +1 is for the state that is none
 
-        new_image_space = spaces.Box(
+        onehot_image_space = spaces.Box(
             low=0,
             high=1,
             shape=(obs_shape[0], obs_shape[1], num_bits),
@@ -60,12 +59,12 @@ class OneHotImageDirWrapper(ObservationWrapper):
         # Original is usually Discrete(4) with values {0,1,2,3}
         dir_space = env.observation_space["direction"]
         assert isinstance(dir_space, spaces.Discrete)
-        assert dir_space.n <= num_dirs, "Expected <= num_dirs directions"
+        assert dir_space.n <= len(DIR_TO_VEC), "Expected <= num_dirs directions"
 
-        new_dir_space = spaces.Box(
+        onehot_dir_space = spaces.Box(
             low=0,
             high=1,
-            shape=(num_dirs,),
+            shape=(len(DIR_TO_VEC),),
             dtype="uint8",
         )
 
@@ -73,16 +72,16 @@ class OneHotImageDirWrapper(ObservationWrapper):
         self.observation_space = spaces.Dict(
             {
                 **self.observation_space.spaces,
-                "image": new_image_space,
-                "direction": new_dir_space,
+                "onehot_image": onehot_image_space,
+                "onehot_direction": onehot_dir_space,
             }
         )
 
     def observation(self, obs):
         # ----- One-hot the image (same as original wrapper) -----
         img = obs["image"]
-        out_img = np.zeros(
-            self.observation_space.spaces["image"].shape,
+        onehot_img = np.zeros(
+            self.observation_space.spaces["onehot_image"].shape,
             dtype="uint8",
         )
 
@@ -92,20 +91,23 @@ class OneHotImageDirWrapper(ObservationWrapper):
                 color = img[i, j, 1]
                 state = img[i, j, 2]
 
-                out_img[i, j, obj_type] = 1
-                out_img[i, j, len(OBJECT_TO_IDX) + color] = 1
-                out_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
+                onehot_img[i, j, obj_type] = 1
+                onehot_img[i, j, len(OBJECT_TO_IDX) + color] = 1
+                onehot_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
 
         # ----- One-hot the direction -----
         d = obs["direction"]  # integer in {0,1,2,3}
-        out_dir = np.zeros(self.num_dirs, dtype="uint8")
-        out_dir[d] = 1
+        if d < 0 or d >= len(DIR_TO_VEC):
+            raise ValueError(f"direction out of range: {d}")
+
+        onehot_dir = np.zeros(len(DIR_TO_VEC), dtype="uint8")
+        onehot_dir[d] = 1
 
         # Keep other keys (e.g., "mission") unchanged
         return {
             **obs,
-            "image": out_img,
-            "direction": out_dir,
+            "onehot_image": onehot_img,
+            "onehot_direction": onehot_dir,
         }
         
 class OneHotImageDirCarryWrapper(ObservationWrapper):
@@ -124,7 +126,7 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         obs_shape = env.observation_space["image"].shape
         num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1
 
-        new_image_space = spaces.Box(
+        onehot_image_space = spaces.Box(
             low=0,
             high=1,
             shape=(obs_shape[0], obs_shape[1], num_bits),
@@ -137,7 +139,7 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         assert isinstance(dir_space, spaces.Discrete)
         assert dir_space.n <= len(DIR_TO_VEC), "Expected <= num_dirs directions"
 
-        new_dir_space = spaces.Box(
+        onehot_dir_space = spaces.Box(
             low=0,
             high=1,
             shape=(len(DIR_TO_VEC),),
@@ -149,7 +151,7 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         assert isinstance(carry_space, spaces.Box)
         assert carry_space.shape == (2,), f"Expected carrying shape (2,), got {carry_space.shape}"
         self.num_carry_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + 1 # +1 for "none"/empty
-        new_carry_space = spaces.Box(
+        onehot_carry_space = spaces.Box(
             low=0,
             high=1,
             shape=(self.num_carry_bits,),
@@ -160,17 +162,17 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         self.observation_space = spaces.Dict(
             {
                 **self.observation_space.spaces,
-                "image": new_image_space,
-                "direction": new_dir_space,
-                "carrying": new_carry_space,
+                "onehot_image": onehot_image_space,
+                "onehot_direction": onehot_dir_space,
+                "onehot_carrying": onehot_carry_space,
             }
         )
 
     def observation(self, obs):
         # ----- One-hot the image (same as original wrapper) -----
         img = obs["image"]
-        out_img = np.zeros(
-            self.observation_space.spaces["image"].shape,
+        onehot_img = np.zeros(
+            self.observation_space.spaces["onehot_image"].shape,
             dtype="uint8",
         )
 
@@ -180,16 +182,16 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
                 color = img[i, j, 1]
                 state = img[i, j, 2]
 
-                out_img[i, j, obj_type] = 1
-                out_img[i, j, len(OBJECT_TO_IDX) + color] = 1
-                out_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
+                onehot_img[i, j, obj_type] = 1
+                onehot_img[i, j, len(OBJECT_TO_IDX) + color] = 1
+                onehot_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
 
         # ----- One-hot the direction -----
         d = obs["direction"]  # integer in {0,1,2,3}
         if not (0 <= d < len(DIR_TO_VEC)):
             raise ValueError(f"direction out of range: {d}")
-        out_dir = np.zeros(len(DIR_TO_VEC), dtype="uint8")
-        out_dir[d] = 1
+        onehot_dir = np.zeros(len(DIR_TO_VEC), dtype="uint8")
+        onehot_dir[d] = 1
         
         
         # ----- One-hot the carrying (object, color) -----
@@ -197,24 +199,24 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         obj_type = int(carry[0])
         color = int(carry[1])
 
-        out_carry = np.zeros(self.num_carry_bits, dtype="uint8")
+        onehot_carry = np.zeros(self.num_carry_bits, dtype="uint8")
 
         if obj_type == -1 and color == -1:
-            out_carry[-1] = 1  # empty
+            onehot_carry[-1] = 1  # empty
         else:
             if not (0 <= obj_type < len(OBJECT_TO_IDX)):
                 raise ValueError(f"carrying obj_type out of range: {obj_type}")
             if not (0 <= color < len(COLOR_TO_IDX)):
                 raise ValueError(f"carrying color out of range: {color}")
-            out_carry[obj_type] = 1
-            out_carry[len(OBJECT_TO_IDX) + color] = 1
+            onehot_carry[obj_type] = 1
+            onehot_carry[len(OBJECT_TO_IDX) + color] = 1
 
         # Keep other keys (e.g., "mission") unchanged
         return {
             **obs,
-            "image": out_img,
-            "direction": out_dir,
-            "carrying": out_carry,
+            "onehot_image": onehot_img,
+            "onehot_direction": onehot_dir,
+            "onehot_carrying": onehot_carry,
         }
 
 class FixedSeedWrapper(gym.Wrapper):
