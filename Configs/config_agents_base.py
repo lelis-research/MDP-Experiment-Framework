@@ -69,7 +69,7 @@ AGENT_DICT = {
             ),
         get_num_envs(env),
         FlattenFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()], 
+        init_option_lst=manual_options, 
     ),
 
     #Tabular Agents
@@ -108,7 +108,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()], 
+        init_option_lst=manual_options, 
     ),
     
     
@@ -174,7 +174,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=manual_options,
         device=device
     ),
     
@@ -241,7 +241,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        init_option_lst=manual_options,
         device=device
     ),
     
@@ -429,7 +429,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions,
+        init_option_lst=manual_options,
         device=device
     ),
 }

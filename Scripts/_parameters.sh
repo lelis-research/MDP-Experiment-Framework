@@ -4,12 +4,12 @@ INFO_tier1='{
   "gamma": 0.99,
   "hl_lamda": 0.95,
 
-  "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
+  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
   "hl_actor_eps": 1e-8,
   "hl_clip_range_actor_init": 0.2,
   "hl_anneal_clip_range_actor": false,
 
-  "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
   "hl_critic_eps": 1e-8,
   "hl_clip_range_critic_init": null,
   "hl_anneal_clip_range_critic": false,
@@ -37,7 +37,7 @@ INFO_tier1='{
   "hl_mini_batch_size": 128,
   "hl_num_epochs": 10
 }'
-
+# 540 Configs
 HP_SEARCH_SPACE_tier1='{
   "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
   "hl_critic_step_size": [1e-4, 3e-4, 1e-3],
@@ -52,12 +52,12 @@ INFO_tier2='{
   "gamma": 0.99,
   "hl_lamda": 0.95,
 
-  "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
+  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
   "hl_actor_eps": 1e-8,
   "hl_clip_range_actor_init": 0.2,
   "hl_anneal_clip_range_actor": false,
 
-  "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
   "hl_critic_eps": 1e-8,
   "hl_clip_range_critic_init": null,
   "hl_anneal_clip_range_critic": false,
@@ -99,8 +99,8 @@ INFO_tier1='{
   "gamma": 0.99,
   "lamda": 0.95,
 
-  "actor_network": "MiniGrid/PPO/conv_imgdir_actor",
-  "critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+  "actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
+  "critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
 
   "actor_eps": 1e-8,
   "critic_eps": 1e-8,
@@ -130,7 +130,7 @@ INFO_tier1='{
   "mini_batch_size": 128,
   "num_epochs": 10
 }'
-
+# 45 configs
 HP_SEARCH_SPACE_tier1='{
   "actor_step_size": [1e-4, 3e-4, 1e-3],
   "critic_step_size": [1e-4, 3e-4, 1e-3],

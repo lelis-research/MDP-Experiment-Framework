@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=12G          # memory per node
-#SBATCH --time=0-04:00    # time (DD-HH:MM)
+#SBATCH --mem=16G          # memory per node
+#SBATCH --time=1-00:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=aip-lelis
-#SBATCH --array=0-81     # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-540     # check HP_SEARCH_SPACE to calculate the space size
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -38,34 +38,34 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="conv"
+NAME_TAG="conv-dim16"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="PPO"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+AGENT="VQOptionCritic"
+ENV="MiniGrid-MazeRooms-v0"
 
-ENV_WRAPPING='["OneHotImageDir"]'
+ENV_WRAPPING='["OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=300_000
+TOTAL_STEPS=2_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=100
+EPISODE_MAX_STEPS=500
 
 INFO='{
   "gamma": 0.99,
   "hl_lamda": 0.95,
 
-  "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
+  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
   "hl_actor_eps": 1e-8,
   "hl_clip_range_actor_init": 0.2,
   "hl_anneal_clip_range_actor": false,
 
-  "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
   "hl_critic_eps": 1e-8,
   "hl_clip_range_critic_init": null,
   "hl_anneal_clip_range_critic": false,
@@ -83,25 +83,25 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
-  "codebook_embedding_dim": 2,
+  "codebook_embedding_dim": 16,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
   "codebook_eps": 1e-5,
-  "codebook_max_grad_norm": 1.0
+  "codebook_max_grad_norm": 1.0,
+
+  "hl_rollout_steps": 1024,
+  "hl_mini_batch_size": 128,
+  "hl_num_epochs": 10
 }'
 
 HP_SEARCH_SPACE='{
   "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
   "hl_critic_step_size": [1e-4, 3e-4, 1e-3],
 
-  "hl_entropy_coef": [0.0, 0.001, 0.003, 0.01],
+  "hl_entropy_coef": [0.0, 0.0003, 0.001, 0.003, 0.01],
 
   "commit_coef": [0.05, 0.1, 0.2, 0.4],
-  "codebook_step_size": [1e-4, 3e-4, 1e-3],
-
-  "hl_rollout_steps": [512, 1024, 2048],
-  "hl_mini_batch_size": [64, 128, 256],
-  "hl_num_epochs": [5, 10, 20]
+  "codebook_step_size": [1e-4, 3e-4, 1e-3]
 }'
 
 
