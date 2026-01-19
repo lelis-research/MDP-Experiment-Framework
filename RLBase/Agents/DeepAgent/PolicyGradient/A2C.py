@@ -297,6 +297,30 @@ class A2CPolicy(BasePolicy):
 class A2CAgent(BaseAgent):
     """
     Advantage Actor-Critic agent using n-step rollouts in a single environment.
+    Hyper-params:
+        "gamma": 0.99,
+        "lamda": 0.95,
+        "rollout_steps": 32,
+
+        "actor_network": "MiniGrid/PPO/mlp_actor",
+        "actor_step_size": 3e-4,
+        "actor_eps": 1e-8,
+
+        "critic_network": "MiniGrid/PPO/mlp_actor",
+        "critic_step_size": 3e-4,
+        "critic_eps": 1e-8,
+
+        "critic_coef": 0.5,
+        "entropy_coef": 0.0,
+        "max_grad_norm": 0.5,
+
+        "min_logstd": None,
+        "max_logstd": None,
+
+        "enable_stepsize_anneal": False,
+        "total_steps": 200_000,
+        "update_type": "per_env",
+        "enable_advantage_normalization": True,
     """
     name = "A2C"
     SUPPORTED_ACTION_SPACES = (Discrete, Box)

@@ -192,6 +192,40 @@ class OptionPPOPolicy(PPOPolicy):
 
 @register_agent
 class OptionPPOAgent(PPOAgent):
+    """
+    Hyper-params:
+        "gamma": 0.99,
+        "lamda": 0.95,
+        "rollout_steps": 2048,
+        "mini_batch_size": 64,
+        "num_epochs": 10,
+        "target_kl": None,
+
+        "actor_network": "MiniGrid/PPO/mlp_actor",
+        "actor_step_size": 3e-4,
+        "actor_eps": 1e-8,
+        "clip_range_actor_init": 0.2,
+        "anneal_clip_range_actor": False,
+
+        "critic_network": "MiniGrid/PPO/mlp_actor",
+        "critic_step_size": 3e-4,
+        "critic_eps": 1e-8,
+        "clip_range_critic_init": 0.2,
+        "anneal_clip_range_critic": False,
+
+        "critic_coef": 0.5,
+        "entropy_coef": 0.0,
+        "max_grad_norm": 0.5,
+
+        "min_logstd": None,
+        "max_logstd": None,
+
+        "enable_stepsize_anneal": False,
+        "total_steps": 100_000,
+        "update_type": "per_env",
+        "enable_advantage_normalization": True,
+        "enable_transform_action": True,
+    """
     name = "OptionPPO"
     SUPPORTED_ACTION_SPACES = (Discrete, )
     

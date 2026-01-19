@@ -429,7 +429,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=manual_options,
+        init_option_lst=actions,
         device=device
     ),
 }

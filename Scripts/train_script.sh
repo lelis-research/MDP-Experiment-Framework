@@ -42,7 +42,7 @@ NAME_TAG="conv_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="PPO"
+AGENT="VQOptionCritic"
 ENV="MiniGrid-SimpleCrossingS9N1-v0"
 
 ENV_WRAPPING='["OneHotImageDir"]'

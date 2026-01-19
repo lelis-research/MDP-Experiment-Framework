@@ -429,6 +429,39 @@ class PPOAgent(BaseAgent):
     
     Rollout buffer stores tuples of:
         (state, action, log_prob, state_value, reward, next_state, done)
+        
+    Hyper-Params:
+        "gamma": 0.99,
+        "lamda": 0.95,
+        "rollout_steps": 2048,
+        "mini_batch_size": 64,
+        "num_epochs": 10,
+        "target_kl": None,
+
+        "actor_network": "MiniGrid/PPO/conv_imgdir_actor",
+        "actor_step_size": 3e-4,
+        "actor_eps": 1e-8,
+        "clip_range_actor_init": 0.2,
+        "anneal_clip_range_actor": False,
+
+        "critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+        "critic_step_size": 3e-4,
+        "critic_eps": 1e-8,
+        "clip_range_critic_init": 0.2,
+        "anneal_clip_range_critic": False,
+
+        "critic_coef": 0.5,
+        "entropy_coef": 0.0,
+        "max_grad_norm": 0.5,
+
+        "min_logstd": None,
+        "max_logstd": None,
+
+        "enable_stepsize_anneal": False,
+        "total_steps": 500_000,
+        "update_type": "per_env",
+        "enable_advantage_normalization": True,
+        "enable_transform_action": True,
     """
     name = "PPO"
     SUPPORTED_ACTION_SPACES = (Discrete, Box)

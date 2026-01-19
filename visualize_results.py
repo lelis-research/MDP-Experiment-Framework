@@ -2,19 +2,16 @@ from RLBase.Evaluate import plot_experiments, gather_experiments, plot_option_us
 from RLBase.Evaluate import SingleExpAnalyzer
 
 def multi_exp_results():
-    VQOptionCritic = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/VQOptionCritic"
-    VQOptionCritic_Maze = "Runs/Train/MiniGrid-MazeRooms-v0_/VQOptionCritic"
+    PPO_SimpleCrossing = "Runs/Train/MiniGrid-SimpleCrossingS9N1-v0_/OneHotImageDir/PPO"
     
     agent_dict = {       
         # "VQ": gather_experiments(VQOptionCritic, name_string_conditions=[], name_string_anti_conditions=["fake_update_01_"]),
         # "VQ_fake1": gather_experiments(VQOptionCritic, name_string_conditions=["fake_update_01_"], name_string_anti_conditions=[]),
         
-        "VQ-2d": gather_experiments(VQOptionCritic_Maze, name_string_conditions=["cb-2d"], name_string_anti_conditions=[]),
-        "VQ-16d": gather_experiments(VQOptionCritic_Maze, name_string_conditions=["cb-16d"], name_string_anti_conditions=[]),
-        "VQ-32d": gather_experiments(VQOptionCritic_Maze, name_string_conditions=["cb-32d"], name_string_anti_conditions=[]),
+        "PPO_SimpleCrossing": gather_experiments(PPO_SimpleCrossing, name_string_conditions=[], name_string_anti_conditions=[]),
     }
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"VQOptionCritic_Maze", window_size=1, show_ci=True, ignore_last=True, 
+    plot_experiments(agent_dict, "Runs/Figures", name=f"SimpleCrossing", window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s"], plot_each=False)
     # plot_option_embeddings(agent_dict, "Runs/Figures", name=f"Option_Emb_Codebook_Commit", show_legend=True, min_ep=5000)
 
@@ -29,7 +26,7 @@ def single_exp_results():
 
 if __name__ == "__main__":
     multi_exp_results()
-    single_exp_results()    
+    # single_exp_results()    
     
     
     

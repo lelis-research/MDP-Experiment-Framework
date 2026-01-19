@@ -601,6 +601,50 @@ class CodeBook(RandomGenerator):
 
 @register_agent
 class VQOptionCriticAgent(BaseAgent):
+    """
+    Hyper-parmas:
+        "gamma": 0.99,
+        "hl_lamda": 0.95,
+        "hl_rollout_steps": 2048,
+        "hl_mini_batch_size": 64,
+        "hl_num_epochs": 10,
+        "hl_target_kl": None,
+
+        "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
+        "hl_actor_step_size": 3e-4,
+        "hl_actor_eps": 1e-8,
+        "hl_clip_range_actor_init": 0.2,
+        "hl_anneal_clip_range_actor": False,
+
+        "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
+        "hl_critic_step_size": 3e-4,
+        "hl_critic_eps": 1e-8,
+        "hl_clip_range_critic_init": 0.2,
+        "hl_anneal_clip_range_critic": False,
+
+        "hl_critic_coef": 0.5,
+        "hl_entropy_coef": 0.0,
+        "hl_max_grad_norm": 0.5,
+
+        "hl_min_logstd": None,
+        "hl_max_logstd": None,
+
+        "hl_enable_stepsize_anneal": False,
+        "hl_total_steps": 200_000,
+        "hl_enable_advantage_normalization": True,
+        "hl_enable_transform_action": True,
+
+        "commit_coef": 0.2,
+        ----
+        "codebook_embedding_dim": 2,
+        "codebook_embedding_low": -1,
+        "codebook_embedding_high": 1,
+
+        "codebook_step_size": 3e-4,
+        "codebook_eps": 1e-5,
+        "codebook_max_grad_norm": 1.0,
+        
+    """
     name = "VQOptionCritic"
     SUPPORTED_ACTION_SPACES = (Discrete, Box)
     

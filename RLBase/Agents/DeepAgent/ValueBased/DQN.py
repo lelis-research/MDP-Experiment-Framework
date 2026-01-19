@@ -272,6 +272,30 @@ class DQNPolicy(BasePolicy):
 
 @register_agent
 class DQNAgent(BaseAgent):
+    """
+    Hyper-params:
+        "gamma": 0.99,
+        "n_steps": 3,
+
+        "epsilon_start": 1.0,
+        "epsilon_end": 0.05,
+        "epsilon_decay_steps": 15_000,
+        "enable_noisy_nets": True,
+
+        "replay_buffer_size": 200_000,
+        "warmup_buffer_size": 500,
+
+        "batch_size": 64,
+        "update_freq": 4,
+        "target_update_freq": 20,
+
+        "value_network": "MiniGrid/DQN/mlp_noisy",
+        "step_size": 1e-3,
+        "enable_double_dqn_target": True,
+        "enable_dueling_networks": False,
+        "enable_huber_loss": True,
+        "max_grad_norm": None,
+    """
     name = "DQN"
     SUPPORTED_ACTION_SPACES = (Discrete, )
     

@@ -122,6 +122,19 @@ class QLearningPolicy(BasePolicy):
 
 @register_agent        
 class QLearningAgent(BaseAgent):
+    """
+    Hyper-params:
+        "step_size": 0.1,
+        "gamma": 0.99,
+        "epsilon_start": 1.0,
+        "epsilon_end": 0.05,
+        "epsilon_decay_steps": 40000,
+        "n_steps": 3,
+
+        "replay_buffer_size": 256,
+        "batch_size": 1,
+        "warmup_buffer_size": 128,
+    """
     name = "QLearning"
     SUPPORTED_ACTION_SPACES = (Discrete, )
     

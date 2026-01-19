@@ -272,6 +272,32 @@ class TD3Policy(BasePolicy):
 class TD3Agent(BaseAgent):
     """
     Off-policy TD3 agent using ReplayBuffer (your implementation).
+    Hyper-params:
+        "gamma": 0.99,
+
+        "exploration_noise": 0.1,
+        "initial_random_steps": 1000,
+
+        "replay_buffer_size": 200_000,
+        "warmup_buffer_size": 2048,
+
+        "batch_size": 64,
+        "num_updates": 1,
+        "policy_delay": 2,
+
+        "actor_network": "MuJoCo/TD3/mlp_actor",
+        "actor_step_size": 3e-4,
+        "actor_eps": 1e-8,
+        "need_squash": True,
+
+        "critic_network": "MuJoCo/TD3/mlp_critic",
+        "critic_step_size": 3e-4,
+        "critic_eps": 1e-8,
+
+        "target_policy_noise": 0.1,
+        "target_policy_noise_clip": 1.0,
+        "target_network_update_tau": 0.1,
+        "max_grad_norm": 0.5,
     """
     name = "TD3"
     SUPPORTED_ACTION_SPACES = (Box,)

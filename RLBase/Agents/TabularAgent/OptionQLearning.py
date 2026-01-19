@@ -14,6 +14,19 @@ class OptionQLearningPolicy(QLearningPolicy):
 
 @register_agent
 class OptionQLearningAgent(QLearningAgent):
+    """
+    Hyper-params:
+        "step_size": 0.1,
+        "gamma": 0.99,
+        "epsilon_start": 1.0,
+        "epsilon_end": 0.05,
+        "epsilon_decay_steps": 10000,
+        "n_steps": 5,
+
+        "replay_buffer_size": 256,
+        "batch_size": 1,
+        "warmup_buffer_size": 10,
+    """
     name = "OptionQLearning"
     SUPPORTED_ACTION_SPACES = (Discrete, )
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=None):
