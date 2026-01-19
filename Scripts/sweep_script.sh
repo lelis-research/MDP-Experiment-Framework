@@ -59,24 +59,21 @@ EPISODE_MAX_STEPS=100
 INFO='{
   "gamma": 0.99,
   "hl_lamda": 0.95,
-  "hl_rollout_steps": 2048,
-  "hl_mini_batch_size": 64,
-  "hl_num_epochs": 10,
-  "hl_target_kl": null,
 
   "hl_actor_network": "MiniGrid/PPO/conv_imgdir_actor",
   "hl_actor_eps": 1e-8,
-  "hl_actor_step_size": 3e-4,
+  "hl_clip_range_actor_init": 0.2,
   "hl_anneal_clip_range_actor": false,
 
   "hl_critic_network": "MiniGrid/PPO/conv_imgdir_critic",
   "hl_critic_eps": 1e-8,
-  "hl_critic_step_size": 3e-4,
+  "hl_clip_range_critic_init": null,
   "hl_anneal_clip_range_critic": false,
 
   "hl_critic_coef": 0.5,
   "hl_max_grad_norm": 0.5,
 
+  "hl_target_kl": null,
   "hl_min_logstd": null,
   "hl_max_logstd": null,
 
@@ -86,21 +83,25 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
-
+  "codebook_embedding_dim": 2,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
-  "codebook_num_embeddings": 32,
-
   "codebook_eps": 1e-5,
-  "codebook_max_grad_norm": 1.0,
-  "codebook_step_size": 3e-4
+  "codebook_max_grad_norm": 1.0
 }'
 
 HP_SEARCH_SPACE='{
-  "hl_clip_range_actor_init": [0.1, 0.2, 0.3],
-  "hl_clip_range_critic_init": [0.1, 0.2, 0.3],
-  "hl_entropy_coef": [0.0, 0.01, 0.1],
-  "commit_coef": [0.1, 0.2, 0.3]
+  "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
+  "hl_critic_step_size": [1e-4, 3e-4, 1e-3],
+
+  "hl_entropy_coef": [0.0, 0.001, 0.003, 0.01],
+
+  "commit_coef": [0.05, 0.1, 0.2, 0.4],
+  "codebook_step_size": [1e-4, 3e-4, 1e-3],
+
+  "hl_rollout_steps": [512, 1024, 2048],
+  "hl_mini_batch_size": [64, 128, 256],
+  "hl_num_epochs": [5, 10, 20]
 }'
 
 

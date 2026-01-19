@@ -298,13 +298,13 @@ AGENT_DICT = {
             num_epochs=info.get("num_epochs", 10),
             target_kl=info.get("target_kl", None), #None means no early stop
             
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/mlp_actor")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/conv_imgdir_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             actor_eps = info.get("actor_eps", 1e-8),
             clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
             anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/mlp_actor")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/conv_imgdir_critic")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             critic_eps = info.get("critic_eps", 1e-8),
             clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
@@ -324,8 +324,8 @@ AGENT_DICT = {
             enable_transform_action=info.get("enable_transform_action", True),
         ),
         get_num_envs(env),
-        OneHotFlattenFeature,
-        init_option_lst=[GoToRedGoalOption(), GoToGreenGoalOption()],
+        MirrorFeature,
+        init_option_lst=manual_options,
         device=device
     ),
     

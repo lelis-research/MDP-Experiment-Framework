@@ -781,10 +781,10 @@ class VQOptionCriticAgent(BaseAgent):
         return action
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
-        call_back({"tmp_counter": self.tmp_counter})
-        if terminated[0]:
-            # reached goal
-            self.tmp_counter += 1
+        # call_back({"tmp_counter": self.tmp_counter})
+        # if terminated[0]:
+        #     # reached goal
+        #     self.tmp_counter += 1
         # if not self.tmp_flag and self.tmp_counter >= 3000:
         #     self.tmp_flag = True
         #     self.code_book.add_row()
