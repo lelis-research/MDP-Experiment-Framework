@@ -103,3 +103,10 @@ $APPTAINER_CMD "$CONTAINER" \
     --env_params        "$ENV_PARAMS" \
     --env_wrapping      "$ENV_WRAPPING" \
     --wrapping_params   "$WRAPPING_PARAMS"
+
+
+    ## vulcan: aip-lelis
+    ## fir: def-lelis_cpu, def-lelis_gpu, rrg-lelis_cpu, rrg-lelis_gpu
+    ## rorqual: def-lelis_cpu, def-lelis_c=gpu
+    ## nibi: def-lelis_cpu, def-lelis_gpu
+    ## trillium: def-lelis
