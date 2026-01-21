@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=12G
-#SBATCH --time=0-03:00
+#SBATCH --mem=16G
+#SBATCH --time=1-00:00
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=aip-lelis
+#SBATCH --account=rrg-lelis_cpu
 #SBATCH --array=0-50
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
@@ -38,29 +38,61 @@ export TORCH_NUM_THREADS=1
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="conv_$IDX"
+NAME_TAG="conv-dim16_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV="MiniGrid-MazeRooms-v0"
 
-ENV_WRAPPING='["OneHotImageDir"]'
+ENV_WRAPPING='["OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=3_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=100
+EPISODE_MAX_STEPS=500
 
 RENDER_MODE=""
 STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
+  "codebook_embedding_dim": 16,
+  "codebook_embedding_high": 1.0,
+  "codebook_embedding_low": -1.0,
+  "codebook_eps": 1e-05,
+  "codebook_max_grad_norm": 1.0,
+  "codebook_step_size": 0.0003,
+  "commit_coef": 0.05,
+  "gamma": 0.99,
+  "hl_actor_eps": 1e-08,
+  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
+  "hl_actor_step_size": 0.0001,
+  "hl_anneal_clip_range_actor": false,
+  "hl_anneal_clip_range_critic": false,
+  "hl_clip_range_actor_init": 0.2,
+  "hl_clip_range_critic_init": null,
+  "hl_critic_coef": 0.5,
+  "hl_critic_eps": 1e-08,
+  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
+  "hl_critic_step_size": 0.0001,
+  "hl_enable_advantage_normalization": true,
+  "hl_enable_stepsize_anneal": false,
+  "hl_enable_transform_action": true,
+  "hl_entropy_coef": 0.0,
+  "hl_lamda": 0.95,
+  "hl_max_grad_norm": 0.5,
+  "hl_max_logstd": null,
+  "hl_min_logstd": null,
+  "hl_mini_batch_size": 128,
+  "hl_num_epochs": 10,
+  "hl_rollout_steps": 1024,
+  "hl_target_kl": null,
+  "hl_total_steps": 200000
 }'
 # ------------------------------
 

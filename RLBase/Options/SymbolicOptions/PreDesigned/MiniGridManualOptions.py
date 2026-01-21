@@ -743,4 +743,5 @@ door_options = [
     for state in STATE_TO_IDX.keys()
 ]
 
-manual_options = actions + goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options
+# manual_options = actions + goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options
+manual_options = actions + goal_options + key_options + door_options

@@ -263,8 +263,8 @@ class CodeBook(RandomGenerator):
     
     def _init_weights(self):
         with torch.no_grad():
-            nn.init.uniform_(self.emb.weight, self.hp.embedding_low, self.hp.embedding_high)
-            
+            nn.init.uniform_(self.emb.weight, -self.hp.eps, self.hp.eps)
+        
         # with torch.no_grad():
         #     eps = 1.0 / max(1, self.num_codes)
         #     nn.init.uniform_(self.emb.weight, -eps, eps)
@@ -273,23 +273,6 @@ class CodeBook(RandomGenerator):
         #     self.emb.weight.zero_()
         #     for i in range(self.num_codes):
         #         self.emb.weight[i, i] = 1.0
-        
-        # with torch.no_grad():
-        #     r = 9 / 9
-        #     self.emb.weight.zero_()
-        #     self.emb.weight[0] = torch.tensor([0.0, 1.0], device=self.device)
-        #     self.emb.weight[1] = torch.tensor([-0.6*r, -1.0], device=self.device)q
-        #     self.emb.weight[2] = torch.tensor([0.6*r, -1.0], device=self.device)
-        #     self.emb.weight[3] = torch.tensor([1.0, 0.3*r], device=self.device)
-        #     self.emb.weight[4] = torch.tensor([-1.0, 0.3*r], device=self.device)
-        
-        # with torch.no_grad():
-        #     self.emb.weight.zero_()
-        #     self.emb.weight[0] = torch.tensor([0.0, 0.1], device=self.device)
-        #     self.emb.weight[1] = torch.tensor([-0.06, -0.1], device=self.device)
-        #     self.emb.weight[2] = torch.tensor([0.06, -0.1], device=self.device)
-        #     self.emb.weight[3] = torch.tensor([0.1, 0.03], device=self.device)
-        #     self.emb.weight[4] = torch.tensor([-0.1, 0.03], device=self.device)
             
     def reset(self, seed):
         self.set_seed(seed)

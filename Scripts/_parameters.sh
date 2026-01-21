@@ -30,22 +30,24 @@ INFO_tier1='{
   "codebook_embedding_dim": 2,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
-  "codebook_eps": 1e-5,
   "codebook_max_grad_norm": 1.0,
 
   "hl_rollout_steps": 1024,
   "hl_mini_batch_size": 128,
   "hl_num_epochs": 10
 }'
-# 540 Configs
+# "codebook_embedding_init": ["uniform", "normal"]
+
+# 1296 Configs
 HP_SEARCH_SPACE_tier1='{
   "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
   "hl_critic_step_size": [1e-4, 3e-4, 1e-3],
 
-  "hl_entropy_coef": [0.0, 0.0003, 0.001, 0.003, 0.01],
+  "hl_entropy_coef": [0.0, 0.001, 0.01, 0.05],
 
   "commit_coef": [0.05, 0.1, 0.2, 0.4],
-  "codebook_step_size": [1e-4, 3e-4, 1e-3]
+  "codebook_step_size": [1e-4, 3e-4, 1e-3],
+  "codebook_eps": [1e-5, 1e-1, 1]
 }'
 
 INFO_tier2='{
@@ -130,11 +132,11 @@ INFO_tier1='{
   "mini_batch_size": 128,
   "num_epochs": 10
 }'
-# 45 configs
+# 36 configs
 HP_SEARCH_SPACE_tier1='{
   "actor_step_size": [1e-4, 3e-4, 1e-3],
   "critic_step_size": [1e-4, 3e-4, 1e-3],
-  "entropy_coef": [0.0, 0.0003, 0.001, 0.003, 0.01]
+  "entropy_coef": [0.0, 0.001, 0.01, 0.05]
 }'
 
 INFO_tier2='{

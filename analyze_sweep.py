@@ -593,7 +593,7 @@ def main(exp_dir, ratio, auc_type):
 
 if __name__ == '__main__':
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/VQOptionCritic/cb-32d_seed[1]"
+    exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv-dim2_seed[1]"
     ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
     auc_type = "steps" # steps or episode
     # ---------------------
@@ -602,9 +602,9 @@ if __name__ == '__main__':
     main(exp_dir, ratio, auc_type)
 
     # Plot sensitivities for all keys found in info:
-    # plot_all_param_sensitivities(
-    #     exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
-    #     center_stat="mean",
-    #     legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
-    #     max_legend=100
-    # )
+    plot_all_param_sensitivities(
+        exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
+        center_stat="mean",
+        legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
+        max_legend=100
+    )

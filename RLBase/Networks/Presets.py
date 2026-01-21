@@ -181,52 +181,6 @@ MINIGRID_DQN_DUELING_CONV_NOISY = [
 # MiniGrid — PPO (actor/critic)
 # =========================
 
-# --- PPO Conv actor (discrete actions) ---
-# set output_dim=action_dim
-MINIGRID_PPO_CONV_ACTOR = [
-    {"type":"input",  "id":"img", "input_key":"img"},
-
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
-     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
-    {"type":"relu",   "id":"r1", "from":"c1"},
-
-    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
-     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
-    {"type":"relu",   "id":"r2", "from":"c2"},
-
-    {"type":"flatten","id":"flat","from":"r2"},
-
-    {"type":"linear", "id":"fc",  "from":"flat", "out_features":256,
-     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
-    {"type":"relu",   "id":"r_fc","from":"fc"},
-
-    {"type":"linear", "id":"out", "from":"r_fc",
-     "init_params":{"name":"orthogonal","gain":0.01}},
-]
-
-# --- PPO Conv critic ---
-# set output_dim=1
-MINIGRID_PPO_CONV_CRITIC = [
-    {"type":"input",  "id":"img", "input_key":"img"},
-
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
-     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
-    {"type":"relu",   "id":"r1", "from":"c1"},
-
-    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
-     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
-    {"type":"relu",   "id":"r2", "from":"c2"},
-
-    {"type":"flatten","id":"flat","from":"r2"},
-
-    {"type":"linear", "id":"fc",  "from":"flat", "out_features":256,
-     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
-    {"type":"relu",   "id":"r_fc","from":"fc"},
-
-    {"type":"linear", "id":"out", "from":"r_fc",
-     "init_params":{"name":"orthogonal","gain":1.0}},
-]
-
 # --- PPO MLP actor/critic (flattened features: x) ---
 MINIGRID_PPO_MLP_ACTOR = [
     {"type":"input",  "id":"x", "input_key":"x"},
@@ -268,7 +222,8 @@ MINIGRID_PPO_CONV_IMGDIRCARRY_ACTOR = [
     {"type": "input", "id": "carry", "input_key": "onehot_carrying"},
 
     # ---- image tower ----
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
      "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
     {"type":"relu",   "id":"r1", "from":"c1"},
 
@@ -307,7 +262,8 @@ MINIGRID_PPO_CONV_IMGDIRCARRY_CRITIC = [
     {"type": "input", "id": "carry", "input_key": "onehot_carrying"},
 
     # ---- image tower ----
-    {"type":"conv2d", "id":"c1", "from":"img", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
      "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
     {"type":"relu",   "id":"r1", "from":"c1"},
 
@@ -554,8 +510,6 @@ NETWORK_PRESETS = {
     "MiniGrid/DQN/dueling_conv_noisy": MINIGRID_DQN_DUELING_CONV_NOISY,
 
     # MiniGrid PPO
-    "MiniGrid/PPO/conv_actor": MINIGRID_PPO_CONV_ACTOR,
-    "MiniGrid/PPO/conv_critic": MINIGRID_PPO_CONV_CRITIC,
     "MiniGrid/PPO/mlp_actor": MINIGRID_PPO_MLP_ACTOR,
     "MiniGrid/PPO/mlp_critic": MINIGRID_PPO_MLP_CRITIC,
     "MiniGrid/PPO/conv_imgdircarry_actor": MINIGRID_PPO_CONV_IMGDIRCARRY_ACTOR,

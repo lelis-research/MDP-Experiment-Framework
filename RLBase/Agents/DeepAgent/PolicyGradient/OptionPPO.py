@@ -522,27 +522,6 @@ class OptionPPOAgent(PPOAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
     
-    
-    def log(self):
-        logs = []
-        for i in range(self.num_envs):
-            curr_option_idx = self.running_option_index[i]
-            if curr_option_idx is None:
-                logs.append({
-                    "OptionUsageLog": False,
-                    "NumOptions": len(self.options_lst),
-                    "OptionIndex": None,
-                    "OptionClass": None,
-                })
-            else:
-                logs.append({
-                    "OptionUsageLog": True,
-                    "NumOptions": len(self.options_lst),
-                    "OptionIndex": curr_option_idx,
-                    "OptionClass": self.options_lst[curr_option_idx].__class__,
-                })
-        return logs
-    
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)  # parent saves feature_extractor, policy, hp, etc.
         
