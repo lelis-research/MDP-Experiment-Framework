@@ -148,7 +148,7 @@ class QLearningAgent(BaseAgent):
         else:
             self.replay_buffer = None
         
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         Select an action based on the observation.
         observation is a batch
@@ -158,82 +158,84 @@ class QLearningAgent(BaseAgent):
         action = []
         for i in range(self.num_envs):
             st = state[i]
-            action.append(self.policy.select_action(st, greedy=greedy))
+            action.append(self.policy.select_action(st, greedy=not self.training))
         
         self.last_action = action
         self.last_state = state
         return action
                 
     def update(self, observation, reward, terminated, truncated, call_back=None):
-        state = self.feature_extractor(observation)
-        for i in range(self.num_envs):
-            st = state[i]
-            transition = self.last_state[i], self.last_action[i], reward[i]
-            self.rollout_buffer[i].add(transition)
-            
-            if terminated[i] or truncated[i]:
-                rollout = self.rollout_buffer[i].all()
-                rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
-                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-                for j in range(len(self.rollout_buffer[i])):
-                    self.policy.update(
-                        rollout_states[j], 
-                        rollout_actions[j], 
-                        st, 
-                        n_step_return[j], 
-                        terminated[i], 
-                        truncated[i], 
-                        self.hp.gamma**(len(self.rollout_buffer[i])-j), 
-                        call_back=call_back
-                    )
-                    if self.replay_buffer is not None:
-                        trans = (
+        if self.training:
+            state = self.feature_extractor(observation)
+            for i in range(self.num_envs):
+                st = state[i]
+                transition = self.last_state[i], self.last_action[i], reward[i]
+                self.rollout_buffer[i].add(transition)
+                
+                if terminated[i] or truncated[i]:
+                    rollout = self.rollout_buffer[i].all()
+                    rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+                    n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                    for j in range(len(self.rollout_buffer[i])):
+                        self.policy.update(
                             rollout_states[j], 
                             rollout_actions[j], 
                             st, 
                             n_step_return[j], 
                             terminated[i], 
                             truncated[i], 
-                            self.hp.gamma**(len(self.rollout_buffer[i])-j)
+                            self.hp.gamma**(len(self.rollout_buffer[i])-j), 
+                            call_back=call_back
                         )
-                        self.replay_buffer.add(trans)
-                self.rollout_buffer[i].clear() 
+                        if self.replay_buffer is not None:
+                            trans = (
+                                rollout_states[j], 
+                                rollout_actions[j], 
+                                st, 
+                                n_step_return[j], 
+                                terminated[i], 
+                                truncated[i], 
+                                self.hp.gamma**(len(self.rollout_buffer[i])-j)
+                            )
+                            self.replay_buffer.add(trans)
+                    self.rollout_buffer[i].clear() 
+                
+                elif self.rollout_buffer[i].is_full():
+                    rollout = self.rollout_buffer[i].all() 
+                    rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
+                    n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                    self.policy.update(
+                        rollout_states[0], 
+                        rollout_actions[0], 
+                        st, 
+                        n_step_return[0],
+                        terminated[i], 
+                        truncated[i], 
+                        self.hp.gamma**self.hp.n_steps, 
+                        call_back=call_back
+                    )
+                    if self.replay_buffer is not None:
+                            trans = (
+                                rollout_states[0], 
+                                rollout_actions[0], 
+                                st, 
+                                n_step_return[0], 
+                                terminated[i], 
+                                truncated[i], 
+                                self.hp.gamma**self.hp.n_steps
+                            )
+                            self.replay_buffer.add(trans)
+                            
             
-            elif self.rollout_buffer[i].is_full():
-                rollout = self.rollout_buffer[i].all() 
-                rollout_states, rollout_actions, rollout_rewards = zip(*rollout)
-                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-                self.policy.update(
-                    rollout_states[0], 
-                    rollout_actions[0], 
-                    st, 
-                    n_step_return[0],
-                    terminated[i], 
-                    truncated[i], 
-                    self.hp.gamma**self.hp.n_steps, 
-                    call_back=call_back
-                )
-                if self.replay_buffer is not None:
-                        trans = (
-                            rollout_states[0], 
-                            rollout_actions[0], 
-                            st, 
-                            n_step_return[0], 
-                            terminated[i], 
-                            truncated[i], 
-                            self.hp.gamma**self.hp.n_steps
-                        )
-                        self.replay_buffer.add(trans)
-                        
+            if self.replay_buffer is not None and len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+                batch = self.replay_buffer.sample(self.hp.batch_size)
+
+                states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)  
+
+                for i in range(len(batch)):       
+                    self.policy.update(states[i], actions[i], next_states[i], 
+                                    n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)
         
-        if self.replay_buffer is not None and len(self.replay_buffer) >= self.hp.warmup_buffer_size:
-            batch = self.replay_buffer.sample(self.hp.batch_size)
-
-            states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)  
-
-            for i in range(len(batch)):       
-                self.policy.update(states[i], actions[i], next_states[i], 
-                                   n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)
             
              
                 

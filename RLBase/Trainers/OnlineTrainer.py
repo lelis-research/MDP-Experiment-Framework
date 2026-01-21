@@ -99,6 +99,10 @@ class OnlineTrainer:
         self.call_back.reset()
         if self._train:
             agent.reset(seed)
+            agent.train()
+        else:
+            agent.eval()
+            
         all_metrics = []
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         num_envs = env.num_envs
@@ -127,7 +131,7 @@ class OnlineTrainer:
         checkpoint_counter = 0
         
         while episodes_done < num_episodes:
-            action = agent.act(observation, greedy=not self._train)
+            action = agent.act(observation)
             
             next_observation, reward, terminated, truncated, info = env.step(action)  
             
@@ -151,9 +155,9 @@ class OnlineTrainer:
             ep_lengths += 1
             steps_so_far += num_envs
             
-            if self._train:
-                agent.update(next_observation, reward, terminated, truncated,
-                            call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
+        
+            agent.update(next_observation, reward, terminated, truncated,
+                        call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
             
             if hasattr(agent, 'log'):
                 log_entries = agent.log()  # list length num_envs
@@ -239,6 +243,9 @@ class OnlineTrainer:
         self.call_back.reset()
         if self._train:
             agent.reset(seed)
+            agent.train()
+        else:
+            agent.eval()
             
         all_metrics = []
         pbar = tqdm(total=total_steps, desc="Running steps")
@@ -269,7 +276,7 @@ class OnlineTrainer:
         checkpoint_counter = 0
         
         while steps_so_far < total_steps:
-            action = agent.act(observation, greedy=not self._train)
+            action = agent.act(observation)
             
             next_observation, reward, terminated, truncated, info = env.step(action)  
     
@@ -296,9 +303,8 @@ class OnlineTrainer:
             # if steps_so_far >= total_steps:
             #     truncated = np.ones_like(truncated)
                     
-            if self._train:
-                agent.update(next_observation, reward, terminated, truncated, 
-                            call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
+            agent.update(next_observation, reward, terminated, truncated, 
+                        call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
             
             if hasattr(agent, 'log'):
                 log_entries = agent.log()  # list length num_envs

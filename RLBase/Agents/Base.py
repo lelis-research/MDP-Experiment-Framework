@@ -5,7 +5,7 @@ from ..utils import RandomGenerator
 class BasePolicy(RandomGenerator):
     """
     Abstract policy interface.
-    Subclasses implement `select_action(state, greedy=False)` where `state` is a
+    Subclasses implement `select_action(state)` where `state` is a
     batched feature dict/tensor produced by the agent's feature extractor.
     """
     def __init__(self, action_space, hyper_params=None, device='cpu'):
@@ -74,7 +74,22 @@ class BaseAgent(RandomGenerator):
         self.feature_extractor = feature_extractor_class(observation_space, device=device)
         self.policy = BasePolicy(action_space, device=device)
         
-    def act(self, observation, greedy=False):
+        self._mode = "train"
+        
+    @property
+    def training(self):
+        if self._mode =="train":
+            return True
+        elif self._mode == "eval":
+            return False
+        raise ValueError(f"Training mode {self._mode} is not known")
+    
+    def train(self):
+        self._mode = "train"
+    def eval(self):
+        self._mode = "eval"
+           
+    def act(self, observation):
         # Vectorized Observation
         state = self.feature_extractor(observation)
         return self.policy.select_action(state)

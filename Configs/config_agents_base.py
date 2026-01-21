@@ -81,10 +81,10 @@ AGENT_DICT = {
             gamma=info.get("gamma", 0.99),
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 40000),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 200_000),
             n_steps=info.get("n_steps", 3),
             
-            replay_buffer_size=info.get("replay_buffer_size", 256), # give a buffer size for Dyna; None is not Dyna
+            replay_buffer_size=info.get("replay_buffer_size", None), # give a buffer size for Dyna; None is not Dyna
             batch_size=info.get("batch_size", 1), # for the Dyna
             warmup_buffer_size=info.get("warmup_buffer_size", 128), #for the Dyna
         ),
@@ -99,10 +99,10 @@ AGENT_DICT = {
             gamma=info.get("gamma", 0.99),
             epsilon_start=info.get("epsilon_start", 1.0),
             epsilon_end=info.get("epsilon_end", 0.05),
-            epsilon_decay_steps=info.get("epsilon_decay_steps", 10000),
-            n_steps=info.get("n_steps", 5),
+            epsilon_decay_steps=info.get("epsilon_decay_steps", 200_000),
+            n_steps=info.get("n_steps", 3),
             
-            replay_buffer_size=info.get("replay_buffer_size", 256), # give a buffer size for Dyna; None is not Dyna
+            replay_buffer_size=info.get("replay_buffer_size", None), # give a buffer size for Dyna; None is not Dyna
             batch_size=info.get("batch_size", 1), # for the Dyna
             warmup_buffer_size=info.get("warmup_buffer_size", 10), #for the Dyna
         ),

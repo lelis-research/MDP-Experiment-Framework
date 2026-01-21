@@ -321,17 +321,17 @@ class TD3Agent(BaseAgent):
 
 
 
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         observation: batch
         returns: batch actions
         """
         # random actions (classic TD3 trick)
-        if (not greedy) and (len(self.replay_buffer) <= int(self.hp.initial_random_steps)):
+        if (self.training) and (len(self.replay_buffer) <= int(self.hp.initial_random_steps)):
             action = self.np_random.uniform(self.policy.action_low, self.policy.action_high, size=(self.num_envs, self.policy.action_dim)).astype(np.float32)
         else:
             state = self.feature_extractor(observation)
-            action = self.policy.select_action(state, greedy=greedy)  
+            action = self.policy.select_action(state, greedy=not self.training)  
 
         self.last_observation = observation
         self.last_action = action
@@ -341,32 +341,32 @@ class TD3Agent(BaseAgent):
         """
         Stores (s, a, r, s', done) into replay and does gradient updates.
         """
+        if self.training:
+            # 1) Store transitions in replay (per env)
+            for i in range(self.num_envs):
+                transition = (
+                    get_single_observation(self.last_observation, i),
+                    self.last_action[i],
+                    float(reward[i]),
+                    get_single_observation(observation, i),
+                    bool(terminated[i]),
+                )
+                self.replay_buffer.add(transition)
 
-        # 1) Store transitions in replay (per env)
-        for i in range(self.num_envs):
-            transition = (
-                get_single_observation(self.last_observation, i),
-                self.last_action[i],
-                float(reward[i]),
-                get_single_observation(observation, i),
-                bool(terminated[i]),
-            )
-            self.replay_buffer.add(transition)
+            # 2) Start learning after enough experience
+            if len(self.replay_buffer) >= self.hp.warmup_buffer_size: 
+                # 3) Potentially do multiple updates per env step
+                for _ in range(self.hp.num_updates):
+                    batch = self.replay_buffer.sample(int(self.hp.batch_size))
+                    (batch_observations, batch_actions, batch_rewards, batch_next_observations, batch_dones) = zip(*batch)
 
-        # 2) Start learning after enough experience
-        if len(self.replay_buffer) >= self.hp.warmup_buffer_size: 
-            # 3) Potentially do multiple updates per env step
-            for _ in range(self.hp.num_updates):
-                batch = self.replay_buffer.sample(int(self.hp.batch_size))
-                (batch_observations, batch_actions, batch_rewards, batch_next_observations, batch_dones) = zip(*batch)
+                    batch_observations = stack_observations(batch_observations)
+                    batch_next_observations = stack_observations(batch_next_observations)
 
-                batch_observations = stack_observations(batch_observations)
-                batch_next_observations = stack_observations(batch_next_observations)
+                    batch_states = self.feature_extractor(batch_observations)
+                    batch_next_states = self.feature_extractor(batch_next_observations)
 
-                batch_states = self.feature_extractor(batch_observations)
-                batch_next_states = self.feature_extractor(batch_next_observations)
-
-                self.policy.update(batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, call_back=call_back)
+                    self.policy.update(batch_states, batch_actions, batch_rewards, batch_next_states, batch_dones, call_back=call_back)
 
     def reset(self, seed):
         super().reset(seed)

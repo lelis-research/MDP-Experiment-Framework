@@ -49,7 +49,7 @@ class OptionQLearningAgent(QLearningAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
 
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         Returns an atomic (primitive) action to execute.
         If an option is running, returns its current primitive action.
@@ -67,7 +67,7 @@ class OptionQLearningAgent(QLearningAgent):
                 a = self.options_lst[curr_option_idx].select_action(obs_option)
             else:
                 # Choose an extended action (might be a primitive or an option)
-                a = self.policy.select_action(st, greedy=greedy)
+                a = self.policy.select_action(st, greedy=not self.training)
                 if a >= self.atomic_action_space.n:
                     # Start an option
                     curr_option_idx = a - self.atomic_action_space.n
@@ -92,109 +92,132 @@ class OptionQLearningAgent(QLearningAgent):
         - If inside an option, accumulate discounted reward and do a single SMDP update on option termination.
         - If primitive, do the usual 1-step Q-learning update (parent policy already supports it).
         """
-        
-        state = self.feature_extractor(observation)
-        for i in range(self.num_envs):
-            if call_back is not None:
-                call_back({
-                    f"train/option_usage_env_{i}": 1 if self.running_option_index[i] is not None else 0,
-                })
-            
-            st = state[i]
-            obs = get_single_observation(observation, i)
-            obs_option = get_single_observation_nobatch(observation, i)
-            curr_option_idx = self.running_option_index[i]
-            
-            if curr_option_idx is not None:
-                # if an option is running
-                # Accumulate SMDP return while option runs 
-                self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
-                self.option_multiplier[i] *= self.hp.gamma
-                self.option_num_steps[i] += 1
-
-                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
-                    transition = self.option_start_state[i], \
-                                self.atomic_action_space.n + curr_option_idx, \
-                                self.option_cumulative_reward[i], \
-                                self.option_multiplier[i], \
-                                self.option_num_steps[i]
-                    self.rollout_buffer[i].add(transition)
-                    self.options_lst[curr_option_idx].reset()
-                    self.running_option_index[i] = None
-
-            else:
-                transition = self.last_state[i], \
-                            self.last_action[i], \
-                            reward[i], \
-                            self.hp.gamma, \
-                            1
-                self.rollout_buffer[i].add(transition)
+        if self.training:
+            state = self.feature_extractor(observation)
+            for i in range(self.num_envs):
+                if call_back is not None:
+                    call_back({
+                        f"train/option_usage_env_{i}": 1 if self.running_option_index[i] is not None else 0,
+                    })
                 
-            if terminated[i] or truncated[i]:
-                rollout = self.rollout_buffer[i].all()
-                rollout_states, rollout_actions, rollout_rewards, rollout_discounts, rollout_num_steps = zip(*rollout)
-                n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
-                all_steps = sum(s for s in rollout_num_steps)
-                for j in range(len(self.rollout_buffer[i])):
-                    self.policy.update(
-                        rollout_states[j], 
-                        rollout_actions[j], 
-                        st, 
-                        n_step_return[j], 
-                        terminated[i], 
-                        truncated[i], 
-                        self.hp.gamma**all_steps, 
-                        call_back=call_back)
-                    if self.replay_buffer is not None:
-                        trans = (
+                st = state[i]
+                obs = get_single_observation(observation, i)
+                obs_option = get_single_observation_nobatch(observation, i)
+                curr_option_idx = self.running_option_index[i]
+                
+                if curr_option_idx is not None:
+                    # if an option is running
+                    # Accumulate SMDP return while option runs 
+                    self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
+                    self.option_multiplier[i] *= self.hp.gamma
+                    self.option_num_steps[i] += 1
+
+                    if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                        transition = self.option_start_state[i], \
+                                    self.atomic_action_space.n + curr_option_idx, \
+                                    self.option_cumulative_reward[i], \
+                                    self.option_multiplier[i], \
+                                    self.option_num_steps[i]
+                        self.rollout_buffer[i].add(transition)
+                        self.options_lst[curr_option_idx].reset()
+                        self.running_option_index[i] = None
+
+                else:
+                    transition = self.last_state[i], \
+                                self.last_action[i], \
+                                reward[i], \
+                                self.hp.gamma, \
+                                1
+                    self.rollout_buffer[i].add(transition)
+                    
+                if terminated[i] or truncated[i]:
+                    rollout = self.rollout_buffer[i].all()
+                    rollout_states, rollout_actions, rollout_rewards, rollout_discounts, rollout_num_steps = zip(*rollout)
+                    n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
+                    all_steps = sum(s for s in rollout_num_steps)
+                    for j in range(len(self.rollout_buffer[i])):
+                        self.policy.update(
                             rollout_states[j], 
                             rollout_actions[j], 
                             st, 
                             n_step_return[j], 
                             terminated[i], 
                             truncated[i], 
-                            self.hp.gamma**all_steps
-                        )
-                        self.replay_buffer.add(trans)
-                    all_steps -= rollout_num_steps[j]
-                self.rollout_buffer[i].clear() 
-                
-            elif self.rollout_buffer[i].is_full():
-                rollout = self.rollout_buffer[i].all() 
-                rollout_states, rollout_actions, rollout_rewards, rollout_discounts, rollout_num_steps = zip(*rollout)
-                n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
-                all_steps = sum(s for s in rollout_num_steps)
-                self.policy.update(
-                    rollout_states[0], 
-                    rollout_actions[0], 
-                    st, 
-                    n_step_return[0], 
-                    terminated[i], 
-                    truncated[i], 
-                    self.hp.gamma**all_steps, 
-                    call_back=call_back) 
-                if self.replay_buffer is not None:
-                    trans = (
+                            self.hp.gamma**all_steps, 
+                            call_back=call_back)
+                        if self.replay_buffer is not None:
+                            trans = (
+                                rollout_states[j], 
+                                rollout_actions[j], 
+                                st, 
+                                n_step_return[j], 
+                                terminated[i], 
+                                truncated[i], 
+                                self.hp.gamma**all_steps
+                            )
+                            self.replay_buffer.add(trans)
+                        all_steps -= rollout_num_steps[j]
+                    self.rollout_buffer[i].clear() 
+                    
+                elif self.rollout_buffer[i].is_full():
+                    rollout = self.rollout_buffer[i].all() 
+                    rollout_states, rollout_actions, rollout_rewards, rollout_discounts, rollout_num_steps = zip(*rollout)
+                    n_step_return = calculate_n_step_returns_with_discounts(rollout_rewards, 0, rollout_discounts)
+                    all_steps = sum(s for s in rollout_num_steps)
+                    self.policy.update(
                         rollout_states[0], 
                         rollout_actions[0], 
                         st, 
                         n_step_return[0], 
                         terminated[i], 
                         truncated[i], 
-                        self.hp.gamma**all_steps
-                    )
-                    self.replay_buffer.add(trans)
-        
-        
-        if self.replay_buffer is not None and len(self.replay_buffer) >= self.hp.warmup_buffer_size:
-            batch = self.replay_buffer.sample(self.hp.batch_size)
+                        self.hp.gamma**all_steps, 
+                        call_back=call_back) 
+                    if self.replay_buffer is not None:
+                        trans = (
+                            rollout_states[0], 
+                            rollout_actions[0], 
+                            st, 
+                            n_step_return[0], 
+                            terminated[i], 
+                            truncated[i], 
+                            self.hp.gamma**all_steps
+                        )
+                        self.replay_buffer.add(trans)
+            
+            
+            if self.replay_buffer is not None and len(self.replay_buffer) >= self.hp.warmup_buffer_size:
+                batch = self.replay_buffer.sample(self.hp.batch_size)
 
-            states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)  
+                states, actions, next_states, n_step_return, terminated, truncated, effective_discount = zip(*batch)  
 
-            for i in range(len(batch)):       
-                self.policy.update(states[i], actions[i], next_states[i], 
-                                   n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)         
-    
+                for i in range(len(batch)):       
+                    self.policy.update(states[i], actions[i], next_states[i], 
+                                    n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)         
+        else:
+            state = self.feature_extractor(observation)
+            for i in range(self.num_envs):
+                if call_back is not None:
+                    call_back({
+                        f"train/option_usage_env_{i}": 1 if self.running_option_index[i] is not None else 0,
+                    })
+                
+                st = state[i]
+                obs = get_single_observation(observation, i)
+                obs_option = get_single_observation_nobatch(observation, i)
+                curr_option_idx = self.running_option_index[i]
+                
+                if curr_option_idx is not None:
+                    # if an option is running
+                    # Accumulate SMDP return while option runs 
+                    self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
+                    self.option_multiplier[i] *= self.hp.gamma
+                    self.option_num_steps[i] += 1
+
+                    if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                        self.options_lst[curr_option_idx].reset()
+                        self.running_option_index[i] = None
+                        
     def reset(self, seed):
         super().reset(seed)
 

@@ -254,7 +254,7 @@ class OptionPPOAgent(PPOAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
         
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         Select a primitive action. If currently executing an option, return the option's next action.
         Otherwise, sample from the policy over (actions + options). If an option is chosen, initialize
@@ -281,7 +281,7 @@ class OptionPPOAgent(PPOAgent):
                 lp = None
             else:
                 # Choose an extended action (might be a primitive or an option)
-                a, lp = self.policy.select_action(st, greedy=greedy) 
+                a, lp = self.policy.select_action(st, greedy=not self.training) 
                 a, lp = a[0], lp[0] # because 'a', 'lp' would be a batch of size 1 (for over the envs)
                 
                 if a >= self.atomic_action_space.n:
@@ -306,14 +306,31 @@ class OptionPPOAgent(PPOAgent):
         return action
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
-        if self.hp.update_type == "sync":
-            self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
-            return self.update_sync(observation, reward, terminated, truncated, call_back)
-        elif self.hp.update_type == "per_env":
-            self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
-            return self.update_per_env(observation, reward, terminated, truncated, call_back)
+        if self.training:
+            if self.hp.update_type == "sync":
+                self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
+                return self.update_sync(observation, reward, terminated, truncated, call_back)
+            elif self.hp.update_type == "per_env":
+                self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+                return self.update_per_env(observation, reward, terminated, truncated, call_back)
+            else:
+                raise NotImplementedError("update_type not defined")
         else:
-            raise NotImplementedError("update_type not defined")
+            for i in range(self.num_envs):
+                obs = get_single_observation(observation, i)
+                obs_option = get_single_observation_nobatch(observation, i)
+                curr_option_idx = self.running_option_index[i]
+                
+                if curr_option_idx is not None:
+                    # if an option is running
+                    # Accumulate SMDP return while option runs 
+                    self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
+                    self.option_multiplier[i] *= self.hp.gamma
+                    self.option_num_steps[i] += 1
+                    if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                        self.options_lst[curr_option_idx].reset()
+                        self.running_option_index[i] = None
+            
     
     def update_sync(self, observation, reward, terminated, truncated, call_back=None):
         """

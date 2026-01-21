@@ -10,7 +10,7 @@ class RandomPolicy(BasePolicy):
     """
     Stateless policy that samples uniformly using the internal RNG (RandomGenerator).
     """
-    def select_action(self, state=None, greedy: bool = False):
+    def select_action(self, state=None):
         space = self.action_space
         if isinstance(space, Discrete):
             return int(self._rand_int(0, space.n))
@@ -33,9 +33,9 @@ class RandomAgent(BaseAgent):
         
         self.policy = RandomPolicy(action_space, hyper_params, device=device)
 
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         # Vectorized Observation
         action = []
         for _ in range(self.num_envs):
-            action.append(self.policy.select_action(None, greedy=greedy))
+            action.append(self.policy.select_action(None))
         return action

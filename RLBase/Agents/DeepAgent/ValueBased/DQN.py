@@ -316,14 +316,14 @@ class DQNAgent(BaseAgent):
         self.rollout_buffer = [BaseBuffer(self.hp.n_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
         self.update_call_counter = 0
         
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         Select an action based on the observation.
         observation is a batch
         action is a batch 
         """
         state = self.feature_extractor(observation) 
-        action = self.policy.select_action(state, greedy=greedy)
+        action = self.policy.select_action(state, greedy=not self.training)
         
         self.last_observation = observation
         self.last_action = action
@@ -333,48 +333,49 @@ class DQNAgent(BaseAgent):
         """
         all arguments are batches
         """
-        # reward = np.clip(reward, -1, 1) # for stability
-        for i in range(self.num_envs):
-            transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]
-            self.rollout_buffer[i].add(transition)
-            
-            if terminated[i] or truncated[i]:
-                rollout = self.rollout_buffer[i].all()
-                rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)     
-                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-                for j in range(len(self.rollout_buffer[i])):                    
-                    trans = (rollout_observations[j], rollout_actions[j], get_single_observation(observation, i), \
-                            n_step_return[j], terminated[i], \
-                            truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j))          
+        if self.training:
+            # reward = np.clip(reward, -1, 1) # for stability
+            for i in range(self.num_envs):
+                transition = get_single_observation(self.last_observation, i), self.last_action[i], reward[i]
+                self.rollout_buffer[i].add(transition)
+                
+                if terminated[i] or truncated[i]:
+                    rollout = self.rollout_buffer[i].all()
+                    rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)     
+                    n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                    for j in range(len(self.rollout_buffer[i])):                    
+                        trans = (rollout_observations[j], rollout_actions[j], get_single_observation(observation, i), \
+                                n_step_return[j], terminated[i], \
+                                truncated[i], self.hp.gamma**(len(self.rollout_buffer[i])-j))          
+                        
+                        self.replay_buffer.add(trans)
+                    self.rollout_buffer[i].clear() 
+                
+                elif self.rollout_buffer[i].is_full():
+                    rollout = self.rollout_buffer[i].all() 
+                    rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)
+                    n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
+                    trans = (rollout_observations[0], rollout_actions[0], get_single_observation(observation, i), \
+                            n_step_return[0], terminated[i], \
+                            truncated[i], self.hp.gamma**self.hp.n_steps)
                     
                     self.replay_buffer.add(trans)
-                self.rollout_buffer[i].clear() 
-            
-            elif self.rollout_buffer[i].is_full():
-                rollout = self.rollout_buffer[i].all() 
-                rollout_observations, rollout_actions, rollout_rewards = zip(*rollout)
-                n_step_return = calculate_n_step_returns(rollout_rewards, 0, self.hp.gamma)
-                trans = (rollout_observations[0], rollout_actions[0], get_single_observation(observation, i), \
-                         n_step_return[0], terminated[i], \
-                         truncated[i], self.hp.gamma**self.hp.n_steps)
-                
-                self.replay_buffer.add(trans)
-     
-        self.update_call_counter += 1
-        if len(self.replay_buffer) >= self.hp.warmup_buffer_size and self.update_call_counter >= self.hp.update_freq:
-            self.update_call_counter = 0
-            batch = self.replay_buffer.sample(self.hp.batch_size)
-
-            observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
-            observations, next_observations = stack_observations(observations), stack_observations(next_observations)
-            states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
-            
-            self.policy.update(states, actions, next_states, n_step_return, terminated, truncated, effective_discount, call_back=call_back)
         
-        if call_back is not None:            
-            call_back({
-                "train/buffer_size": len(self.replay_buffer),
-                })
+            self.update_call_counter += 1
+            if len(self.replay_buffer) >= self.hp.warmup_buffer_size and self.update_call_counter >= self.hp.update_freq:
+                self.update_call_counter = 0
+                batch = self.replay_buffer.sample(self.hp.batch_size)
+
+                observations, actions, next_observations, n_step_return, terminated, truncated, effective_discount = zip(*batch)
+                observations, next_observations = stack_observations(observations), stack_observations(next_observations)
+                states, next_states = self.feature_extractor(observations), self.feature_extractor(next_observations)
+                
+                self.policy.update(states, actions, next_states, n_step_return, terminated, truncated, effective_discount, call_back=call_back)
+            
+            if call_back is not None:            
+                call_back({
+                    "train/buffer_size": len(self.replay_buffer),
+                    })
         
 
     def reset(self, seed):

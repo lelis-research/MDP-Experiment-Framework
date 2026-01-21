@@ -33,7 +33,7 @@ class OptionRandomAgent(RandomAgent):
         self.running_option_index = [None for _ in range(self.num_envs)]       # index into options_lst (or None)
 
 
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         action = []
         for i in range(self.num_envs):
             # If an option is currently running, either continue it or end it here.
@@ -43,7 +43,7 @@ class OptionRandomAgent(RandomAgent):
                 a = self.options_lst[curr_option_idx].select_action(obs_option)
             else:
                 # Choose an extended action (might be a primitive or an option)
-                a = self.policy.select_action(None, greedy=greedy)
+                a = self.policy.select_action(None)
                 if a >= self.atomic_action_space.n:
                     # Start an option
                     curr_option_idx = a - self.atomic_action_space.n

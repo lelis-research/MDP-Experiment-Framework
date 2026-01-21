@@ -264,15 +264,6 @@ class CodeBook(RandomGenerator):
     def _init_weights(self):
         with torch.no_grad():
             nn.init.uniform_(self.emb.weight, -self.hp.eps, self.hp.eps)
-        
-        # with torch.no_grad():
-        #     eps = 1.0 / max(1, self.num_codes)
-        #     nn.init.uniform_(self.emb.weight, -eps, eps)
-            
-        # with torch.no_grad():
-        #     self.emb.weight.zero_()
-        #     for i in range(self.num_codes):
-        #         self.emb.weight[i, i] = 1.0
             
     def reset(self, seed):
         self.set_seed(seed)
@@ -340,130 +331,6 @@ class CodeBook(RandomGenerator):
             })
 
         return float(loss_cb.item())
-    
-    def fake_update(
-        self,
-        proto_e,
-        call_back=None,
-        *,
-        step_size: float = 1e-2,
-        direction: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        mode: str = "global",            # "global" or "selected_only"
-        normalize_direction: bool = True,
-        clamp_to_bounds: bool = True,
-        emb_low: Optional[Union[np.ndarray, torch.Tensor, float]] = None,
-        emb_high: Optional[Union[np.ndarray, torch.Tensor, float]] = None,
-        noise_std: float = 0.0,          # optional diffusion
-    ) -> float:
-        """
-        External scripted movement of the codebook.
-
-        proto_e: (T, d) used ONLY to decide which codes are "selected" (if mode="selected_only")
-        direction:
-          - shape (d,)  : same drift for all codes
-          - shape (K,d) : per-code drift direction
-          - if None     : default drift is +1 along dim0 (just for convenience)
-        Returns:
-          mean drift magnitude applied (float) for logging
-        """
-        proto_e = _to_torch(proto_e, self.device)  # (T, d)
-        if proto_e.ndim != 2 or proto_e.size(1) != self.hp.embedding_dim:
-            raise ValueError(f"proto_e must be (T, d={self.hp.embedding_dim}), got {tuple(proto_e.shape)}")
-
-        K, d = self.emb.weight.shape
-
-        # ---- pick direction ----
-        if direction is None:
-            # # default: drift along dim0
-            # direction_t = torch.zeros((d,), device=self.device, dtype=self.emb.weight.dtype)
-            # direction_t[0] = 1.0
-            
-            # default: random direction
-            direction_t = torch.randn((d,), device=self.device, dtype=self.emb.weight.dtype)
-        else:
-            direction_t = _to_torch(direction, self.device, dtype=self.emb.weight.dtype)
-
-        # shape it into either (d,) or (K,d)
-        if direction_t.ndim == 1:
-            if direction_t.numel() != d:
-                raise ValueError(f"direction must have d={d} elements, got {direction_t.numel()}")
-        elif direction_t.ndim == 2:
-            if direction_t.shape != (K, d):
-                raise ValueError(f"direction per-code must be (K,d)={(K,d)}, got {tuple(direction_t.shape)}")
-        else:
-            raise ValueError(f"direction must be (d,) or (K,d), got {tuple(direction_t.shape)}")
-
-        # ---- normalize direction (optional) ----
-        if normalize_direction:
-            if direction_t.ndim == 1:
-                direction_t = direction_t / (direction_t.norm() + 1e-8)
-            else:
-                direction_t = direction_t / (direction_t.norm(dim=-1, keepdim=True) + 1e-8)
-
-        # ---- decide which codes to move ----
-        if mode not in ("global", "selected_only"):
-            raise ValueError("mode must be 'global' or 'selected_only'")
-
-        with torch.no_grad():
-            if mode == "selected_only":
-                idx = self.get_closest_ind(proto_e)  # (T,)
-                selected = torch.unique(idx)         # (<=K,)
-                mask = torch.zeros((K,), device=self.device, dtype=torch.bool)
-                mask[selected] = True
-            else:
-                mask = torch.ones((K,), device=self.device, dtype=torch.bool)
-
-            # build delta (K,d)
-            if direction_t.ndim == 1:
-                delta = direction_t.view(1, d).expand(K, d) * step_size
-            else:
-                delta = direction_t * step_size
-
-            # optional noise
-            if noise_std > 0.0:
-                delta = delta + torch.randn_like(delta) * noise_std
-
-            # apply only where mask is True
-            w = self.emb.weight
-            w[mask] = w[mask] + delta[mask]
-
-            # optional clamp to bounds
-            if clamp_to_bounds:
-                # if not provided, try to use hp if you have it
-                if emb_low is None:
-                    emb_low = getattr(self.hp, "embedding_low", None)
-                if emb_high is None:
-                    emb_high = getattr(self.hp, "embedding_high", None)
-
-                if emb_low is not None and emb_high is not None:
-                    low_t  = _to_torch(emb_low,  self.device, dtype=w.dtype)
-                    high_t = _to_torch(emb_high, self.device, dtype=w.dtype)
-
-                    # allow scalar or per-dim bounds
-                    if low_t.ndim == 0:
-                        low_t = low_t.view(1, 1).expand(K, d)
-                    elif low_t.ndim == 1:
-                        low_t = low_t.view(1, d).expand(K, d)
-
-                    if high_t.ndim == 0:
-                        high_t = high_t.view(1, 1).expand(K, d)
-                    elif high_t.ndim == 1:
-                        high_t = high_t.view(1, d).expand(K, d)
-
-                    w.clamp_(min=low_t, max=high_t)
-
-            # drift magnitude for logging
-            applied = delta[mask]
-            mean_step = float(applied.norm(dim=-1).mean().item()) if applied.numel() else 0.0
-
-        if call_back is not None:
-            call_back({
-                "codebook_drift_mean_step": mean_step,
-                "codebook_drift_num_moved": int(mask.sum().item()),
-                "codebook_num_codes": int(self.num_codes),
-            })
-
-        return mean_step
     
     def get_closest_ind(self, proto: torch.Tensor) -> torch.Tensor:
         """
@@ -657,16 +524,8 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_log_prob = [None for _ in range(self.num_envs)]
         
         
-        self.tmp_counter = 0
-        self.tmp_flag = False
         self._init_log_buf()
         
-        self.tmp_direction_t = torch.randn((self.hp.codebook.embedding_dim,), device=self.device)
-        # self.tmp_direction_t = torch.tensor([[0.0, 1.0], 
-        #                                      [-0.6, -1.0], 
-        #                                      [0.6, -1.0],
-        #                                      [1.0, 0.3], 
-        #                                      [-1.0, 0.3]], device=device)
         
 
     def log(self):
@@ -721,7 +580,7 @@ class VQOptionCriticAgent(BaseAgent):
         return out
 
     
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         state = self.feature_extractor(observation)
         
         # 1) Determine which envs need a new option
@@ -736,7 +595,7 @@ class VQOptionCriticAgent(BaseAgent):
             need_new = need_new.nonzero(as_tuple=False).squeeze(-1)
             with torch.no_grad():
                 needed_state = get_batch_state(state, need_new)
-                proto_e, proto_log_prob = self.hl_policy.select_action(needed_state, greedy=greedy)
+                proto_e, proto_log_prob = self.hl_policy.select_action(needed_state, greedy=not self.training)
                 idx, e, _ = self.code_book(torch.from_numpy(proto_e))
                 
                 # add the new ones to the lists
@@ -764,17 +623,31 @@ class VQOptionCriticAgent(BaseAgent):
         return action
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
-        # call_back({"tmp_counter": self.tmp_counter})
-        # if terminated[0]:
-        #     # reached goal
-        #     self.tmp_counter += 1
-        # if not self.tmp_flag and self.tmp_counter >= 3000:
-        #     self.tmp_flag = True
-        #     self.code_book.add_row()
-        #     self.options_lst.append(GoToBlueGoalOption())
-        #     print("[Info] VQOptionCriticAgent: Added new codebook entry. Total codes:", self.code_book.num_codes)
-        
-        self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
+        if self.training:
+            self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
+        else:
+            for i in range(self.num_envs):
+                # add to the rollouts
+                obs = get_single_observation(observation, i)
+                obs_option = get_single_observation_nobatch(observation, i)
+                curr_option_idx = self.running_option_index[i]
+                
+                self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
+                self.option_multiplier[i] *= self.hp.hl.gamma
+                self.option_num_steps[i] += 1
+                if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                    
+                    self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
+                    self.log_buf[i]["e"].append(self.running_option_emb[i].cpu().numpy())
+                    self.log_buf[i]["ind"].append(int(self.running_option_index[i]))
+                    self.log_buf[i]["num_options"].append(int(len(self.options_lst)))
+                    self.log_buf[i]["option_index"].append(int(curr_option_idx))
+
+                    call_back({"curr_hl_option_idx": curr_option_idx})
+                    
+                    self.options_lst[curr_option_idx].reset()
+                    self.running_option_index[i] = None
+            
     
     
     def update_hl(self, observation, reward, terminated, truncated, call_back=None):

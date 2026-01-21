@@ -336,14 +336,14 @@ class A2CAgent(BaseAgent):
         
         self.rollout_buffer = [BaseBuffer(self.hp.rollout_steps) for _ in range(self.num_envs)]  # Buffer is used for n-step
 
-    def act(self, observation, greedy=False):
+    def act(self, observation):
         """
         Select an action based on the observation.
         observation is a batch
         action is a batch 
         """
         state = self.feature_extractor(observation)
-        action = self.policy.select_action(state, greedy=greedy)
+        action = self.policy.select_action(state, greedy=not self.training)
         
         self.last_observation = observation
         self.last_action = action
@@ -351,14 +351,15 @@ class A2CAgent(BaseAgent):
 
     
     def update(self, observation, reward, terminated, truncated, call_back=None):
-        if self.hp.update_type == "sync":
-            self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
-            return self.update_sync(observation, reward, terminated, truncated, call_back)
-        elif self.hp.update_type == "per_env":
-            self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
-            return self.update_per_env(observation, reward, terminated, truncated, call_back)
-        else:
-            raise NotImplementedError("update_type not defined")
+        if self.training:
+            if self.hp.update_type == "sync":
+                self.hp.update(total_updates=self.hp.total_steps // (self.hp.rollout_steps * self.num_envs))
+                return self.update_sync(observation, reward, terminated, truncated, call_back)
+            elif self.hp.update_type == "per_env":
+                self.hp.update(total_updates=self.hp.total_steps // self.hp.rollout_steps)
+                return self.update_per_env(observation, reward, terminated, truncated, call_back)
+            else:
+                raise NotImplementedError("update_type not defined")
     
     def update_sync(self, observation, reward, terminated, truncated, call_back=None):
         """
