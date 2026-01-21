@@ -17,6 +17,8 @@ from collections import defaultdict
 from tqdm import tqdm
 from multiprocessing import get_context
 from functools import partial
+import argcomplete
+import argparse
 
 SYMLINK_PREFIX = 'trial_'   # prefix for trial directories
 METRICS_FILE   = 'all_metrics.pkl'
@@ -543,6 +545,7 @@ def plot_all_param_sensitivities(exp_dir, ratio, out_dir, auc_type,
 # ----------------------------
 
 def main(exp_dir, ratio, auc_type):
+    print(f"Analyzing sweep at --> {exp_dir}")
     # 1) Incomplete
     incomplete, num_complete = check_incomplete_runs(exp_dir)
     if incomplete:
@@ -590,12 +593,25 @@ def main(exp_dir, ratio, auc_type):
 
     print(f"\nBest trial summary saved to: {summary_path}")
 
-
+def parse():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--exp_dir", type=str, default=None, help="which exp")
+    parser.add_argument("--ratio", type=float, default=0.9, help="average last ratio: 0.0 mean only last, 1.0 means all")
+    parser.add_argument("--auc_type", type=str, default="steps", help="steps or episode")
+    
+    argcomplete.autocomplete(parser)
+    return parser.parse_args()
+    
 if __name__ == '__main__':
+    args = parse()
+    
     # --- Configuration ---
-    exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv-dim2_seed[1]"
-    ratio   = 0.9 # average the last ratio --> 0.0: only last  ---  1.0: all
-    auc_type = "steps" # steps or episode
+    if args.exp_dir is None:
+        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv_dim-8_seed[1]"
+    else:
+        exp_dir = args.exp_dir
+    ratio   = args.ratio # average the last ratio --> 0.0: only last  ---  1.0: all
+    auc_type = args.auc_type # steps or episode
     # ---------------------
 
     # Optional summary/diagnostics:
