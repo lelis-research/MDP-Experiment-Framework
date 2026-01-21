@@ -596,6 +596,7 @@ class VQOptionCriticAgent(BaseAgent):
             with torch.no_grad():
                 needed_state = get_batch_state(state, need_new)
                 proto_e, proto_log_prob = self.hl_policy.select_action(needed_state, greedy=not self.training)
+                proto_e_t = torch.as_tensor(proto_e, device=self.device, dtype=torch.float32)
                 idx, e, _ = self.code_book(torch.from_numpy(proto_e))
                 
                 # add the new ones to the lists
@@ -642,8 +643,8 @@ class VQOptionCriticAgent(BaseAgent):
                     self.log_buf[i]["ind"].append(int(self.running_option_index[i]))
                     self.log_buf[i]["num_options"].append(int(len(self.options_lst)))
                     self.log_buf[i]["option_index"].append(int(curr_option_idx))
-
-                    call_back({"curr_hl_option_idx": curr_option_idx})
+                    if call_back is not None:
+                        call_back({"curr_hl_option_idx": curr_option_idx})
                     
                     self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None

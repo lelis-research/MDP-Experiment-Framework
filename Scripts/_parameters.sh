@@ -36,7 +36,6 @@ INFO_tier1='{
   "hl_mini_batch_size": 128,
   "hl_num_epochs": 10
 }'
-# "codebook_embedding_init": ["uniform", "normal"]
 
 # 1296 Configs
 HP_SEARCH_SPACE_tier1='{
