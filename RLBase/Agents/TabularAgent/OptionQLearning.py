@@ -48,6 +48,9 @@ class OptionQLearningAgent(QLearningAgent):
         self.option_cumulative_reward = [0.0 for _ in range(self.num_envs)]    # discounted return accumulator R_{t:t+k}
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
+        
+        self._init_log_buf()
+
 
     def act(self, observation):
         """
@@ -119,6 +122,8 @@ class OptionQLearningAgent(QLearningAgent):
                                     self.option_multiplier[i], \
                                     self.option_num_steps[i]
                         self.rollout_buffer[i].add(transition)
+                        self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                        self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                         self.options_lst[curr_option_idx].reset()
                         self.running_option_index[i] = None
 
@@ -128,6 +133,8 @@ class OptionQLearningAgent(QLearningAgent):
                                 reward[i], \
                                 self.hp.gamma, \
                                 1
+                    self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                    self.log_buf[i]["option_index"].append(np.array([-1]))
                     self.rollout_buffer[i].add(transition)
                     
                 if terminated[i] or truncated[i]:
@@ -215,6 +222,8 @@ class OptionQLearningAgent(QLearningAgent):
                     self.option_num_steps[i] += 1
 
                     if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                        self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                        self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                         self.options_lst[curr_option_idx].reset()
                         self.running_option_index[i] = None
                         
@@ -227,18 +236,15 @@ class OptionQLearningAgent(QLearningAgent):
         self.option_cumulative_reward = [0.0 for _ in range(self.num_envs)]    # discounted return accumulator R_{t:t+k}
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
-        
     
-    def log(self):
-        logs = []
-        for i in range(self.num_envs):
-            curr_option_idx = self.running_option_index[i]
-
-            if curr_option_idx is None:
-                logs.append({"OptionUsageLog": False, "OptionIndex": curr_option_idx})
-            else:
-                logs.append({"OptionUsageLog": True, "OptionIndex": curr_option_idx})
-        return logs
+    def _init_log_buf(self):
+        # one buffer per env slot, to avoid mixing logs between envs
+        self.log_buf = []
+        for _ in range(self.num_envs):
+            self.log_buf.append({
+                "num_options": [],   # list of ints
+                "option_index": [],  # list of ints
+            })
     
         
     def save(self, file_path=None):

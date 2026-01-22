@@ -445,52 +445,6 @@ MUJOCO_TD3_MLP_CRITIC = [
      "init_params":{"name":"orthogonal","gain":1.0}},
 ]
 
-# =========================
-# MiniGrid — VQOptionCritic (discrete)
-# =========================
-MINIGRID_ENCODER_MLP = [
-    {"type":"input",  "id":"x", "input_key":"x"},
-
-    {"type":"linear", "id":"fc1", "from":"x", "out_features":64,
-     "init_params":{"name":"orthogonal","gain":2.0}},
-    {"type":"relu",   "id":"r1",  "from":"fc1"},
-
-    {"type":"linear", "id":"out", "from":"r1",
-     "init_params":{"name":"orthogonal","gain":0.01}},
-]
-
-MINIGRID_HL_MLP_ACTOR = [
-    {"type":"input",  "id":"x", "input_key":"x"},
-
-    {"type":"linear", "id":"fc1", "from":"x", "out_features":64,
-     "init_params":{"name":"orthogonal","gain":2.0}},
-    {"type":"relu",   "id":"r1",  "from":"fc1"},
-
-    {"type":"linear", "id":"fc2", "from":"r1", "out_features":64,
-     "init_params":{"name":"orthogonal","gain":2.0}},
-    {"type":"relu",   "id":"r2",  "from":"fc2"},
-
-    {"type":"linear", "id":"out", "from":"r2",
-     "init_params":{"name":"orthogonal","gain":0.01}},
-]
-
-# expects input_keys "x" and "a" (you provide both in forward)
-MINIGRID_HL_MLP_CRITIC = [
-    {"type":"input",  "id":"x", "input_key":"x"},
-    {"type":"input",  "id":"o", "input_key":"o"},
-    {"type":"concat", "id":"xo", "from":["x","o"], "dim":1, "flatten":True},
-
-    {"type":"linear", "id":"fc1", "from":"xo", "out_features":64,
-     "init_params":{"name":"orthogonal","gain":2.0}},
-    {"type":"relu",   "id":"r1",  "from":"fc1"},
-
-    {"type":"linear", "id":"fc2", "from":"r1", "out_features":64,
-     "init_params":{"name":"orthogonal","gain":2.0}},
-    {"type":"relu",   "id":"r2",  "from":"fc2"},
-
-    {"type":"linear", "id":"out", "from":"r2",
-     "init_params":{"name":"orthogonal","gain":1.0}},
-]
 
 
 # =========================
@@ -524,11 +478,6 @@ NETWORK_PRESETS = {
     # MuJoCo TD3
     "MuJoCo/TD3/mlp_actor": MUJOCO_TD3_MLP_ACTOR,
     "MuJoCo/TD3/mlp_critic": MUJOCO_TD3_MLP_CRITIC,
-    
-    # MiniGrid VQOptionCritic
-    "MiniGrid/VQOptionCritic/mlp_encoder": MINIGRID_ENCODER_MLP,
-    "MiniGrid/VQOptionCritic/mlp_hl_actor": MINIGRID_HL_MLP_ACTOR,
-    "MiniGrid/VQOptionCritic/mlp_hl_critic": MINIGRID_HL_MLP_CRITIC,
 }
 
 if __name__ == "__main__":

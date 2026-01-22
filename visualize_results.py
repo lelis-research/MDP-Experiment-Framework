@@ -37,8 +37,8 @@ def single_exp_results():
         analyzer.plot_option_embedding_gif(every=10)
 
 if __name__ == "__main__":
-    multi_exp_results()
-    # single_exp_results()    
+    # multi_exp_results()
+    single_exp_results()    
     
     
     

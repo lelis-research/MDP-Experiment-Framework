@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from ..utils import RandomGenerator
 
@@ -75,6 +76,8 @@ class BaseAgent(RandomGenerator):
         self.policy = BasePolicy(action_space, device=device)
         
         self._mode = "train"
+        self._init_log_buf()
+
         
     @property
     def training(self):
@@ -102,6 +105,36 @@ class BaseAgent(RandomGenerator):
         self.set_seed(seed)
         self.policy.reset(seed)
         self.feature_extractor.reset(seed)
+        self._init_log_buf()
+        
+    def log(self):
+        # returns list length num_envs, each item either None or dict-of-arrays
+        return self._flush_log_buf()
+    
+    def _init_log_buf(self):
+        # one buffer per env slot, to avoid mixing logs between envs
+        self.log_buf = []
+        for _ in range(self.num_envs):
+            self.log_buf.append({}) # append the necessary data keys
+
+    def _flush_log_buf(self):
+        """
+        Return a list of per-env logs, each as dict-of-numpy-arrays.
+        Also clears buffers.
+        """
+        out = []
+        for env_i, buf in enumerate(self.log_buf):
+            tmp_dict = {}
+            for key in buf:
+                data = buf[key]
+                if len(data) == 0:
+                    out.append(None) # no logs for this env since last flush
+                    continue
+                tmp_dict[key] = np.stack(data) # should be list of numpy arrays
+                buf[key].clear()
+            out.append(tmp_dict)
+        return out
+
     
     def set_hp(self, hp):
         self.hp = hp

@@ -328,6 +328,8 @@ class OptionPPOAgent(PPOAgent):
                     self.option_multiplier[i] *= self.hp.gamma
                     self.option_num_steps[i] += 1
                     if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                        self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                        self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                         self.options_lst[curr_option_idx].reset()
                         self.running_option_index[i] = None
             
@@ -360,6 +362,8 @@ class OptionPPOAgent(PPOAgent):
                         truncated[i]
                     )                  
                     self.rollout_buffer[i].add(transition)
+                    self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                    self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                     self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
             else:
@@ -373,7 +377,8 @@ class OptionPPOAgent(PPOAgent):
                     terminated[i],
                     truncated[i]
                 )
-                    
+                self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                self.log_buf[i]["option_index"].append(np.array([-1]))
                 self.rollout_buffer[i].add(transition)
         
         # update with the rollouts
@@ -471,6 +476,8 @@ class OptionPPOAgent(PPOAgent):
                         truncated[i]
                     )                  
                     self.rollout_buffer[i].add(transition)
+                    self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                    self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                     self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
             else:
@@ -484,7 +491,8 @@ class OptionPPOAgent(PPOAgent):
                     terminated[i],
                     truncated[i]
                 )
-                    
+                self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
+                self.log_buf[i]["option_index"].append(np.array([-1]))
                 self.rollout_buffer[i].add(transition)
             
             # update with the rollouts
@@ -521,7 +529,8 @@ class OptionPPOAgent(PPOAgent):
                                    call_back=call_back)
                 
                 self.rollout_buffer[i].clear()             
-            
+    
+         
     def reset(self, seed):
         """
         Reset the agent's state, including feature extractor and rollout buffer.
@@ -539,6 +548,15 @@ class OptionPPOAgent(PPOAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
     
+    def _init_log_buf(self):
+        # one buffer per env slot, to avoid mixing logs between envs
+        self.log_buf = []
+        for _ in range(self.num_envs):
+            self.log_buf.append({
+                "num_options": [],   # list of ints
+                "option_index": [],  # list of ints
+            })
+            
     def save(self, file_path=None):
         checkpoint = super().save(file_path=None)  # parent saves feature_extractor, policy, hp, etc.
         

@@ -24,7 +24,7 @@ class PPOPolicy(BasePolicy):
     def __init__(self, action_space, features_dict, hyper_params, device="cpu"):
         super().__init__(action_space, hyper_params, device=device)
         self.features_dict = features_dict
-        
+
         actor_description = prepare_network_config(
             self.hp.actor_network,
             input_dims=self.features_dict,

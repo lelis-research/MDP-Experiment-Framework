@@ -101,12 +101,12 @@ class SingleExpAnalyzer:
     def plot_combined(self, fig=None, axs=None, save_dir=None, show=False, color='blue', marker='-',
                   label="", show_legend=True, window_size=1, plot_each=True, show_ci=True,
                   title="", ignore_last=False,
-                  plt_configs=("r_e", "r_s", "s_e"), index=None, total_index=None):
+                  plt_configs=("r_s", "r_e", "s_e", "ou_s", "ou_e", "uni_ou_s", "uni_ou_e", "no_s", "no_e"), index=None, total_index=None):
         """
         Plot totals per episode and per steps, plus optional option-usage panels.
         """
 
-        assert all(c in {"r_e", "r_s", "s_e", "ou_s", "ou_e", "no_s", "no_e"} for c in plt_configs), \
+        assert all(c in {"r_e", "r_s", "s_e", "ou_s", "ou_e", "no_s", "no_e", "uni_ou_e", "uni_ou_s"} for c in plt_configs), \
             f"Invalid entries in plt_configs: {plt_configs}"
 
         if fig is None or axs is None:
@@ -137,13 +137,16 @@ class SingleExpAnalyzer:
                                             x_label="Episode Number", y_label="Episode Length")
 
             elif config == "ou_s":
+                # average times option != -1 per episode
                 option_usage = [[
-                    (sum(item.get("OptionUsageLog", 0) for item in ep.get("agent_logs", [])) /
-                    len(ep.get("agent_logs", [])))
-                    if ep.get("agent_logs") and any("OptionUsageLog" in i for i in ep["agent_logs"]) else 0.0
-                    for ep in run] for run in self.metrics]
+                    float(np.mean(ep["agent_logs"]["option_index"] != -1))
+                    if ep.get("agent_logs") is not None
+                    and "option_index" in ep["agent_logs"]
+                    else 0.0
+                    for ep in run] 
+                    for run in self.metrics]  
 
-                if any(any(run) for run in option_usage):
+                if any(any(v != 0.0 for v in run) for run in option_usage):
                     self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label,
                                             window_size, plot_each, show_ci, ignore_last,
                                             x_label="Environment Steps", y_label="Option Usage")
@@ -151,27 +154,63 @@ class SingleExpAnalyzer:
                     print("OptionUsageLog doesn't exist — skipping plot.")
 
             elif config == "ou_e":
+                # average times option != -1 per episode
                 option_usage = [[
-                    (sum(item.get("OptionUsageLog", 0) for item in ep.get("agent_logs", [])) /
-                    len(ep.get("agent_logs", [])))
-                    if ep.get("agent_logs") and any("OptionUsageLog" in i for i in ep["agent_logs"]) else 0.0
-                    for ep in run] for run in self.metrics]
+                    float(np.mean(ep["agent_logs"]["option_index"] != -1))
+                    if ep.get("agent_logs") is not None
+                    and "option_index" in ep["agent_logs"]
+                    else 0.0
+                    for ep in run] 
+                    for run in self.metrics]          
 
-                if any(any(run) for run in option_usage):
+                if any(any(v != 0.0 for v in run) for run in option_usage):
                     self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label,
                                                 window_size, plot_each, show_ci, ignore_last,
                                                 x_label="Episode Number", y_label="Option Usage")
                 else:
                     print("OptionUsageLog doesn't exist — skipping plot.")
+            
+            elif config == "uni_ou_e":
+                # number of unique options being used per episode
+                option_usage = [[
+                    int(len(np.unique(ep["agent_logs"]["option_index"])))
+                    if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
+                    else 0.0 
+                    for ep in run] 
+                    for run in self.metrics]                 
 
+                if any(any(v != 0.0 for v in run) for run in option_usage):
+                    self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label,
+                                                window_size, plot_each, show_ci, ignore_last,
+                                                x_label="Episode Number", y_label="Num Unique Option Usage")
+                else:
+                    print("OptionUsageLog doesn't exist — skipping plot.")
+                    
+            elif config == "uni_ou_s":
+                # number of unique options being used per step
+                option_usage = [[
+                    int(len(np.unique(ep["agent_logs"]["option_index"])))
+                    if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
+                    else 0.0 
+                    for ep in run] 
+                    for run in self.metrics]     
+
+                if any(any(v != 0.0 for v in run) for run in option_usage):
+                    self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label,
+                                            window_size, plot_each, show_ci, ignore_last,
+                                            x_label="Environment Steps", y_label="Num Unique Option Usage")
+                else:
+                    print("OptionUsageLog doesn't exist — skipping plot.")
+                    
             elif config == "no_s":
-                num_options = [[
-                    (sum(item.get("NumOptions", 0) for item in ep.get("agent_logs", [])) /
-                    len(ep.get("agent_logs", [])))
-                    if ep.get("agent_logs") and any("NumOptions" in i for i in ep["agent_logs"]) else 0.0
-                    for ep in run] for run in self.metrics]
+                # number of total options per step
+                num_options = [[float(np.mean(ep["agent_logs"]["num_options"])) 
+                                if ep.get("agent_logs") is not None and "num_options" in ep["agent_logs"] 
+                                else 0.0 
+                                for ep in run] 
+                                for run in self.metrics]
 
-                if any(any(run) for run in num_options):
+                if any(any(v != 0.0 for v in run) for run in num_options):
                     self._plot_data_per_steps(num_options, ep_lengths, ax, num_steps, color, marker, label,
                                             window_size, plot_each, show_ci, ignore_last,
                                             x_label="Environment Steps", y_label="Number of Options")
@@ -179,13 +218,13 @@ class SingleExpAnalyzer:
                     print("NumOptions doesn't exist — skipping plot.")
 
             elif config == "no_e":
-                num_options = [[
-                    (sum(item.get("NumOptions", 0) for item in ep.get("agent_logs", [])) /
-                    len(ep.get("agent_logs", [])))
-                    if ep.get("agent_logs") and any("NumOptions" in i for i in ep["agent_logs"]) else 0.0
-                    for ep in run] for run in self.metrics]
-
-                if any(any(run) for run in num_options):
+                # number of total options per episode
+                num_options = [[float(np.mean(ep["agent_logs"]["num_options"])) 
+                                if ep.get("agent_logs") is not None and "num_options" in ep["agent_logs"] 
+                                else 0.0 
+                                for ep in run] 
+                                for run in self.metrics]
+                if any(any(v != 0.0 for v in run) for run in num_options):
                     self._plot_data_per_episode(num_options, ax, num_episodes, color, marker, label,
                                                 window_size, plot_each, show_ci, ignore_last,
                                                 x_label="Episode Number", y_label="Number of Options")
@@ -1117,8 +1156,8 @@ class SingleExpAnalyzer:
         frames = self.metrics[run_number - 1][episode_number - 1]['frames']
         actions = self.metrics[run_number - 1][episode_number - 1]['actions']
         if "agent_logs" in self.metrics[run_number - 1][episode_number - 1]:
-            options = self.metrics[run_number - 1][episode_number - 1]['agent_logs']
-            options_index = [option[0].get('OptionIndex', None) for option in options] #[0] is because we only look at the first env in test
+            options_index = self.metrics[run_number - 1][episode_number - 1]['agent_logs']['option_index']
+            # options_index = [option[0].get('option_index', None) for option in options] #[0] is because we only look at the first env in test
         else:
             options_index = [None for _ in range(len(actions))]
 

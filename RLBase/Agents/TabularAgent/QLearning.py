@@ -234,11 +234,7 @@ class QLearningAgent(BaseAgent):
 
                 for i in range(len(batch)):       
                     self.policy.update(states[i], actions[i], next_states[i], 
-                                    n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)
-        
-            
-             
-                
+                                    n_step_return[i], terminated[i], truncated[i], effective_discount[i], call_back=call_back)         
     
     def reset(self, seed):
         super().reset(seed)
