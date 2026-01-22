@@ -246,14 +246,9 @@ def get_info_dict_from_trial(trial_dir):
     info = args_data.get('info', {})
     return info if isinstance(info, dict) else {}
 
-
-def print_info_for_best_trial(exp_dir, ratio, auc_type, sort_keys=True, indent=2):
-    """Pretty-print the best trial's info dict as JSON (for copy-paste)."""
-    best = find_best_hyperparameters(exp_dir, ratio, auc_type)
-    if best is None:
-        print("No completed trials found to analyze.")
-        return
-    overall_avg, run_avgs, agent_str, trial_name = best
+    
+def print_info_for_trial(exp_dir, trial_name, sort_keys=True, indent=2):
+    """Pretty-print the trial's info dict as JSON (for copy-paste)."""
     trial_dir = os.path.join(exp_dir, trial_name)
     info_dict = get_info_dict_from_trial(trial_dir)
 
@@ -544,7 +539,7 @@ def plot_all_param_sensitivities(exp_dir, ratio, out_dir, auc_type,
 # CLI entry
 # ----------------------------
 
-def main(exp_dir, ratio, auc_type):
+def main(exp_dir, ratio, auc_type, num_workers=16):
     print(f"Analyzing sweep at --> {exp_dir}")
     # 1) Incomplete
     incomplete, num_complete = check_incomplete_runs(exp_dir)
@@ -556,7 +551,7 @@ def main(exp_dir, ratio, auc_type):
 
     # 2) Best hyperparams
     # best = find_best_hyperparameters(exp_dir, ratio, auc_type)
-    best = find_best_hyperparameters_parallel(exp_dir, ratio, auc_type, workers=16)
+    best = find_best_hyperparameters_parallel(exp_dir, ratio, auc_type, workers=num_workers)
     
     if best is None:
         print("No completed trials found to analyze.")
@@ -573,7 +568,7 @@ def main(exp_dir, ratio, auc_type):
         print(f"  Run {i}: {r:.6f}")
 
     # 3) Print INFO dict for copy-paste
-    print_info_for_best_trial(exp_dir, ratio, auc_type)
+    print_info_for_trial(exp_dir, trial_name)
     
     # 4) Dump the info and the trial name, run_avgs, overall_avg
     trial_dir = os.path.join(exp_dir, trial_name)
@@ -607,7 +602,7 @@ if __name__ == '__main__':
     
     # --- Configuration ---
     if args.exp_dir is None:
-        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv_dim-8_seed[1]"
+        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv_dim-16_seed[1]"
     else:
         exp_dir = args.exp_dir
     ratio   = args.ratio # average the last ratio --> 0.0: only last  ---  1.0: all
@@ -615,7 +610,7 @@ if __name__ == '__main__':
     # ---------------------
 
     # Optional summary/diagnostics:
-    main(exp_dir, ratio, auc_type)
+    main(exp_dir, ratio, auc_type, num_workers=16)
 
     # Plot sensitivities for all keys found in info:
     plot_all_param_sensitivities(

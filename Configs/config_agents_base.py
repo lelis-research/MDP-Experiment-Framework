@@ -368,13 +368,7 @@ AGENT_DICT = {
     VQOptionCriticAgent.name: lambda env, info: VQOptionCriticAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(            
-            # Encoder Params
-            encoder_network=NETWORK_PRESETS[info.get("encoder_network", "MiniGrid/VQOptionCritic/mlp_encoder")],
-            encoder_step_size=info.get("encoder_step_size", 3e-4),
-            encoder_eps=info.get("encoder_eps", 1e-5),
-            encoder_dim=info.get("encoder_dim", 256),
-            
+        HyperParameters(                        
             # High Level Params
             hl = HyperParameters(
                 gamma=info.get("gamma", 0.99),
