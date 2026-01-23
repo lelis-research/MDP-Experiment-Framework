@@ -843,7 +843,7 @@ class MazeRoomsEnv(MiniGridEnv):
             self.carrying = None
 
         self._prev_room_id = new_rid
-
+        info['room_id'] = self._prev_room_id
 
         # RewardGoal pickup
         curr_obj = self.grid.get(*self.agent_pos)
@@ -920,6 +920,7 @@ class MazeRoomsEnv(MiniGridEnv):
             self.start_room_idx = 0
         obs, info = super().reset(seed=seed, options=options)
         self._prev_room_id = self._room_id_from_pos(tuple(self.agent_pos))
+        info['room_id'] = self._prev_room_id
         return obs, info
 
     # ---------- OBSERVATION OVERRIDES (room-with-walls) ----------

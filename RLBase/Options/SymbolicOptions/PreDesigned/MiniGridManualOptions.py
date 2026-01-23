@@ -23,6 +23,9 @@ class ActionLeft(BaseOption):
             return True
         return False
     
+    def can_initiate(self, observation: Any) -> bool:
+        return True
+    
     def reset(self):
         self.counter = 0
 
@@ -41,6 +44,9 @@ class ActionRight(BaseOption):
             self.counter = 0
             return True
         return False
+    
+    def can_initiate(self, observation: Any) -> bool:
+        return True
     
     def reset(self):
         self.counter = 0
@@ -61,6 +67,9 @@ class ActionForward(BaseOption):
             return True
         return False
     
+    def can_initiate(self, observation: Any) -> bool:
+        return True
+    
     def reset(self):
         self.counter = 0
 
@@ -79,6 +88,9 @@ class ActionPickup(BaseOption):
             self.counter = 0
             return True
         return False
+    
+    def can_initiate(self, observation: Any) -> bool:
+        return True
     
     def reset(self):
         self.counter = 0
@@ -100,6 +112,9 @@ class ActionDrop(BaseOption):
             return True
         return False
     
+    def can_initiate(self, observation: Any) -> bool:
+        return True
+    
     def reset(self):
         self.counter = 0
         
@@ -119,6 +134,9 @@ class ActionToggle(BaseOption):
             return True
         return False
     
+    def can_initiate(self, observation: Any) -> bool:
+        return True
+    
     def reset(self):
         self.counter = 0
         
@@ -137,6 +155,9 @@ class ActionDone(BaseOption):
             self.counter = 0
             return True
         return False
+    
+    def can_initiate(self, observation: Any) -> bool:
+        return True
     
     def reset(self):
         self.counter = 0

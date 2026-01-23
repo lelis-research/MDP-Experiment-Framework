@@ -382,9 +382,8 @@ class CodeBook(RandomGenerator):
         new_weight[:K_old].copy_(old_weight)
 
         if new_emb is None:
-            eps = 1.0 / max(1, K_new)
             new_vec = torch.empty((d,), device=self.device, dtype=old_weight.dtype)
-            nn.init.uniform_(new_vec, -eps, eps)  # uses global torch RNG state
+            nn.init.uniform_(new_vec, -self.hp.eps, self.hp.eps)  # uses global torch RNG state
         else:
             if new_emb.dim() == 2 and new_emb.size(0) == 1:
                 new_emb = new_emb.squeeze(0)
@@ -522,6 +521,9 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
+        
+        self.option_learner_tmp = {}
+        
     
     def _init_log_buf(self):
         # one buffer per env slot, to avoid mixing logs between envs
@@ -580,6 +582,22 @@ class VQOptionCriticAgent(BaseAgent):
     def update(self, observation, reward, terminated, truncated, call_back=None):
         if self.training:
             self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
+            for i in range(self.num_envs):
+                if terminated[i] or truncated[i]:
+                    obs_option = get_single_observation_nobatch(observation, i)
+                    for opt in self.hp.all_options:
+                        if hasattr(opt, "should_initiate") and \
+                        opt.should_initiate(obs_option) and \
+                        opt not in self.options_lst:
+                            if opt.option_id not in self.option_learner_tmp:
+                                self.option_learner_tmp[opt.option_id] = 0
+                            self.option_learner_tmp[opt.option_id] += 1
+
+                            if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
+                                print(f"Added option with id: {opt.option_id}")
+                                self.options_lst.append(opt)
+                                self.code_book.add_row()
+                    
         else:
             for i in range(self.num_envs):
                 # add to the rollouts
@@ -591,7 +609,6 @@ class VQOptionCriticAgent(BaseAgent):
                 self.option_multiplier[i] *= self.hp.hl.gamma
                 self.option_num_steps[i] += 1
                 if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
-                    
                     self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
                     self.log_buf[i]["e"].append(self.running_option_emb[i].cpu().numpy())
                     self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
@@ -620,7 +637,8 @@ class VQOptionCriticAgent(BaseAgent):
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
 
-                call_back({"curr_hl_option_idx": curr_option_idx})
+                call_back({"curr_hl_option_idx": curr_option_idx,
+                           "num_options": len(self.options_lst)})
                 
                 transition = (
                     self.option_start_obs[i], 
@@ -699,6 +717,8 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
+        
+        self.option_learner_tmp = {}
 
     
     def save(self, file_path: str | None = None):

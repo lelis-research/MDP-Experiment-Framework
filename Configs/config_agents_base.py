@@ -406,8 +406,6 @@ AGENT_DICT = {
                 commit_coef = info.get("commit_coef", 0.2),
             ),
             
-            
-            
             # CodeBook Params
             codebook = HyperParameters(
                 embedding_dim = info.get("codebook_embedding_dim", 2),
@@ -417,13 +415,16 @@ AGENT_DICT = {
                 step_size=info.get("codebook_step_size", 3e-4),
                 eps=info.get("codebook_eps", 1e-5),
                 max_grad_norm=info.get("codebook_max_grad_norm", 1.0),
-            )
+            ),
             
+            # Option Learner
+            all_options = manual_options,
+            count_to_add = 10
             
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=manual_options,
+        init_option_lst=actions,
         device=device
     ),
 }
