@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
-#SBATCH --array=0-1295     # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-431     # check HP_SEARCH_SPACE to calculate the space size
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="conv_dim-16"
+NAME_TAG="online-20_conv_dim-8_manual-emb" # online-20_conv_dim-8_manual-emb
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -84,14 +84,17 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
-  "codebook_embedding_dim": 16,
+  "codebook_embedding_dim": 8,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
   "codebook_max_grad_norm": 1.0,
 
   "hl_rollout_steps": 1024,
   "hl_mini_batch_size": 128,
-  "hl_num_epochs": 10
+  "hl_num_epochs": 10,
+
+  "codebook_init_emb_range": 0.0,
+  "init_options_lst": "actions"
 }'
 
 HP_SEARCH_SPACE='{
@@ -101,8 +104,7 @@ HP_SEARCH_SPACE='{
   "hl_entropy_coef": [0.0, 0.001, 0.01, 0.05],
 
   "commit_coef": [0.05, 0.1, 0.2, 0.4],
-  "codebook_step_size": [1e-4, 3e-4, 1e-3],
-  "codebook_eps": [1e-5, 1e-1, 1]
+  "codebook_step_size": [1e-4, 3e-4, 1e-3]
 }'
 
 

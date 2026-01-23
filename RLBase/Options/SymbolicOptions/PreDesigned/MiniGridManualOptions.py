@@ -707,6 +707,10 @@ class ToggleNearestBoxOption(BaseOption, GridNavMixin):
         self.counter = 0
         self.toggled = False
 
+
+K = len(COLOR_NAMES)
+S = len(STATE_TO_IDX)
+
 actions = [
     ActionLeft(), 
     ActionRight(), 
@@ -716,6 +720,16 @@ actions = [
     ActionToggle(), 
     ActionDone()
     ]
+action_embeddings = np.array([
+    [ 0.0, -1.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionLeft
+    [ 0.0,  1.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionRight
+    [ 0.8,  0.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionForward
+    [ 0.0,  0.0,  0.9,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionPickup
+    [ 0.0,  0.0,  0.0,  0.0,  0.9,  0.0, -0.8,  0.0],  # ActionDrop
+    [ 0.0,  0.0,  0.0,  0.9,  0.0,  0.0, -0.8,  0.0],  # ActionToggle
+    [ 0.0,  0.0,  0.0,  0.0,  0.0,  1.0, -0.8,  0.0],  # ActionDone
+], dtype=np.float32)
+
 goal_options = [
     GetNearestGoalOption(
         option_id=f"get_nearest_goal_{color}",
@@ -723,6 +737,12 @@ goal_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
+goal_embeddings = np.array([
+    [1.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.8, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
+    [
+    [1.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.8, 0.0]  # color = None
+    ], dtype=np.float32)
+
 key_options = [
     PickupNearestKeyOption(
         option_id=f"pickup_nearest_key_{color}",
@@ -730,6 +750,12 @@ key_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
+key_embeddings = np.array([
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.4, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
+    [
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.4, 0.0]  # color = None
+    ], dtype=np.float32)
+
 ball_options = [
     PickupNearestBallOption(
         option_id=f"pickup_nearest_ball_{color}",
@@ -737,6 +763,12 @@ ball_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
+ball_embeddings = np.array([
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.2, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
+    [
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.2, 0.0]  # color = None
+    ], dtype=np.float32)
+
 box_pickup_options = [
     PickupNearestBoxOption(
         option_id=f"pickup_nearest_box_{color}",
@@ -744,6 +776,12 @@ box_pickup_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
+box_pickup_embeddings = np.array([
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.0, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
+    [
+    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.0, 0.0]  # color = None
+    ], dtype=np.float32)
+
 box_toggle_options = [
     ToggleNearestBoxOption(
         option_id=f"toggle_nearest_box_{color}",
@@ -751,6 +789,13 @@ box_toggle_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
+box_toggle_embeddings = np.array([
+    [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, 0.0, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
+    [
+    [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, 0.0, 0.0]  # color = None
+    ], dtype=np.float32)
+
+
 door_options = [
     ToggleNearestDoorOption(
         option_id=f"toggle_nearest_door_{color}_{state}",
@@ -763,6 +808,45 @@ door_options = [
     for color in COLOR_NAMES + [None]
     for state in STATE_TO_IDX.keys()
 ]
+door_embeddings = np.array(
+    [
+        [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, -0.4, 0.5 * ((-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0) + 0.5 * ((-0.6 + 1.2 * j / (S - 1)) if S > 1 else 0.0)]
+        for i in range(K)
+        for j in range(S)
+    ] + 
+    [
+        [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, -0.4, (-0.6 + 1.2 * j / (S - 1)) if S > 1 else 0.0]
+        for j in range(S)
+    ],
+    dtype=np.float32
+)
 
-# manual_options = actions + goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options
 manual_options = actions + goal_options + key_options + door_options
+manual_embeddings = np.concatenate([
+    action_embeddings,
+    goal_embeddings,
+    key_embeddings,
+    door_embeddings,
+], axis=0)
+
+# print("action")
+# print(action_embeddings)
+
+# print("goal")
+# print(goal_embeddings)
+
+# print("key")
+# print(key_embeddings)
+
+# print("ball")
+# print(ball_embeddings)
+
+# print("box-pickup")
+# print(box_pickup_embeddings)
+
+# print("box-toggle")
+# print(box_toggle_embeddings)
+
+# print("door")
+# print(door_embeddings)
+

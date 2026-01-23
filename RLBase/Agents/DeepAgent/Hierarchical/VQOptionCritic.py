@@ -252,18 +252,30 @@ class LowLevelPolicy(BasePolicy):
         return [0] * len(x)
 
 class CodeBook(RandomGenerator):
-    def __init__(self, hyper_params, num_initial_codes: int, device):
+    def __init__(self, hyper_params, num_initial_codes, device, init_embs=None):
         self.num_codes = num_initial_codes
+        self.init_embs = init_embs
+        
         self.device = device
         self.hp = hyper_params
         
         self.emb = nn.Embedding(self.num_codes, self.hp.embedding_dim).to(self.device)
-        self._init_weights()
         self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
     
     def _init_weights(self):
-        with torch.no_grad():
-            nn.init.uniform_(self.emb.weight, -self.hp.eps, self.hp.eps)
+        if self.init_embs is None:
+            with torch.no_grad():
+                nn.init.uniform_(self.emb.weight, -self.hp.init_emb_range, self.hp.init_emb_range)
+        else:
+            init = torch.as_tensor(self.init_embs, 
+                                   dtype=self.emb.weight.dtype, 
+                                   device=self.emb.weight.device)
+
+            assert init.shape == self.emb.weight.shape, \
+                f"init_embs shape {init.shape} != emb.weight {self.emb.weight.shape}"
+            
+            with torch.no_grad():
+                self.emb.weight.copy_(init)
             
     def reset(self, seed):
         self.set_seed(seed)
@@ -383,7 +395,7 @@ class CodeBook(RandomGenerator):
 
         if new_emb is None:
             new_vec = torch.empty((d,), device=self.device, dtype=old_weight.dtype)
-            nn.init.uniform_(new_vec, -self.hp.eps, self.hp.eps)  # uses global torch RNG state
+            nn.init.uniform_(new_vec, -self.hp.init_emb_range, self.hp.init_emb_range)  # uses global torch RNG state
         else:
             if new_emb.dim() == 2 and new_emb.size(0) == 1:
                 new_emb = new_emb.squeeze(0)
@@ -497,12 +509,13 @@ class VQOptionCriticAgent(BaseAgent):
     name = "VQOptionCritic"
     SUPPORTED_ACTION_SPACES = (Discrete, Box)
     
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=None, device='cpu'):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, 
+                 init_option_lst=None, init_option_embs=None, device='cpu'):
         print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_option_lst) if init_option_lst is not None else 0)
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.options_lst = [] if init_option_lst is None else init_option_lst
-        
-        self.code_book = CodeBook(hyper_params.codebook, len(self.options_lst), device)
+                
+        self.code_book = CodeBook(hyper_params.codebook, len(self.options_lst), device, init_embs=init_option_embs)
         hl_action_space = Box(
             low=self.hp.codebook.embedding_low,
             high=self.hp.codebook.embedding_high,
@@ -585,7 +598,7 @@ class VQOptionCriticAgent(BaseAgent):
             for i in range(self.num_envs):
                 if terminated[i] or truncated[i]:
                     obs_option = get_single_observation_nobatch(observation, i)
-                    for opt in self.hp.all_options:
+                    for c, opt in enumerate(self.hp.all_options):
                         if hasattr(opt, "should_initiate") and \
                         opt.should_initiate(obs_option) and \
                         opt not in self.options_lst:
@@ -596,7 +609,7 @@ class VQOptionCriticAgent(BaseAgent):
                             if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
                                 print(f"Added option with id: {opt.option_id}")
                                 self.options_lst.append(opt)
-                                self.code_book.add_row()
+                                self.code_book.add_row(torch.from_numpy(self.hp.all_embeddings[c]))
                     
         else:
             for i in range(self.num_envs):

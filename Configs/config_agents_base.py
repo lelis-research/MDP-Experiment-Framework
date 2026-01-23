@@ -408,23 +408,26 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 2),
+                embedding_dim = info.get("codebook_embedding_dim", 8),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 
                 step_size=info.get("codebook_step_size", 3e-4),
                 eps=info.get("codebook_eps", 1e-5),
+                init_emb_range=info.get("codebook_init_emb_range", 1.0),
                 max_grad_norm=info.get("codebook_max_grad_norm", 1.0),
             ),
             
             # Option Learner
             all_options = manual_options,
-            count_to_add = 10
+            count_to_add = 20,
+            all_embeddings = manual_embeddings,
             
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions,
+        init_option_lst=actions if info.get("init_options_lst") == "actions" else manual_options,
+        init_option_embs=action_embeddings if info.get("init_options_lst") == "actions" else manual_embeddings,
         device=device
     ),
 }

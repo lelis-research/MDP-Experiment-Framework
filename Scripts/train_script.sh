@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="conv_dim-2_$IDX"
+NAME_TAG="online-c20_conv_dim-8_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -62,17 +62,17 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "codebook_embedding_dim": 2,
+  "codebook_embedding_dim": 8,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
-  "codebook_eps": 1,
+  "codebook_eps": 0.1,
   "codebook_max_grad_norm": 1.0,
-  "codebook_step_size": 0.0003,
-  "commit_coef": 0.2,
+  "codebook_step_size": 0.0001,
+  "commit_coef": 0.05,
   "gamma": 0.99,
   "hl_actor_eps": 1e-08,
   "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
-  "hl_actor_step_size": 0.0001,
+  "hl_actor_step_size": 0.0003,
   "hl_anneal_clip_range_actor": false,
   "hl_anneal_clip_range_critic": false,
   "hl_clip_range_actor_init": 0.2,
@@ -80,11 +80,11 @@ INFO='{
   "hl_critic_coef": 0.5,
   "hl_critic_eps": 1e-08,
   "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
-  "hl_critic_step_size": 0.0001,
+  "hl_critic_step_size": 0.001,
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.01,
+  "hl_entropy_coef": 0.0,
   "hl_lamda": 0.95,
   "hl_max_grad_norm": 0.5,
   "hl_max_logstd": null,

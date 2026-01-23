@@ -34,7 +34,9 @@ INFO_tier1='{
 
   "hl_rollout_steps": 1024,
   "hl_mini_batch_size": 128,
+  "codebook_eps": 1e-5,
   "hl_num_epochs": 10
+
 }'
 
 # 1296 Configs
@@ -46,7 +48,7 @@ HP_SEARCH_SPACE_tier1='{
 
   "commit_coef": [0.05, 0.1, 0.2, 0.4],
   "codebook_step_size": [1e-4, 3e-4, 1e-3],
-  "codebook_eps": [1e-5, 1e-1, 1]
+  "codebook_init_emb_range": [1e-5, 1e-1, 1]
 }'
 
 INFO_tier2='{

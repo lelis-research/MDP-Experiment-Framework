@@ -8,18 +8,23 @@ def multi_exp_results():
     PPO_Maze = "Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/OptionPPO"
     VQ_Maze = "Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic"
     agent_dict = {       
-        "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
-        "VQ_Maze-d2": gather_experiments(VQ_Maze, name_string_conditions=["dim2"], name_string_anti_conditions=[]),
-        "VQ_Maze-d8": gather_experiments(VQ_Maze, name_string_conditions=["dim8"], name_string_anti_conditions=[]),
-        "VQ_Maze-d16": gather_experiments(VQ_Maze, name_string_conditions=["dim16"], name_string_anti_conditions=[]),
+        # "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
+        # "VQ_Maze-d2": gather_experiments(VQ_Maze, name_string_conditions=["dim-2"], name_string_anti_conditions=[]),
+        # "VQ_Maze-d4": gather_experiments(VQ_Maze, name_string_conditions=["dim-4"], name_string_anti_conditions=[]),
+        # "VQ_Maze-d8": gather_experiments(VQ_Maze, name_string_conditions=["dim-8"], name_string_anti_conditions=[]),
+        # "VQ_Maze-d16": gather_experiments(VQ_Maze, name_string_conditions=["dim-16"], name_string_anti_conditions=[]),
         
         # "PPO_SimpleCrossing": gather_experiments(PPO_SimpleCrossing, name_string_conditions=[], name_string_anti_conditions=[]),
         # "VQ_SimpleCrossing": gather_experiments(VQ_SimpleCrossing, name_string_conditions=[], name_string_anti_conditions=[]),
+        
+        "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
+        "VQ_Maze-d8": gather_experiments(VQ_Maze, name_string_conditions=["conv_dim-8"], name_string_anti_conditions=["online"]),
+        "VQ_Maze-d8_continual": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8"], name_string_anti_conditions=[]),
 
     }
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_ManualOption_All", window_size=1, show_ci=True, ignore_last=True, 
-                     plt_configs=["r_s"], plot_each=False)
+    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_ManualOption_GoalKeyDoor_continual_comparison", window_size=1, show_ci=True, ignore_last=True, 
+                     plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
     # plot_option_embeddings(agent_dict, "Runs/Figures", name=f"Option_Emb_Codebook_Commit", show_legend=True, min_ep=5000
 
 
@@ -37,8 +42,8 @@ def single_exp_results():
         analyzer.plot_option_embedding_gif(every=10)
 
 if __name__ == "__main__":
-    # multi_exp_results()
-    single_exp_results()    
+    multi_exp_results()
+    # single_exp_results()    
     
     
     
