@@ -18,12 +18,16 @@ def multi_exp_results():
         # "VQ_SimpleCrossing": gather_experiments(VQ_SimpleCrossing, name_string_conditions=[], name_string_anti_conditions=[]),
         
         "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
-        "VQ_Maze-d8": gather_experiments(VQ_Maze, name_string_conditions=["conv_dim-8"], name_string_anti_conditions=["online"]),
-        "VQ_Maze-d8_continual": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8"], name_string_anti_conditions=[]),
+        "VQ_Maze-d8": gather_experiments(VQ_Maze, name_string_conditions=["conv_dim-8"], name_string_anti_conditions=["online-c20", "manual-emb"]),
+        "VQ_Maze-d8_Manual-emb": gather_experiments(VQ_Maze, name_string_conditions=["conv_dim-8_manual-emb"], name_string_anti_conditions=["online-c20"]),
+        "VQ_Maze-d8_online": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8"], name_string_anti_conditions=["manual-emb"]),
+        "VQ_Maze-d8_online_Manual-emb": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8_manual-emb"], name_string_anti_conditions=[]),
+        
+        
 
     }
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_ManualOption_GoalKeyDoor_continual_comparison", window_size=1, show_ci=True, ignore_last=True, 
+    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_ManualOption_GoalKeyDoor_comparison", window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
     # plot_option_embeddings(agent_dict, "Runs/Figures", name=f"Option_Emb_Codebook_Commit", show_legend=True, min_ep=5000
 

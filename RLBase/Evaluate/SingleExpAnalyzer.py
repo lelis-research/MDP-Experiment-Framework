@@ -172,12 +172,19 @@ class SingleExpAnalyzer:
             
             elif config == "uni_ou_e":
                 # number of unique options being used per episode
+                # option_usage = [[
+                #     int(len(np.unique(ep["agent_logs"]["option_index"])))
+                #     if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
+                #     else 0.0 
+                #     for ep in run] 
+                #     for run in self.metrics]  
                 option_usage = [[
-                    int(len(np.unique(ep["agent_logs"]["option_index"])))
+                    len(np.unique(np.array(ep["agent_logs"]["option_index"])[np.array(ep["agent_logs"]["option_index"]) != -1]))
                     if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
-                    else 0.0 
-                    for ep in run] 
-                    for run in self.metrics]                 
+                    else 0.0
+                    for ep in run]
+                    for run in self.metrics]
+                               
 
                 if any(any(v != 0.0 for v in run) for run in option_usage):
                     self._plot_data_per_episode(option_usage, ax, num_episodes, color, marker, label,
@@ -188,12 +195,18 @@ class SingleExpAnalyzer:
                     
             elif config == "uni_ou_s":
                 # number of unique options being used per step
+                # option_usage = [[
+                #     int(len(np.unique(ep["agent_logs"]["option_index"])))
+                #     if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
+                #     else 0.0 
+                #     for ep in run] 
+                #     for run in self.metrics]     
                 option_usage = [[
-                    int(len(np.unique(ep["agent_logs"]["option_index"])))
+                    len(np.unique(np.array(ep["agent_logs"]["option_index"])[np.array(ep["agent_logs"]["option_index"]) != -1]))
                     if ep.get("agent_logs") is not None and "option_index" in ep["agent_logs"]
-                    else 0.0 
-                    for ep in run] 
-                    for run in self.metrics]     
+                    else 0.0
+                    for ep in run]
+                    for run in self.metrics]
 
                 if any(any(v != 0.0 for v in run) for run in option_usage):
                     self._plot_data_per_steps(option_usage, ep_lengths, ax, num_steps, color, marker, label,
