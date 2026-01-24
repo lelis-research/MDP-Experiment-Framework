@@ -46,31 +46,73 @@ class Encoder(RandomGenerator):
         self.device = device
         
         encoder_discription = prepare_network_config(
-            self.hp.encoder_network,
+            self.hp.enc_network,
             input_dims=self.features_dict,
-            output_dim=self.hp.encoder_dim,
+            output_dim=self.hp.enc_dim,
         )
         self.encoder = NetworkGen(layer_descriptions=encoder_discription).to(self.device)
-        self.optimizer = optim.Adam(self.encoder.parameters(), lr=self.hp.encoder_step_size, eps=self.hp.encoder_eps)
+        self.optimizer = optim.Adam(self.encoder.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
     
     def __call__(self, state):
         x = self.encoder(**state)
-        return x
+        return {"x": x}
+    
+    @property
+    def encoder_features_dict(self):
+        return {"x": self.hp.enc_dim}
     
     def reset(self, seed):
         self.set_seed(seed)
         
         encoder_discription = prepare_network_config(
-            self.hp.encoder_network,
+            self.hp.enc_network,
             input_dims=self.features_dict,
-            output_dim=self.hp.encoder_dim,
+            output_dim=self.hp.enc_dim,
         )
         self.encoder = NetworkGen(layer_descriptions=encoder_discription).to(self.device)
-        self.optimizer = optim.Adam(self.encoder.parameters(), lr=self.hp.encoder_step_size, eps=self.hp.encoder_eps)
+        self.optimizer = optim.Adam(self.encoder.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+    
+    def save(self, file_path: str | None = None):
+        checkpoint = {
+            "class": self.__class__.__name__,
+            "hyper_params": self.hp,
+            "features_dict": self.features_dict,
+            "rng_state": self.get_rng_state(),
+            "encoder_state_dict": self.encoder.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "device": self.device,
+        }
+        if file_path is not None:
+            torch.save(checkpoint, f"{file_path}_encoder.t")
+        return checkpoint
+
+    @classmethod
+    def load(cls, file_path: str | None = None, checkpoint=None, map_location="cpu"):
+        if checkpoint is None:
+            assert file_path is not None
+            checkpoint = torch.load(file_path, map_location=map_location, weights_only=False)
+
+        inst = cls(
+            hyper_params=checkpoint["hyper_params"],
+            features_dict=checkpoint["features_dict"],
+            device=checkpoint["device"],
+        )
+        inst.set_rng_state(checkpoint["rng_state"])
+        inst.encoder.load_state_dict(checkpoint["encoder_state_dict"])
+        inst.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        return inst
     
 @register_policy
 class HighLevelPolicy(OptionPPOPolicy):
-     def update(self, states, proto_emb, emb, old_log_probs, next_states, rewards, discounts, terminated, truncated, call_back=None):
+        
+    def select_action(self, state, greedy=False):
+        """
+        Returns a numpy action of shape [action_dim].
+        """
+        encoded_state = self.encoder(state)
+        return super().select_action(encoded_state, greedy)
+                
+    def update(self, states, proto_emb, emb, old_log_probs, next_states, rewards, discounts, terminated, truncated, call_back=None):
         self.update_counter += 1
             
         # LR annealing (optional)
@@ -102,10 +144,9 @@ class HighLevelPolicy(OptionPPOPolicy):
         
         log_probs_old_t = torch.tensor(np.array(old_log_probs), dtype=torch.float32, device=self.device)  # (T,)
 
-        
         with torch.no_grad():
-            values = self.critic(**states).squeeze(-1)               # (T, )
-            next_values = self.critic(**next_states).squeeze(-1) # (T, )
+            values = self.critic(**self.encoder(states)).squeeze(-1)               # (T, )
+            next_values = self.critic(**self.encoder(next_states)).squeeze(-1) # (T, )
                     
         returns, advantages = calculate_gae_with_discounts(
             rewards,
@@ -133,7 +174,7 @@ class HighLevelPolicy(OptionPPOPolicy):
         # for logging
         entropy_losses, actor_losses, critic_losses, \
         commit_losses, clip_fractions, losses, approx_kl_divs = [], [], [], [], [], [], []
-        actor_grad_norms, critic_grad_norms = [], []
+        actor_grad_norms, critic_grad_norms, encoder_grad_norms = [], [], []
 
         for epoch in range(self.hp.num_epochs):
             if not continue_training:
@@ -152,7 +193,8 @@ class HighLevelPolicy(OptionPPOPolicy):
                 batch_values_t     = values[batch_indices].squeeze() # shape (B, )
                     
                 # new log-probs under current policy
-                _, batch_log_probs_new_t, entropy, batch_new_proto_emb_mean = self.get_logprob_entropy(batch_states, batch_proto_emb_t)
+                batch_encoded_states = self.encoder(batch_states) # forward pass to Encoder
+                _, batch_log_probs_new_t, entropy, batch_new_proto_emb_mean = self.get_logprob_entropy(batch_encoded_states, batch_proto_emb_t)
             
                 log_ratio = batch_log_probs_new_t - batch_log_probs_t
                 ratios = torch.exp(log_ratio)  # [B, ]
@@ -167,7 +209,11 @@ class HighLevelPolicy(OptionPPOPolicy):
                     clip_fractions.append(clip_fraction)
                 
                 # critic loss 
-                batch_new_values_t = self.critic(**batch_states).squeeze()
+                if self.hp.block_critic_to_encoder:
+                    batch_encoded_states_detached = {k: v.detach() for k, v in batch_encoded_states.items()}
+                    batch_new_values_t = self.critic(**batch_encoded_states_detached).squeeze()
+                else:
+                    batch_new_values_t = self.critic(**batch_encoded_states).squeeze()
                 
                 if self.hp.clip_range_critic is None:
                     values_pred = batch_new_values_t
@@ -198,18 +244,22 @@ class HighLevelPolicy(OptionPPOPolicy):
                     
                 self.actor_optimizer.zero_grad()
                 self.critic_optimizer.zero_grad()
+                self.encoder.optimizer.zero_grad()
                 loss.backward()
                 if call_back is not None:
                     actor_grad_norms.append(grad_norm(self.actor.parameters()))
                     critic_grad_norms.append(grad_norm(self.critic.parameters()))
+                    encoder_grad_norms.append(grad_norm(self.encoder.encoder.parameters()))
         
                 nn.utils.clip_grad_norm_(self.actor.parameters(), self.hp.max_grad_norm)
                 nn.utils.clip_grad_norm_(self.critic.parameters(), self.hp.max_grad_norm)
+                nn.utils.clip_grad_norm_(self.encoder.encoder.parameters(), self.hp.max_grad_norm)
                 if self.actor_logstd is not None:
                     nn.utils.clip_grad_norm_([self.actor_logstd], self.hp.max_grad_norm)
                 
                 self.actor_optimizer.step()
                 self.critic_optimizer.step()
+                self.encoder.optimizer.step()
                 
         if call_back is not None:
             payload = {
@@ -236,6 +286,7 @@ class HighLevelPolicy(OptionPPOPolicy):
                 
                 "hl_actor_grad_norms": float(np.mean(actor_grad_norms)),
                 "hl_critic_grad_norms": float(np.mean(critic_grad_norms)),
+                "encoder_grad_norms": float(np.mean(encoder_grad_norms)),
             }
             if isinstance(self.action_space, Box) and self.actor_logstd is not None:
                 payload["actor_logstd_mean"] = float(self.actor_logstd.mean().item())
@@ -243,6 +294,9 @@ class HighLevelPolicy(OptionPPOPolicy):
             
             call_back(payload)
 
+    def set_encoder(self, encoder):
+        self.encoder = encoder
+        
 @register_policy
 class LowLevelPolicy(BasePolicy):
     def __init__(self, action_space, hyper_params, device):
@@ -459,7 +513,6 @@ class CodeBook(RandomGenerator):
         instance.num_codes = int(checkpoint["num_codes"])
         return instance
 
-
 @register_agent
 class VQOptionCriticAgent(BaseAgent):
     """
@@ -514,15 +567,19 @@ class VQOptionCriticAgent(BaseAgent):
         print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_option_lst) if init_option_lst is not None else 0)
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.options_lst = [] if init_option_lst is None else init_option_lst
-                
-        self.code_book = CodeBook(hyper_params.codebook, len(self.options_lst), device, init_embs=init_option_embs)
+        
+        self.encoder = Encoder(self.hp.enc, self.feature_extractor.features_dict, device)
+        self.code_book = CodeBook(self.hp.codebook, len(self.options_lst), device, init_embs=init_option_embs)
         hl_action_space = Box(
             low=self.hp.codebook.embedding_low,
             high=self.hp.codebook.embedding_high,
             shape=(self.hp.codebook.embedding_dim,),
             dtype=np.float32
         )
-        self.hl_policy = HighLevelPolicy(hl_action_space, self.feature_extractor.features_dict, hyper_params.hl, device)
+        # self.hl_policy = HighLevelPolicy(hl_action_space, self.feature_extractor.features_dict, hyper_params.hl, device)
+        self.hl_policy = HighLevelPolicy(hl_action_space, self.encoder.encoder_features_dict, hyper_params.hl, device)
+        self.hl_policy.set_encoder(self.encoder)
+        
         self.rollout_buffer = [BaseBuffer(self.hp.hl.rollout_steps) for _ in range(self.num_envs)]
         
         self.running_option_index = [None for _ in range(self.num_envs)]      
@@ -565,8 +622,7 @@ class VQOptionCriticAgent(BaseAgent):
             with torch.no_grad():
                 needed_state = get_batch_state(state, need_new)
                 proto_e, proto_log_prob = self.hl_policy.select_action(needed_state, greedy=not self.training)
-                proto_e_t = torch.as_tensor(proto_e, device=self.device, dtype=torch.float32)
-                idx, e, _ = self.code_book(torch.from_numpy(proto_e))
+                idx, e, _ = self.code_book(torch.from_numpy(proto_e).to(self.device))
                 
                 # add the new ones to the lists
                 for j, env_i in enumerate(need_new.tolist()):                    
@@ -708,10 +764,6 @@ class VQOptionCriticAgent(BaseAgent):
                 self.code_book.update(rollout_option_proto_emb,
                                       call_back=call_back)
                 
-                # self.code_book.fake_update(rollout_option_proto_emb,
-                #                       direction=None,
-                #                       step_size=0.1,
-                #                       call_back=call_back)
                 
                 self.rollout_buffer[i].clear()
             
@@ -719,7 +771,9 @@ class VQOptionCriticAgent(BaseAgent):
         super().reset(seed)
         
         self.code_book.reset(seed)
+        self.encoder.reset(seed)
         self.hl_policy.reset(seed)
+        self.hl_policy.set_encoder(self.encoder)
         
         self.running_option_index = [None for _ in range(self.num_envs)]      
         self.running_option_emb = [None for _ in range(self.num_envs)]      
@@ -750,6 +804,7 @@ class VQOptionCriticAgent(BaseAgent):
         checkpoint['options_lst'] = save_options_list(self.options_lst, file_path=None)
         checkpoint['hl_policy'] = self.hl_policy.save(file_path=None)
         checkpoint['code_book'] = self.code_book.save(file_path=None)
+        checkpoint['encoder'] = self.encoder.save(file_path=None)
 
         if file_path is not None:
             torch.save(checkpoint, f"{file_path}_agent.t")
@@ -789,12 +844,19 @@ class VQOptionCriticAgent(BaseAgent):
             checkpoint=checkpoint["feature_extractor"],
         )
 
+        # 5) restore encoder
+        instance.encoder = instance.encoder.load(
+            file_path=None,
+            checkpoint=checkpoint["encoder"]
+        )
+        
         # 5) restore high-level policy
         instance.hl_policy = instance.hl_policy.load(
             file_path=None,
             checkpoint=checkpoint["hl_policy"],
         )
-
+        instance.hl_policy.set_encoder(instance.encoder)
+        
         # 6) restore codebook (weights + optimizer + rng)
         instance.code_book = instance.code_book.load(
             file_path=None,

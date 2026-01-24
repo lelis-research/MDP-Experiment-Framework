@@ -214,7 +214,6 @@ MINIGRID_PPO_MLP_CRITIC = [
     
 ]
 
-
 MINIGRID_PPO_CONV_IMGDIRCARRY_ACTOR = [
     # ---- inputs ----
     {"type": "input", "id": "img",   "input_key": "onehot_image"},
@@ -445,7 +444,69 @@ MUJOCO_TD3_MLP_CRITIC = [
      "init_params":{"name":"orthogonal","gain":1.0}},
 ]
 
+# VQOptionCritic
+MINIGRID_CONV_IMGDIRCARRY_ENCODER = [
+    # ---- inputs ----
+    {"type": "input", "id": "img",   "input_key": "onehot_image"},
+    {"type": "input", "id": "dir",   "input_key": "onehot_direction"},
+    {"type": "input", "id": "carry", "input_key": "onehot_carrying"},
 
+    # ---- image tower ----
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img",  "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir+carry) ----
+    {"type":"concat", "id":"vec_in", "from":["dir", "carry"], "dim":1, "flatten":True},
+
+    {"type":"linear", "id":"fc_vec", "from":"vec_in", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_vec","from":"fc_vec"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_vec"], "dim":1, "flatten":True},
+    {"type":"linear", "id":"fc_fuse", "from":"fused",
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+]
+MINIGRID_MLP_ACTOR = [
+    {"type":"input",  "id":"x", "input_key":"x"},
+
+    {"type":"linear", "id":"fc1", "from":"x", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r1",  "from":"fc1"},
+
+    {"type":"linear", "id":"fc2", "from":"r1", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r2",  "from":"fc2"},
+
+    {"type":"linear", "id":"out", "from":"r2",
+     "init_params":{"name":"orthogonal","gain":0.01}},    
+]
+MINIGRID_MLP_CRITIC = [
+    {"type":"input",  "id":"x", "input_key":"x"},
+
+    {"type":"linear", "id":"fc1", "from":"x", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r1",  "from":"fc1"},
+
+    {"type":"linear", "id":"fc2", "from":"r1", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r2",  "from":"fc2"},
+
+    {"type":"linear", "id":"out", "from":"r2",
+     "init_params":{"name":"orthogonal","gain":1.0}},
+]
 
 # =========================
 # Public registry
@@ -478,6 +539,11 @@ NETWORK_PRESETS = {
     # MuJoCo TD3
     "MuJoCo/TD3/mlp_actor": MUJOCO_TD3_MLP_ACTOR,
     "MuJoCo/TD3/mlp_critic": MUJOCO_TD3_MLP_CRITIC,
+    
+    # MiniGrid VQOptionCritic
+    "MiniGrid/VQOptionCritic/conv_imgdircarry": MINIGRID_CONV_IMGDIRCARRY_ENCODER,
+    "MiniGrid/VQOptionCritic/mlp_actor": MINIGRID_MLP_ACTOR,
+    "MiniGrid/VQOptionCritic/mlp_critic": MINIGRID_MLP_CRITIC,
 }
 
 if __name__ == "__main__":

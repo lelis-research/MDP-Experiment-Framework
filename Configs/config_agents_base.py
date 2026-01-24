@@ -368,7 +368,13 @@ AGENT_DICT = {
     VQOptionCriticAgent.name: lambda env, info: VQOptionCriticAgent(
         get_env_action_space(env), 
         get_env_observation_space(env),
-        HyperParameters(                        
+        HyperParameters(               
+            enc = HyperParameters(
+                enc_network=NETWORK_PRESETS[info.get("enc_network", "MiniGrid/VQOptionCritic/conv_imgdircarry")],
+                step_size=info.get("enc_step_size", 3e-4),
+                eps = info.get("enc_eps", 1e-8),
+                enc_dim= info.get("enc_dim", 256)
+            ),         
             # High Level Params
             hl = HyperParameters(
                 gamma=info.get("gamma", 0.99),
@@ -378,13 +384,13 @@ AGENT_DICT = {
                 num_epochs=info.get("hl_num_epochs", 10),
                 target_kl=info.get("hl_target_kl", None), #None means no early stop
                 
-                actor_network=NETWORK_PRESETS[info.get("hl_actor_network", "MiniGrid/PPO/conv_imgdircarry_actor")],
+                actor_network=NETWORK_PRESETS[info.get("hl_actor_network", "MiniGrid/VQOptionCritic/mlp_actor")],
                 actor_step_size=info.get("hl_actor_step_size", 3e-4),
                 actor_eps = info.get("hl_actor_eps", 1e-8),
                 clip_range_actor_init=info.get("hl_clip_range_actor_init", 0.2),
                 anneal_clip_range_actor=info.get("hl_anneal_clip_range_actor", False),
                 
-                critic_network=NETWORK_PRESETS[info.get("hl_critic_network", "MiniGrid/PPO/conv_imgdircarry_critic")],
+                critic_network=NETWORK_PRESETS[info.get("hl_critic_network", "MiniGrid/VQOptionCritic/mlp_critic")],
                 critic_step_size=info.get("hl_critic_step_size", 3e-4),
                 critic_eps = info.get("hl_critic_eps", 1e-8),
                 clip_range_critic_init=info.get("hl_clip_range_critic_init", 0.2), # None means no clipping
@@ -403,7 +409,8 @@ AGENT_DICT = {
                 enable_advantage_normalization=info.get("hl_enable_advantage_normalization", True),
                 enable_transform_action=info.get("hl_enable_transform_action", True),
                 
-                commit_coef = info.get("commit_coef", 0.2),
+                commit_coef = info.get("commit_coef", 0.0),
+                block_critic_to_encoder = info.get("block_critic_to_encoder", True)
             ),
             
             # CodeBook Params
@@ -426,8 +433,8 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst") == "actions" else manual_options,
-        init_option_embs=action_embeddings if info.get("init_options_lst") == "actions" else manual_embeddings,
+        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_options,
+        init_option_embs=action_embeddings if info.get("init_options_lst", None) == "actions" else manual_embeddings,
         device=device
     ),
 }
