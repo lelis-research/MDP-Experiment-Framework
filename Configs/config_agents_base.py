@@ -427,14 +427,14 @@ AGENT_DICT = {
             
             # Option Learner
             all_options = manual_options,
-            count_to_add = 20,
-            all_embeddings = manual_embeddings,
+            count_to_add = info.get("option_count_to_add", 20),
+            all_embeddings = None,
             
         ),
         get_num_envs(env),
         MirrorFeature,
         init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_options,
-        init_option_embs=action_embeddings if info.get("init_options_lst", None) == "actions" else manual_embeddings,
+        init_option_embs=None,
         device=device
     ),
 }

@@ -1,15 +1,19 @@
 
 ##################################### VQOptionCritic for MiniGrid #####################################
 INFO_tier1='{
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
+  "enc_eps": 1e-8,
+  "enc_dim": 256,
+
   "gamma": 0.99,
   "hl_lamda": 0.95,
 
-  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
+  "hl_actor_network": "MiniGrid/VQOptionCritic/mlp_actor",
   "hl_actor_eps": 1e-8,
   "hl_clip_range_actor_init": 0.2,
   "hl_anneal_clip_range_actor": false,
 
-  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
+  "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
   "hl_critic_eps": 1e-8,
   "hl_clip_range_critic_init": null,
   "hl_anneal_clip_range_critic": false,
@@ -27,28 +31,34 @@ INFO_tier1='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
-  "codebook_embedding_dim": 2,
+  "codebook_embedding_dim": 8,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
   "codebook_max_grad_norm": 1.0,
 
   "hl_rollout_steps": 1024,
   "hl_mini_batch_size": 128,
-  "codebook_eps": 1e-5,
-  "hl_num_epochs": 10
+  "codebook_eps": 1e-8,
+  "hl_num_epochs": 10,
 
+  "option_count_to_add": 20,
+  "init_options_lst": actions
 }'
 
-# 1296 Configs
+# 864 Configs
 HP_SEARCH_SPACE_tier1='{
   "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
-  "hl_critic_step_size": [1e-4, 3e-4, 1e-3],
 
   "hl_entropy_coef": [0.0, 0.001, 0.01, 0.05],
 
   "commit_coef": [0.05, 0.1, 0.2, 0.4],
   "codebook_step_size": [1e-4, 3e-4, 1e-3],
-  "codebook_init_emb_range": [1e-5, 1e-1, 1]
+  "codebook_init_emb_range": [1e-5, 1e-1, 1],
+
+  "block_critic_to_encoder": [true, false]
+}'
+TIED_PARAMS_tier1='{
+  "hl_actor_step_size": ["hl_critic_step_size", "enc_step_size"]
 }'
 
 INFO_tier2='{

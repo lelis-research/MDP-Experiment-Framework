@@ -651,6 +651,8 @@ class VQOptionCriticAgent(BaseAgent):
     def update(self, observation, reward, terminated, truncated, call_back=None):
         if self.training:
             self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
+            
+            # add new options
             for i in range(self.num_envs):
                 if terminated[i] or truncated[i]:
                     obs_option = get_single_observation_nobatch(observation, i)
@@ -665,7 +667,8 @@ class VQOptionCriticAgent(BaseAgent):
                             if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
                                 print(f"Added option with id: {opt.option_id}")
                                 self.options_lst.append(opt)
-                                self.code_book.add_row(torch.from_numpy(self.hp.all_embeddings[c]))
+                                new_embs = torch.from_numpy(self.hp.all_embeddings[c]) if self.hp.all_embeddings is not None else None
+                                self.code_book.add_row(new_embs)
                     
         else:
             for i in range(self.num_envs):

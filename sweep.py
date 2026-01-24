@@ -50,6 +50,11 @@ def parse_args():
     # Search space
     parser.add_argument("--hp_search_space", type=json.loads, 
                         help='JSON dict of hyper-params, e.g. \'{"actor_step_size":[0.001,0.0003], "rollout_steps":[1024,2048]}\'')
+    parser.add_argument(
+        "--tied_params",
+        type=json.loads,
+        default="{}",
+        help='JSON dict mapping source->list of targets, e.g. {"hl_actor_step_size":["hl_critic_step_size","enc_step_size"]}')
     return parser.parse_args()
 
 
@@ -95,6 +100,15 @@ def main():
    
     params = args.info
     params.update(tuning_params) #update the default params with the tuning params from search space
+    
+    # Apply tied parameters: copy from source to targets
+    tied = args.tied_params or {}
+    for src, targets in tied.items():
+        if src not in params:
+            raise KeyError(f"tied_params source '{src}' not found in params. Available keys: {list(params.keys())}")
+        for t in targets:
+            params[t] = params[src]
+        
     print(f"Start trial {args.idx+1}/{total}: {params}")
     
     agent_fn = lambda env: config.AGENT_DICT[args.agent](env, params)
