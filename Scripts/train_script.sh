@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="conv_dim-8_manual-emb_$IDX"
+NAME_TAG="enc[conv]_cb[dim-8]_opt[offline]_emb[auto]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -62,16 +62,22 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
+  "block_critic_to_encoder": false,
   "codebook_embedding_dim": 8,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
-  "codebook_init_emb_range": 0.0,
-  "codebook_max_grad_norm": 1.0,
-  "codebook_step_size": 0.001,
+  "codebook_eps": 1e-08,
+  "codebook_init_emb_range": 1e-05,
+  "codebook_max_grad_norm": 0.5,
+  "codebook_step_size": 0.0003,
   "commit_coef": 0.05,
+  "enc_dim": 256,
+  "enc_eps": 1e-08,
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
+  "enc_step_size": 0.0001,
   "gamma": 0.99,
   "hl_actor_eps": 1e-08,
-  "hl_actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
+  "hl_actor_network": "MiniGrid/VQOptionCritic/mlp_actor",
   "hl_actor_step_size": 0.0001,
   "hl_anneal_clip_range_actor": false,
   "hl_anneal_clip_range_critic": false,
@@ -79,12 +85,12 @@ INFO='{
   "hl_clip_range_critic_init": null,
   "hl_critic_coef": 0.5,
   "hl_critic_eps": 1e-08,
-  "hl_critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
+  "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
   "hl_critic_step_size": 0.0001,
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.001,
+  "hl_entropy_coef": 0.0,
   "hl_lamda": 0.95,
   "hl_max_grad_norm": 0.5,
   "hl_max_logstd": null,
@@ -94,7 +100,8 @@ INFO='{
   "hl_rollout_steps": 1024,
   "hl_target_kl": null,
   "hl_total_steps": 200000,
-  "init_options_lst": "all"
+  "init_options_lst": "all",
+  "option_count_to_add": 20
 }'
 # ------------------------------
 

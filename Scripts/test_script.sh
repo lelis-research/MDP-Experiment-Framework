@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=test
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=128G
-#SBATCH --time=0-00:10
+#SBATCH --mem=32G
+#SBATCH --time=0-01:00
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=aip-lelis
-#SBATCH --array=0-50
+#SBATCH --account=rrg-lelis_cpu
+#SBATCH --array=2-50
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -38,7 +38,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 
 # ---------------Configs---------
 IDX=$SLURM_ARRAY_TASK_ID
-EXP_DIR_REL="Runs/Train/BigCurriculumEnv-v0_/DQN/"$IDX"_seed["$IDX"]"
+EXP_DIR_REL="Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/OptionPPO/conv_"$IDX"_seed["$IDX"]"
 NAME_TAG="" 
 SEED=$IDX
 
@@ -48,7 +48,7 @@ ENV="" #"TwoRoomKeyDoorTwoGoalEnv-v0"
 ENV_WRAPPING='[]'
 WRAPPING_PARAMS='[]'
 ENV_PARAMS='{}'
-EPISODE_MAX_STEPS=0  
+EPISODE_MAX_STEPS=500  
 
 
 NUM_RUNS=5                # how many test runs (test.py will make one GIF per run)

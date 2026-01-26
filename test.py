@@ -57,7 +57,7 @@ if __name__ == "__main__":
     args = parse()
     
     if args.exp_dir is None:
-        exp_name = "Runs/Train/MiniGrid-EmptyTwoGoals-v0_/VQOptionCritic/_seed[123123]"
+        exp_name = "Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/OptionPPO/conv_1_seed[1]"
     else:
         exp_name = args.exp_dir
     

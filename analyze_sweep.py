@@ -602,7 +602,7 @@ if __name__ == '__main__':
     
     # --- Configuration ---
     if args.exp_dir is None:
-        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/online-c20_conv_dim-8_manual-emb_seed[1]"
+        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/enc[conv]_cb[dim-8]_opt[offline]_emb[auto]_seed[1]"
     else:
         exp_dir = args.exp_dir
     ratio   = args.ratio # average the last ratio --> 0.0: only last  ---  1.0: all

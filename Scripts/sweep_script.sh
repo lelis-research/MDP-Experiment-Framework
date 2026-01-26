@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="enc[conv]_cb[dim-8]_opt[offline]_emb[auto]" # online-20_conv_dim-8_manual-emb
+NAME_TAG="enc[conv]_cb[dim-8]_opt[c100]_emb[auto]" # online-20_conv_dim-8_manual-emb
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -98,8 +98,8 @@ INFO='{
   "codebook_eps": 1e-8,
   "hl_num_epochs": 10,
 
-  "option_count_to_add": 20,
-  "init_options_lst": "all"
+  "option_count_to_add": 100,
+  "init_options_lst": "actions"
 }'
 
 HP_SEARCH_SPACE='{
