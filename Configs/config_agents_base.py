@@ -298,13 +298,13 @@ AGENT_DICT = {
             num_epochs=info.get("num_epochs", 10),
             target_kl=info.get("target_kl", None), #None means no early stop
             
-            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/conv_imgdir_actor")],
+            actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/conv_imgdircarry_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             actor_eps = info.get("actor_eps", 1e-8),
             clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
             anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
             
-            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/conv_imgdir_critic")],
+            critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/conv_imgdircarry_critic")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             critic_eps = info.get("critic_eps", 1e-8),
             clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
@@ -410,7 +410,14 @@ AGENT_DICT = {
                 enable_transform_action=info.get("hl_enable_transform_action", True),
                 
                 commit_coef = info.get("commit_coef", 0.0),
-                block_critic_to_encoder = info.get("block_critic_to_encoder", True)
+                block_critic_to_encoder = info.get("block_critic_to_encoder", True),
+                
+                distribution_type = info.get("hl_distribution_type", "categorical"), #categorical, continuous
+                
+                
+                tau_min = info.get("hl_tau_min", 0.8), # only for categorical
+                tau_init = info.get("hl_tau_init", 2.0), # only for categorical
+                tau_decay = info.get("hl_tau_decay", 0.9995), # only for categorical
             ),
             
             # CodeBook Params
@@ -418,11 +425,20 @@ AGENT_DICT = {
                 embedding_dim = info.get("codebook_embedding_dim", 8),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
+                init_emb_range=info.get("codebook_init_emb_range", 1.0),
                 
+                similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2
+                
+                update_type=info.get("codebook_update_type", "ema"), # grad, ema
+                
+                # grad params
                 step_size=info.get("codebook_step_size", 3e-4),
                 eps=info.get("codebook_eps", 1e-5),
-                init_emb_range=info.get("codebook_init_emb_range", 1.0),
                 max_grad_norm=info.get("codebook_max_grad_norm", 1.0),
+                
+                # ema params
+                ema_decay = info.get("codebook_ema_decay", 0.99),
+                ema_eps = info.get("codebook_ema_eps", 1e-5),
             ),
             
             # Option Learner
@@ -437,4 +453,5 @@ AGENT_DICT = {
         init_option_embs=None,
         device=device
     ),
-}
+    
+    }

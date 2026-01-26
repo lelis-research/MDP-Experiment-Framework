@@ -39,6 +39,15 @@ def _to_torch(x, device, dtype=torch.float32):
         return x.to(device=device, dtype=dtype)
     return torch.as_tensor(np.array(x), device=device, dtype=dtype)
 
+@register_policy
+class LowLevelPolicy(BasePolicy):
+    def __init__(self, action_space, hyper_params, device):
+        super().__init__(action_space, hyper_params, device)
+    
+    def select_action(self, x, emb, greedy):
+        return [0] * len(x)
+
+
 class Encoder(RandomGenerator):
     def __init__(self, hyper_params, features_dict, device):
         self.features_dict = features_dict
@@ -104,17 +113,83 @@ class Encoder(RandomGenerator):
     
 @register_policy
 class HighLevelPolicy(OptionPPOPolicy):
+    def __init__(self, action_space, features_dict, hyper_params, device="cpu"):
+        super().__init__(action_space, features_dict, hyper_params, device)
+        self.reheat()
+
+    def reset(self, seed):
+        self.reheat()
+        return super().reset(seed)
+
+    def reheat(self):
+        self.tau_counter = 0
+        self.hp.update(tau=self.hp.tau_init)
         
+    def get_logprob_entropy(self, state, action_t=None):
+        """
+        Returns:
+            action_t: sampled or given action
+              - Discrete: shape [B]  (dtype long)
+              - Continuous: shape [B, action_dim]
+            log_prob: shape [B]
+            entropy: shape [B]
+        """
+        
+        if self.hp.distribution_type == "categorical":
+            # actor outputs mu (B,d)
+            mu = self.actor(**state)
+            
+            logits = self.code_book.get_logits(mu, tau=self.hp.tau, detach_code=True)
+
+            dist = Categorical(logits=logits)
+
+            # action is now an index k
+            if action_t is None:
+                action_t = dist.sample()          # (B,) long
+            else:
+                action_t = action_t.to(device=logits.device, dtype=torch.long)
+
+            log_prob = dist.log_prob(action_t)    # (B,)
+            entropy  = dist.entropy()             # (B,)
+            greedy_action = logits.argmax(dim=-1) # (B,)
+            
+            raw_action = mu  # for future commitment losses
+            
+            
+        elif self.hp.distribution_type == "continuous":
+            action_t, log_prob, entropy, greedy_action = super().get_logprob_entropy(state, action_t)
+            raw_action = greedy_action # for future commitment losses
+        
+         
+        return action_t, log_prob, entropy, greedy_action, raw_action
+    
     def select_action(self, state, greedy=False):
         """
         Returns a numpy action of shape [action_dim].
         """
-        encoded_state = self.encoder(state)
-        return super().select_action(encoded_state, greedy)
+        
+        with torch.no_grad():
+            encoded_state = self.encoder(state)
+            proto_e, proto_log_prob, _, greedy_proto_e, proto_raw = self.get_logprob_entropy(encoded_state)
+            if greedy:
+                proto_e = greedy_proto_e
+                
+            if self.hp.distribution_type == "continuous":
+                idx, e, _ = self.code_book(proto_e)
+            elif self.hp.distribution_type == "categorical":
+                idx = proto_e                          # (B,) long
+                e = self.code_book.emb(idx)             # (B,d)
+            
+        return idx.cpu().numpy(), e.cpu().numpy(), proto_e.cpu().numpy(), proto_log_prob.cpu().numpy(), proto_raw.cpu().numpy()
                 
     def update(self, states, proto_emb, emb, old_log_probs, next_states, rewards, discounts, terminated, truncated, call_back=None):
         self.update_counter += 1
-            
+        self.tau_counter += 1
+        self.hp.update(
+            tau=max(self.hp.tau_min, 
+                    self.hp.tau_init * (self.hp.tau_decay ** self.tau_counter))
+        )
+
         # LR annealing (optional)
         if self.hp.enable_stepsize_anneal:
             frac = 1.0 - (self.update_counter - 1.0) / float(self.hp.total_updates)  # linear from initial->0
@@ -139,11 +214,15 @@ class HighLevelPolicy(OptionPPOPolicy):
             proto_emb_t = torch.tensor(np.array(proto_emb), dtype=torch.int64, device=self.device)  # (T,)
             emb_t = torch.tensor(np.array(emb), dtype=torch.int64, device=self.device)  # (T,)
         elif isinstance(self.action_space, Box):
-            proto_emb_t = torch.tensor(np.array(proto_emb), dtype=torch.float32, device=self.device)  # (T, A)
+            if self.hp.distribution_type == "continuous":
+                proto_emb_t = torch.tensor(np.array(proto_emb), dtype=torch.float32, device=self.device)  # (T, A)
+            elif self.hp.distribution_type == "categorical":
+                proto_emb_t = torch.tensor(np.array(proto_emb), dtype=torch.int64, device=self.device)  # (T,)
+                
             emb_t = torch.tensor(np.array(emb), dtype=torch.float32, device=self.device)  # (T, A)
         
         log_probs_old_t = torch.tensor(np.array(old_log_probs), dtype=torch.float32, device=self.device)  # (T,)
-
+        
         with torch.no_grad():
             values = self.critic(**self.encoder(states)).squeeze(-1)               # (T, )
             next_values = self.critic(**self.encoder(next_states)).squeeze(-1) # (T, )
@@ -194,7 +273,7 @@ class HighLevelPolicy(OptionPPOPolicy):
                     
                 # new log-probs under current policy
                 batch_encoded_states = self.encoder(batch_states) # forward pass to Encoder
-                _, batch_log_probs_new_t, entropy, batch_new_proto_emb_mean = self.get_logprob_entropy(batch_encoded_states, batch_proto_emb_t)
+                _, batch_log_probs_new_t, entropy, _, raw_action = self.get_logprob_entropy(batch_encoded_states, batch_proto_emb_t)
             
                 log_ratio = batch_log_probs_new_t - batch_log_probs_t
                 ratios = torch.exp(log_ratio)  # [B, ]
@@ -227,7 +306,8 @@ class HighLevelPolicy(OptionPPOPolicy):
                 entropy_bonus = entropy.mean()    
                 entropy_losses.append(entropy_bonus.item())
                 
-                commit_loss = F.mse_loss(batch_emb_t, batch_new_proto_emb_mean)
+                commit_loss = self.code_book.commit_loss(batch_emb_t, raw_action)
+                    
                 commit_losses.append(commit_loss.item())
                 
                 loss = actor_loss + self.hp.critic_coef * critic_loss - self.hp.entropy_coef * entropy_bonus + self.hp.commit_coef * commit_loss
@@ -287,6 +367,9 @@ class HighLevelPolicy(OptionPPOPolicy):
                 "hl_actor_grad_norms": float(np.mean(actor_grad_norms)),
                 "hl_critic_grad_norms": float(np.mean(critic_grad_norms)),
                 "encoder_grad_norms": float(np.mean(encoder_grad_norms)),
+                
+                "hl_tau": float(self.hp.tau),
+                "hl_tau_counter": int(self.tau_counter),
             }
             if isinstance(self.action_space, Box) and self.actor_logstd is not None:
                 payload["actor_logstd_mean"] = float(self.actor_logstd.mean().item())
@@ -296,15 +379,10 @@ class HighLevelPolicy(OptionPPOPolicy):
 
     def set_encoder(self, encoder):
         self.encoder = encoder
-        
-@register_policy
-class LowLevelPolicy(BasePolicy):
-    def __init__(self, action_space, hyper_params, device):
-        super().__init__(action_space, hyper_params, device)
     
-    def select_action(self, x, emb, greedy):
-        return [0] * len(x)
-
+    def set_codebook(self, code_book):
+        self.code_book = code_book
+        
 class CodeBook(RandomGenerator):
     def __init__(self, hyper_params, num_initial_codes, device, init_embs=None):
         self.num_codes = num_initial_codes
@@ -312,9 +390,16 @@ class CodeBook(RandomGenerator):
         
         self.device = device
         self.hp = hyper_params
-        
         self.emb = nn.Embedding(self.num_codes, self.hp.embedding_dim).to(self.device)
-        self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+        
+        if self.hp.update_type == "grad":
+            self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+        elif self.hp.update_type == "ema":
+            self.ema_counts = torch.zeros(self.num_codes, device=self.device, dtype=torch.float32)
+            self.ema_sum = torch.zeros(self.num_codes, self.hp.embedding_dim, device=self.device, dtype=torch.float32)
+        else:
+            raise ValueError(f"[CodeBook] Unknown update_type={self.hp.update_type}")
+            
     
     def _init_weights(self):
         if self.init_embs is None:
@@ -336,7 +421,24 @@ class CodeBook(RandomGenerator):
         
         self.emb = nn.Embedding(self.num_codes, self.hp.embedding_dim).to(self.device)
         self._init_weights()
-        self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+        
+        if self.hp.update_type == "grad":
+            self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+        elif self.hp.update_type == "ema":
+            self.ema_counts = torch.zeros(self.num_codes, device=self.device, dtype=torch.float32)
+            self.ema_sum = torch.zeros(self.num_codes, self.hp.embedding_dim, device=self.device, dtype=torch.float32)
+    
+    def commit_loss(self, e, proto_e):
+        if self.hp.similarity_metric == "l2":
+            loss = F.mse_loss(e, proto_e)
+        elif self.hp.similarity_metric == "cosine":
+            e_n = F.normalize(e, dim=-1, eps=1e-8)
+            p_n = F.normalize(proto_e, dim=-1, eps=1e-8)
+            # 1 - cosine similarity
+            loss = (1.0 - (e_n * p_n).sum(dim=-1)).mean()
+        else:
+            raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} not defined for commit_loss")
+        return loss
     
     def update(self, proto_e, call_back=None) -> float:
         proto_e = torch.as_tensor(np.array(proto_e), device=self.device, dtype=torch.float32)  # (T,d)
@@ -349,23 +451,69 @@ class CodeBook(RandomGenerator):
         with torch.no_grad():
             idx = self.get_closest_ind(proto_e)  # (T,)
 
-        # Optional: snapshot weights (debug only)
-        w_before = self.emb.weight.detach().clone() if call_back is not None else None
 
         e = self.emb(idx)  # (T,d)
-        loss_cb = F.mse_loss(e, proto_e.detach())
+        loss_cb = self.commit_loss(e, proto_e.detach())
+        
+        if self.hp.update_type == "grad":
+            self.optimizer.zero_grad(set_to_none=True)
+            loss_cb.backward()
 
-        self.optimizer.zero_grad(set_to_none=True)
-        loss_cb.backward()
+            if call_back is not None:
+                grad_n = float(nn.utils.clip_grad_norm_(self.emb.parameters(), self.hp.max_grad_norm).item())
+            else:
+                nn.utils.clip_grad_norm_(self.emb.parameters(), self.hp.max_grad_norm)
+                grad_n = None
 
-        if call_back is not None:
-            grad_n = float(nn.utils.clip_grad_norm_(self.emb.parameters(), self.hp.max_grad_norm).item())
-        else:
-            nn.utils.clip_grad_norm_(self.emb.parameters(), self.hp.max_grad_norm)
-            grad_n = None
+            self.optimizer.step()
+        
+        elif self.hp.update_type == "ema":
+            with torch.no_grad():
+                K = self.emb.num_embeddings
+                idx_int = idx.to(torch.int64)
 
-        self.optimizer.step()
+                # counts per code in this batch
+                batch_counts = torch.bincount(idx_int, minlength=K).float()  # (K,)
 
+                # sum of proto_e per code in this batch
+                batch_sum = torch.zeros((K, self.hp.embedding_dim), device=self.device, dtype=torch.float32)
+                if self.hp.similarity_metric == "cosine":
+                    proto_use = F.normalize(proto_e, dim=-1, eps=1e-8)
+                elif self.hp.similarity_metric == "l2":
+                    proto_use = proto_e
+                else:
+                    raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} not defined for ema")
+                    
+                batch_sum.index_add_(0, idx_int, proto_use)  # (K,d)
+
+                # EMA stats
+                self.ema_counts.mul_(self.hp.ema_decay).add_(batch_counts, alpha=(1.0 - self.hp.ema_decay))
+                self.ema_sum.mul_(self.hp.ema_decay).add_(batch_sum, alpha=(1.0 - self.hp.ema_decay))
+
+                # Laplace smoothing to avoid division by 0 for dead codes
+                n = self.ema_counts.sum()
+                smoothed_counts = (self.ema_counts + self.hp.ema_eps) / (n + K * self.hp.ema_eps) * n  # (K,)
+                # new_weight = self.ema_sum / self.ema_counts.unsqueeze(1).clamp_min(self.hp.ema_eps)
+                
+                if self.hp.similarity_metric == "cosine":
+                    new_weight = self.ema_sum / smoothed_counts.unsqueeze(1).clamp_min(self.hp.ema_eps)  # (K,d)
+                    new_weight = F.normalize(new_weight, dim=-1, eps=1e-8)
+                elif self.hp.similarity_metric == "l2":
+                    new_weight = self.ema_sum / smoothed_counts.unsqueeze(1).clamp_min(self.hp.ema_eps)  # (K,d)
+                
+                
+
+                self.emb.weight.data.copy_(new_weight)
+
+            grad_n = 0.0            
+
+            
+        with torch.no_grad():
+            if self.hp.similarity_metric == "cosine":
+                self.emb.weight.copy_(F.normalize(self.emb.weight, dim=-1, eps=1e-8))
+            elif self.hp.similarity_metric == "l2":
+                self.emb.weight.clamp_(self.hp.embedding_low, self.hp.embedding_high)
+    
         if call_back is not None:
             with torch.no_grad():
                 idx_int = idx.to(torch.int64)
@@ -377,24 +525,21 @@ class CodeBook(RandomGenerator):
                 p = counts / counts.sum().clamp_min(1.0)
                 entropy = float(-(p[p > 0] * torch.log(p[p > 0])).sum().item())
 
-                dist = (e.detach() - proto_e.detach()).norm(dim=-1)  # (T,)
-                mean_dist = float(dist.mean().item())
-                max_dist = float(dist.max().item())
+                # unified "distance" metric consistent with your training objective
+                cb_commit = float(self.commit_loss(e.detach(), proto_e.detach()).item())
 
-                step_mag = float((self.emb.weight.detach() - w_before).norm(dim=-1).mean().item()) if w_before is not None else None
-
-            call_back({
+            payload = {
                 "cb_loss": float(loss_cb.item()),
+                "cb_commit": cb_commit,
                 "cb_grad_norm": grad_n,
                 "cb_used_codes": used,
                 "cb_frac_used": frac_used,
                 "cb_usage_entropy": entropy,
-                "cb_assign_mean_l2": mean_dist,
-                "cb_assign_max_l2": max_dist,
-                "cb_mean_code_step": step_mag,
                 "cb_num_codes": int(K),
                 "cb_batch_T": int(proto_e.shape[0]),
-            })
+            }
+
+            call_back(payload)
 
         return float(loss_cb.item())
     
@@ -407,11 +552,27 @@ class CodeBook(RandomGenerator):
             raise ValueError(f"proto must be (B, d), got {tuple(proto.shape)}")
         if proto.shape[1] != self.hp.embedding_dim:
             raise ValueError(f"proto dim mismatch: expected d={self.hp.embedding_dim}, got {proto.shape[1]}")
-
+        
         code = self.emb.weight  # (K, d)
-        proto2 = (proto ** 2).sum(dim=1, keepdim=True)          # (B, 1)
-        code2  = (code ** 2).sum(dim=1).unsqueeze(0)            # (1, K)
-        dist = proto2 + code2 - 2.0 * (proto @ code.t())        # (B, K)
+        
+        if self.hp.similarity_metric == "l2":
+            proto2 = (proto ** 2).sum(dim=1, keepdim=True)          # (B, 1)
+            code2  = (code ** 2).sum(dim=1).unsqueeze(0)            # (1, K)
+            dist = proto2 + code2 - 2.0 * (proto @ code.t())        # (B, K)
+            
+        elif self.hp.similarity_metric == "cosine":
+            # Normalize both sides
+            proto_n = F.normalize(proto, dim=1, eps=1e-8)      # (B, d)
+            code_n  = F.normalize(code, dim=1, eps=1e-8)       # (K, d)
+
+            # cosine similarity in [-1, 1]
+            sim = proto_n @ code_n.t()                          # (B, K)
+
+            # convert to distance so argmin works
+            dist = 1.0 - sim                                   # (B, K)
+        else:
+            raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} is not define")
+        
         idx = dist.argmin(dim=1)
         return idx
 
@@ -419,6 +580,47 @@ class CodeBook(RandomGenerator):
         idx = self.get_closest_ind(proto)
         return self.emb(idx)  # (B, d)
 
+    def get_logits(self, proto: torch.Tensor, tau: float = 1.0, detach_code: bool = True) -> torch.Tensor:
+        """
+        Build categorical logits over K codes given proto vectors.
+
+        proto: (B, d)
+        returns logits: (B, K) where larger => more likely
+
+        tau: temperature (>0). smaller => sharper distribution
+        detach_code: if True, treat codebook weights as constant for PPO (recommended)
+        """
+        if proto.ndim != 2:
+            raise ValueError(f"proto must be (B, d), got {tuple(proto.shape)}")
+        if proto.shape[1] != self.hp.embedding_dim:
+            raise ValueError(f"proto dim mismatch: expected d={self.hp.embedding_dim}, got {proto.shape[1]}")
+
+        tau = max(float(tau), 1e-8)
+
+        code = self.emb.weight
+        if detach_code:
+            code = code.detach()
+
+        if self.hp.similarity_metric == "cosine":
+            # logits = cosine_similarity / tau
+            proto_n = F.normalize(proto, dim=1, eps=1e-8)   # (B,d)
+            code_n  = F.normalize(code,  dim=1, eps=1e-8)   # (K,d)
+            sim = proto_n @ code_n.t()                      # (B,K) in [-1,1]
+            logits = sim / tau
+
+        elif self.hp.similarity_metric == "l2":
+            # logits = -squared_l2_distance / tau
+            # dist2 = ||p||^2 + ||c||^2 - 2 p·c
+            proto2 = (proto ** 2).sum(dim=1, keepdim=True)      # (B,1)
+            code2  = (code  ** 2).sum(dim=1).unsqueeze(0)       # (1,K)
+            dist2 = proto2 + code2 - 2.0 * (proto @ code.t())   # (B,K)
+            logits = (-dist2) / tau
+
+        else:
+            raise ValueError(f"[CodeBook] similarity_metric={self.hp.similarity_metric} not defined")
+
+        return logits
+    
     def __call__(self, proto: torch.Tensor):
         """
         Quantize proto -> (idx, e, e_st)
@@ -466,7 +668,24 @@ class CodeBook(RandomGenerator):
 
         self.num_codes = K_new
         
-        self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+        if self.hp.update_type == "grad":
+            self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
+            
+        elif self.hp.update_type == "ema":
+            old_counts = self.ema_counts
+            old_sum = self.ema_sum
+
+            self.ema_counts = torch.zeros(K_new, device=self.device, dtype=torch.float32)
+            self.ema_sum = torch.zeros(K_new, d, device=self.device, dtype=torch.float32)
+
+            self.ema_counts[:K_old].copy_(old_counts)
+            self.ema_sum[:K_old].copy_(old_sum)
+
+            # optional: seed new code to avoid tiny-denominator weirdness
+            self.ema_counts[K_old] = 1.0
+            self.ema_sum[K_old].copy_(self.emb.weight.data[K_old].to(torch.float32))
+            
+            
         return K_old
 
 
@@ -481,8 +700,13 @@ class CodeBook(RandomGenerator):
             "device": self.device,
             "rng_state": self.get_rng_state(),
             "emb_state_dict": self.emb.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
         }
+        if self.hp.update_type == "grad":
+            checkpoint["optimizer_state_dict"] = self.optimizer.state_dict()
+        else:
+            checkpoint["ema_counts"] = self.ema_counts.detach().cpu()
+            checkpoint["ema_sum"] = self.ema_sum.detach().cpu()
+        
         if file_path is not None:
             torch.save(checkpoint, f"{file_path}_codebook.t")
         return checkpoint
@@ -507,10 +731,13 @@ class CodeBook(RandomGenerator):
 
         # restore params
         instance.emb.load_state_dict(checkpoint["emb_state_dict"])
-        instance.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-
-        # keep num_codes in sync
         instance.num_codes = int(checkpoint["num_codes"])
+        
+        if instance.hp.update_type == "grad":        
+            instance.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        elif instance.hp.update_type == "ema":
+            instance.ema_counts.copy_(checkpoint["ema_counts"].to(instance.device))
+            instance.ema_sum.copy_(checkpoint["ema_sum"].to(instance.device))
         return instance
 
 @register_agent
@@ -579,12 +806,14 @@ class VQOptionCriticAgent(BaseAgent):
         # self.hl_policy = HighLevelPolicy(hl_action_space, self.feature_extractor.features_dict, hyper_params.hl, device)
         self.hl_policy = HighLevelPolicy(hl_action_space, self.encoder.encoder_features_dict, hyper_params.hl, device)
         self.hl_policy.set_encoder(self.encoder)
+        self.hl_policy.set_codebook(self.code_book)
         
         self.rollout_buffer = [BaseBuffer(self.hp.hl.rollout_steps) for _ in range(self.num_envs)]
         
         self.running_option_index = [None for _ in range(self.num_envs)]      
         self.running_option_emb = [None for _ in range(self.num_envs)]      
         self.running_option_proto_emb = [None for _ in range(self.num_envs)]
+        self.running_option_proto_raw = [None for _ in range(self.num_envs)]
  
         self.option_start_obs = [None for _ in range(self.num_envs)]        
         self.option_cumulative_reward = [0.0 for _ in range(self.num_envs)]    
@@ -621,14 +850,14 @@ class VQOptionCriticAgent(BaseAgent):
             need_new = need_new.nonzero(as_tuple=False).squeeze(-1)
             with torch.no_grad():
                 needed_state = get_batch_state(state, need_new)
-                proto_e, proto_log_prob = self.hl_policy.select_action(needed_state, greedy=not self.training)
-                idx, e, _ = self.code_book(torch.from_numpy(proto_e).to(self.device))
+                idx, e, proto_e, proto_log_prob, proto_raw = self.hl_policy.select_action(needed_state, greedy=not self.training)
                 
                 # add the new ones to the lists
                 for j, env_i in enumerate(need_new.tolist()):                    
-                    self.running_option_index[env_i] = int(idx[j].item())
-                    self.running_option_emb[env_i] = e[j].detach()
+                    self.running_option_index[env_i] = int(idx[j])
+                    self.running_option_emb[env_i] = e[j]
                     self.running_option_proto_emb[env_i] = proto_e[j]
+                    self.running_option_proto_raw[env_i] = proto_raw[j]
                     
                     self.option_start_obs[env_i] = get_single_observation(observation, env_i)
                     self.option_log_prob[env_i] = proto_log_prob[j]
@@ -669,6 +898,7 @@ class VQOptionCriticAgent(BaseAgent):
                                 self.options_lst.append(opt)
                                 new_embs = torch.from_numpy(self.hp.all_embeddings[c]) if self.hp.all_embeddings is not None else None
                                 self.code_book.add_row(new_embs)
+                                self.hl_policy.reheat()
                     
         else:
             for i in range(self.num_envs):
@@ -682,7 +912,7 @@ class VQOptionCriticAgent(BaseAgent):
                 self.option_num_steps[i] += 1
                 if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                     self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
-                    self.log_buf[i]["e"].append(self.running_option_emb[i].cpu().numpy())
+                    self.log_buf[i]["e"].append(np.asarray(self.running_option_emb[i], dtype=np.float32))
                     self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                     self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                     if call_back is not None:
@@ -690,8 +920,7 @@ class VQOptionCriticAgent(BaseAgent):
                     
                     self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
-            
-
+        
     def update_hl(self, observation, reward, terminated, truncated, call_back=None):
         for i in range(self.num_envs):
             # add to the rollouts
@@ -705,7 +934,7 @@ class VQOptionCriticAgent(BaseAgent):
             if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
                 
                 self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
-                self.log_buf[i]["e"].append(self.running_option_emb[i].cpu().numpy())
+                self.log_buf[i]["e"].append(np.asarray(self.running_option_emb[i], dtype=np.float32))
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
 
@@ -718,6 +947,7 @@ class VQOptionCriticAgent(BaseAgent):
                     curr_option_idx,
                     self.running_option_emb[i], 
                     self.running_option_proto_emb[i],
+                    self.running_option_proto_raw[i],
                     self.option_cumulative_reward[i], 
                     self.option_multiplier[i], 
                     obs, 
@@ -737,6 +967,7 @@ class VQOptionCriticAgent(BaseAgent):
                     rollout_option_idx,
                     rollout_option_emb,
                     rollout_option_proto_emb,
+                    rollout_option_proto_raw,
                     rollout_rewards,
                     rollout_discounts,
                     rollout_next_observations,
@@ -763,8 +994,8 @@ class VQOptionCriticAgent(BaseAgent):
                                    rollout_terminated, 
                                    rollout_truncated, 
                                    call_back=call_back)
-                # update codebook
-                self.code_book.update(rollout_option_proto_emb,
+                # # update codebook
+                self.code_book.update(rollout_option_proto_raw,
                                       call_back=call_back)
                 
                 
@@ -777,10 +1008,12 @@ class VQOptionCriticAgent(BaseAgent):
         self.encoder.reset(seed)
         self.hl_policy.reset(seed)
         self.hl_policy.set_encoder(self.encoder)
+        self.hl_policy.set_codebook(self.code_book)
         
         self.running_option_index = [None for _ in range(self.num_envs)]      
         self.running_option_emb = [None for _ in range(self.num_envs)]      
         self.running_option_proto_emb = [None for _ in range(self.num_envs)]
+        self.running_option_proto_raw = [None for _ in range(self.num_envs)]
  
         self.option_start_obs = [None for _ in range(self.num_envs)]        
         self.option_cumulative_reward = [0.0 for _ in range(self.num_envs)]    
@@ -865,6 +1098,7 @@ class VQOptionCriticAgent(BaseAgent):
             file_path=None,
             checkpoint=checkpoint["code_book"],
         )
+        instance.hl_policy.set_codebook(instance.code_book)
 
         # Ensure options list is set (already used in __init__, but keep explicit)
         instance.options_lst = options_lst
