@@ -61,8 +61,8 @@ class OnlineTrainer:
         
         
         
-        self.call_back = TBCallBack(log_dir=exp_dir, flush_every=100, flush_mode="raw") #makes it super slow on compute canada
-        # self.call_back = EmptyCallBack(log_dir=exp_dir)
+        # self.call_back = TBCallBack(log_dir=exp_dir, flush_every=100, flush_mode="raw") #makes it super slow on compute canada
+        self.call_back = EmptyCallBack(log_dir=exp_dir)
         # self.call_back = JsonlCallback(log_path=os.path.join(exp_dir, "metrics.jsonl"), flush_every=100)
         
     @staticmethod

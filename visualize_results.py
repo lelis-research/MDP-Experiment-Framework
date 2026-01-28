@@ -24,17 +24,40 @@ def multi_exp_results():
         # "VQ_Maze-d8_online": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8"], name_string_anti_conditions=["manual-emb"]),
         # "VQ_Maze-d8_online_Manual-emb": gather_experiments(VQ_Maze, name_string_conditions=["online-c20_conv_dim-8_manual-emb"], name_string_anti_conditions=[]),
         
+        
         "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim-8]_opt[offline]_emb[auto]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim-8]_opt[offline]_emb[auto]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim-8]_opt[c20]_emb[auto]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim-8]_opt[c20]_emb[auto]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim-8]_opt[c50]_emb[auto]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim-8]_opt[c50]_emb[auto]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim-8]_opt[c100]_emb[auto]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim-8]_opt[c100]_emb[auto]_"], name_string_anti_conditions=[]),
+        
+        # "enc[conv]_cb[dim8-cosine]_opt[c20]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c20]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[c50]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c50]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[c100]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c100]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[offline]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[offline]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        
+        # "enc[conv]_cb[dim8-cosine]_opt[c20]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c20]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[c50]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c50]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[c100]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[c100]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-cosine]_opt[offline]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-cosine]_opt[offline]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        
+        # "enc[conv]_cb[dim8-l2]_opt[c20]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c20]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[c50]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c50]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[c100]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c100]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[offline]_emb[auto]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[offline]_emb[auto]_dist[cat]_"], name_string_anti_conditions=[]),
+       
+        # "enc[conv]_cb[dim8-l2]_opt[c20]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c20]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[c50]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c50]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[c100]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[c100]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim8-l2]_opt[offline]_emb[auto]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim8-l2]_opt[offline]_emb[auto]_dist[con]_"], name_string_anti_conditions=[]),
 
-
+        "enc[conv]_cb[dim42-cosine]_opt[offline]_emb[onehot-fixed]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-cosine]_opt[offline]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
+        "enc[conv]_cb[dim42-cosine]_opt[offline]_emb[onehot-fixed]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-cosine]_opt[offline]_emb[onehot-fixed]_dist[con]_"], name_string_anti_conditions=[]),
+        "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
+        "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]_"], name_string_anti_conditions=[]),
     }
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_enc_comparison", window_size=1, show_ci=True, ignore_last=True, 
+    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_enc[conv]_cb[dim42]_opt[offline]_emb[onehot-fixed]", window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
+    
+    # plot_experiments(agent_dict, "Runs/Figures", "MazeRoom_Embedding_Comparison", window_size=1, show_ci=True, ignore_last=True, 
+    #                  plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
     # plot_option_embeddings(agent_dict, "Runs/Figures", name=f"Option_Emb_Codebook_Commit", show_legend=True, min_ep=5000
 
 

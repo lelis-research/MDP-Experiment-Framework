@@ -255,7 +255,7 @@ class SingleExpAnalyzer:
                 handles, labels = ax.get_legend_handles_labels()
                 
                 # Create one legend for the entire figure.
-                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.965))
+                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/3), shadow=False, bbox_to_anchor=(0.5, 0.965))
                 fig.tight_layout(rect=[0, 0, 1.0, 0.95])
             else:
                 fig.tight_layout()

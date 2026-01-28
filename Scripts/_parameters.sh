@@ -45,6 +45,8 @@ INFO_tier1='{
 
   "codebook_eps": 1e-5,
   "codebook_max_grad_norm": 1.0,
+  "codebook_step_size": 3e-4,
+
 
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
@@ -52,13 +54,12 @@ INFO_tier1='{
   "option_count_to_add": 20,
   "init_options_lst": "actions"
 }'
-# 2592 configs
+# 864 configs
 HP_SEARCH_SPACE_tier1='{
   "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
   "hl_entropy_coef": [0.0, 0.001, 0.01, 0.05],
   "commit_coef": [0.05, 0.1, 0.2],
 
-  "codebook_step_size": [1e-4, 3e-4, 1e-3],
   "codebook_init_emb_range": [1e-5, 1e-1, 1.0],
   "block_critic_to_encoder": [true, false],
 

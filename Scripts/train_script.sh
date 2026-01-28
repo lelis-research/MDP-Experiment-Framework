@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="enc[conv]_cb[dim-8]_opt[offline]_emb[auto]_$IDX"
+NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -62,14 +62,19 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "block_critic_to_encoder": false,
-  "codebook_embedding_dim": 8,
+ "block_critic_to_encoder": false,
+  "codebook_ema_decay": 0.99,
+  "codebook_ema_eps": 1e-05,
+  "codebook_embedding_dim": 42,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
-  "codebook_eps": 1e-08,
-  "codebook_init_emb_range": 1e-05,
-  "codebook_max_grad_norm": 0.5,
+  "codebook_eps": 1e-05,
+  "codebook_init_emb_range": 0.1,
+  "codebook_init_type": "onehot-fixed",
+  "codebook_max_grad_norm": 1.0,
+  "codebook_similarity_metric": "l2",
   "codebook_step_size": 0.0003,
+  "codebook_update_type": "grad",
   "commit_coef": 0.05,
   "enc_dim": 256,
   "enc_eps": 1e-08,
@@ -87,6 +92,7 @@ INFO='{
   "hl_critic_eps": 1e-08,
   "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
   "hl_critic_step_size": 0.0001,
+  "hl_distribution_type": "continuous",
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
@@ -99,9 +105,12 @@ INFO='{
   "hl_num_epochs": 10,
   "hl_rollout_steps": 1024,
   "hl_target_kl": null,
+  "hl_tau_decay": 0.9995,
+  "hl_tau_init": 2.0,
+  "hl_tau_min": 0.8,
   "hl_total_steps": 200000,
   "init_options_lst": "all",
-  "option_count_to_add": 20
+  "option_count_to_add": 100
 }'
 # ------------------------------
 

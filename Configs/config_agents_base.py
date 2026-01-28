@@ -422,10 +422,11 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 8),
+                embedding_dim = info.get("codebook_embedding_dim", len(manual_options)),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 init_emb_range=info.get("codebook_init_emb_range", 1.0),
+                init_type=info.get("codebook_init_type", "onehot-fixed"), # uniform, onehot, "fixed"
                 
                 similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2
                 

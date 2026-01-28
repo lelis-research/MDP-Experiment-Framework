@@ -404,7 +404,13 @@ class CodeBook(RandomGenerator):
     def _init_weights(self):
         if self.init_embs is None:
             with torch.no_grad():
-                nn.init.uniform_(self.emb.weight, -self.hp.init_emb_range, self.hp.init_emb_range)
+                if "uniform" in self.hp.init_type:
+                    nn.init.uniform_(self.emb.weight, -self.hp.init_emb_range, self.hp.init_emb_range)
+                elif "onehot" in self.hp.init_type:
+                    eye = torch.eye(self.num_codes, self.hp.embedding_dim, 
+                                    dtype=self.emb.weight.dtype, 
+                                    device=self.device)
+                    self.emb.weight.copy_(eye)
         else:
             init = torch.as_tensor(self.init_embs, 
                                    dtype=self.emb.weight.dtype, 
@@ -994,10 +1000,12 @@ class VQOptionCriticAgent(BaseAgent):
                                    rollout_terminated, 
                                    rollout_truncated, 
                                    call_back=call_back)
-                # # update codebook
-                self.code_book.update(rollout_option_proto_raw,
-                                      call_back=call_back)
                 
+                # update codebook
+                if not ("fixed" in self.code_book.hp.init_type):
+                    self.code_book.update(rollout_option_proto_raw,
+                                        call_back=call_back)
+            
                 
                 self.rollout_buffer[i].clear()
             
