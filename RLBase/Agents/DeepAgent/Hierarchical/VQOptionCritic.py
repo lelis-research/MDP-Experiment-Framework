@@ -927,6 +927,8 @@ class VQOptionCriticAgent(BaseAgent):
                                 new_embs = torch.from_numpy(self.hp.all_embeddings[c]) if self.hp.all_embeddings is not None else None
                                 self.code_book.add_row(new_embs)
                                 self.hl_policy.reheat()
+                                if self.hp.option_learner_reset_at_add:
+                                    self.option_learner_tmp = {}
                     
         else:
             for i in range(self.num_envs):

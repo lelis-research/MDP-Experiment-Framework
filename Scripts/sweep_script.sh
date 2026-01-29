@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="enc[conv]_cb[dim42-cosine]_opt[offline]_emb[onehot-fixed]_dist[cat]" 
+NAME_TAG="enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[onehot-fixed]_dist[cat]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -106,8 +106,9 @@ INFO='{
 
   "codebook_embedding_dim": 42,
   "option_count_to_add": 100,
-  "init_options_lst": "all",
-  "codebook_similarity_metric": "cosine",
+  "option_learner_reset_at_add": true,
+  "init_options_lst": "actions",
+  "codebook_similarity_metric": "l2",
   "hl_distribution_type": "categorical",
   "codebook_init_type": "onehot-fixed"
 }'

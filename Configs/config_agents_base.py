@@ -445,6 +445,7 @@ AGENT_DICT = {
             # Option Learner
             all_options = manual_options,
             count_to_add = info.get("option_count_to_add", 20),
+            option_learner_reset_at_add=info.get("option_learner_reset_at_add", False),
             all_embeddings = None,
             
         ),
