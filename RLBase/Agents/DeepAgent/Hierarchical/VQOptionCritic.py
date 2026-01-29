@@ -407,9 +407,12 @@ class CodeBook(RandomGenerator):
                 if "uniform" in self.hp.init_type:
                     nn.init.uniform_(self.emb.weight, -self.hp.init_emb_range, self.hp.init_emb_range)
                 elif "onehot" in self.hp.init_type:
-                    eye = torch.eye(self.num_codes, self.hp.embedding_dim, 
-                                    dtype=self.emb.weight.dtype, 
-                                    device=self.device)
+                    if self.hp.embedding_dim >= self.num_codes:
+                        eye = torch.eye(self.num_codes, self.hp.embedding_dim, 
+                                        dtype=self.emb.weight.dtype, 
+                                        device=self.device)
+                    else:
+                        raise ValueError(f"[CodeBook] Cannot onehot init with Number of Codes ={self.num_codes} > embedding dim={self.hp.embedding_dim}")
                     self.emb.weight.copy_(eye)
         else:
             init = torch.as_tensor(self.init_embs, 
@@ -667,7 +670,16 @@ class CodeBook(RandomGenerator):
 
         if new_emb is None:
             new_vec = torch.empty((d,), device=self.device, dtype=old_weight.dtype)
-            nn.init.uniform_(new_vec, -self.hp.init_emb_range, self.hp.init_emb_range)  # uses global torch RNG state
+            if "uniform" in self.hp.init_type:
+                nn.init.uniform_(new_vec, -self.hp.init_emb_range, self.hp.init_emb_range)  # uses global torch RNG state
+            elif "onehot" in self.hp.init_type:
+                new_vec.zero_()
+                if d >= K_new:
+                    new_vec[K_old] = 1.0
+                else:
+                    raise ValueError(f"[CodeBook] Cannot onehot init new code with embedding dim={d} < Number of Codes ={K_new}")
+            else:
+                raise ValueError(f"[CodeBook] Unknown init_type={self.hp.init_type} for new code addition")
         else:
             if new_emb.dim() == 2 and new_emb.size(0) == 1:
                 new_emb = new_emb.squeeze(0)
