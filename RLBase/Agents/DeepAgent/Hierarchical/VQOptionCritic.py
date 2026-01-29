@@ -442,6 +442,8 @@ class CodeBook(RandomGenerator):
             p_n = F.normalize(proto_e, dim=-1, eps=1e-8)
             # 1 - cosine similarity
             loss = (1.0 - (e_n * p_n).sum(dim=-1)).mean()
+        elif self.hp.similarity_metric == "dot":
+            loss = - (e * proto_e).sum(dim=-1).mean()
         else:
             raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} not defined for commit_loss")
         return loss
@@ -485,7 +487,7 @@ class CodeBook(RandomGenerator):
                 batch_sum = torch.zeros((K, self.hp.embedding_dim), device=self.device, dtype=torch.float32)
                 if self.hp.similarity_metric == "cosine":
                     proto_use = F.normalize(proto_e, dim=-1, eps=1e-8)
-                elif self.hp.similarity_metric == "l2":
+                elif self.hp.similarity_metric in ("l2", "dot"):
                     proto_use = proto_e
                 else:
                     raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} not defined for ema")
@@ -504,7 +506,7 @@ class CodeBook(RandomGenerator):
                 if self.hp.similarity_metric == "cosine":
                     new_weight = self.ema_sum / smoothed_counts.unsqueeze(1).clamp_min(self.hp.ema_eps)  # (K,d)
                     new_weight = F.normalize(new_weight, dim=-1, eps=1e-8)
-                elif self.hp.similarity_metric == "l2":
+                elif self.hp.similarity_metric in ("l2", "dot"):
                     new_weight = self.ema_sum / smoothed_counts.unsqueeze(1).clamp_min(self.hp.ema_eps)  # (K,d)
                 
                 
@@ -517,7 +519,7 @@ class CodeBook(RandomGenerator):
         with torch.no_grad():
             if self.hp.similarity_metric == "cosine":
                 self.emb.weight.copy_(F.normalize(self.emb.weight, dim=-1, eps=1e-8))
-            elif self.hp.similarity_metric == "l2":
+            elif self.hp.similarity_metric in ("l2", "dot"):
                 self.emb.weight.clamp_(self.hp.embedding_low, self.hp.embedding_high)
     
         if call_back is not None:
@@ -565,6 +567,7 @@ class CodeBook(RandomGenerator):
             proto2 = (proto ** 2).sum(dim=1, keepdim=True)          # (B, 1)
             code2  = (code ** 2).sum(dim=1).unsqueeze(0)            # (1, K)
             dist = proto2 + code2 - 2.0 * (proto @ code.t())        # (B, K)
+            idx = dist.argmin(dim=-1)
             
         elif self.hp.similarity_metric == "cosine":
             # Normalize both sides
@@ -573,13 +576,16 @@ class CodeBook(RandomGenerator):
 
             # cosine similarity in [-1, 1]
             sim = proto_n @ code_n.t()                          # (B, K)
-
-            # convert to distance so argmin works
-            dist = 1.0 - sim                                   # (B, K)
-        else:
-            raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} is not define")
+            idx = sim.argmax(dim=-1)
         
-        idx = dist.argmin(dim=1)
+        elif self.hp.similarity_metric == "dot":
+            # maximize dot product
+            sim = proto @ code.t()                                   # (B, K)
+            idx = sim.argmax(dim=-1)
+        
+        else:
+            raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} is not defined")
+        
         return idx
 
     def get_closest_emb(self, proto: torch.Tensor) -> torch.Tensor:
@@ -621,6 +627,10 @@ class CodeBook(RandomGenerator):
             code2  = (code  ** 2).sum(dim=1).unsqueeze(0)       # (1,K)
             dist2 = proto2 + code2 - 2.0 * (proto @ code.t())   # (B,K)
             logits = (-dist2) / tau
+        
+        elif self.hp.similarity_metric == "dot":
+            sim = proto @ code.t()                             # (B,K)
+            logits = sim / tau
 
         else:
             raise ValueError(f"[CodeBook] similarity_metric={self.hp.similarity_metric} not defined")

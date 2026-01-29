@@ -410,7 +410,7 @@ AGENT_DICT = {
                 enable_transform_action=info.get("hl_enable_transform_action", True),
                 
                 commit_coef = info.get("commit_coef", 0.0),
-                block_critic_to_encoder = info.get("block_critic_to_encoder", True),
+                block_critic_to_encoder = info.get("block_critic_to_encoder", False),
                 
                 distribution_type = info.get("hl_distribution_type", "categorical"), #categorical, continuous
                 
@@ -428,7 +428,7 @@ AGENT_DICT = {
                 init_emb_range=info.get("codebook_init_emb_range", 1.0),
                 init_type=info.get("codebook_init_type", "onehot-fixed"), # uniform, onehot, "fixed"
                 
-                similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2
+                similarity_metric=info.get("codebook_similarity_metric", "dot"), # cosine, l2, dot
                 
                 update_type=info.get("codebook_update_type", "ema"), # grad, ema
                 
