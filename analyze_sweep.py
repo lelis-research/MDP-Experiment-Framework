@@ -602,7 +602,7 @@ if __name__ == '__main__':
     
     # --- Configuration ---
     if args.exp_dir is None:
-        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]_seed[1]"
+        exp_dir = "Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot]_dist[cat]_seed[1]"
     else:
         exp_dir = args.exp_dir
     ratio   = args.ratio # average the last ratio --> 0.0: only last  ---  1.0: all
@@ -613,9 +613,9 @@ if __name__ == '__main__':
     main(exp_dir, ratio, auc_type, num_workers=16)
 
     # Plot sensitivities for all keys found in info:
-    plot_all_param_sensitivities(
-        exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
-        center_stat="mean",
-        legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
-        max_legend=100
-    )
+    # plot_all_param_sensitivities(
+    #     exp_dir, ratio, out_dir=exp_dir, auc_type=auc_type,
+    #     center_stat="mean",
+    #     legend_mode="right",   # 'right' puts legend outside; try 'below' or 'none'
+    #     max_legend=100
+    # )

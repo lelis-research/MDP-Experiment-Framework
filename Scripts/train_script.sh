@@ -39,7 +39,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]_$IDX"
+NAME_TAG="enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot]_dist[cat]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -70,12 +70,12 @@ INFO='{
   "codebook_embedding_low": -1.0,
   "codebook_eps": 1e-05,
   "codebook_init_emb_range": 0.1,
-  "codebook_init_type": "onehot-fixed",
+  "codebook_init_type": "onehot",
   "codebook_max_grad_norm": 1.0,
   "codebook_similarity_metric": "l2",
   "codebook_step_size": 0.0003,
-  "codebook_update_type": "grad",
-  "commit_coef": 0.05,
+  "codebook_update_type": "ema",
+  "commit_coef": 0.2,
   "enc_dim": 256,
   "enc_eps": 1e-08,
   "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
@@ -92,7 +92,7 @@ INFO='{
   "hl_critic_eps": 1e-08,
   "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
   "hl_critic_step_size": 0.0001,
-  "hl_distribution_type": "continuous",
+  "hl_distribution_type": "categorical",
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
@@ -109,8 +109,9 @@ INFO='{
   "hl_tau_init": 2.0,
   "hl_tau_min": 0.8,
   "hl_total_steps": 200000,
-  "init_options_lst": "all",
-  "option_count_to_add": 100
+  "init_options_lst": "actions",
+  "option_count_to_add": 100,
+  "option_learner_reset_at_add": false
 }'
 # ------------------------------
 
