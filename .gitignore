@@ -4,8 +4,9 @@ rlbase-amd64.tar
 .devcontainer/*
 
 # Experiment results
-Runs/
-venvs/
+Runs/*
+!Runs/Figures/
+!Runs/Figures/**
 
 # Byte-compiled / cached files
 __pycache__/

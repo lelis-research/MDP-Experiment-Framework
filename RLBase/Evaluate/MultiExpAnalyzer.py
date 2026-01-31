@@ -101,7 +101,7 @@ def plot_experiments(
     out_path = os.path.join(save_dir, f"{out_name}.png")
 
     # Make a bit more room for the suptitle/legend if present
-    fig.subplots_adjust(top=0.90)
+    # fig.subplots_adjust(top=0.90)
     fig.savefig(out_path, format="png", dpi=200, bbox_inches="tight", pad_inches=0.1)
     return out_path
 
@@ -180,7 +180,7 @@ def plot_option_usage(
     out_path = os.path.join(save_dir, f"{out_name}.png")
 
     # Small top margin for figure legend/suptitle
-    fig.subplots_adjust(top=0.90)
+    # fig.subplots_adjust(top=0.90)
     fig.savefig(out_path, format="png", dpi=200, bbox_inches="tight", pad_inches=0.1)
     return out_path
 

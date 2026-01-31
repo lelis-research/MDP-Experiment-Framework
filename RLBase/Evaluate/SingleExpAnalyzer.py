@@ -251,14 +251,26 @@ class SingleExpAnalyzer:
             ax.legend(loc="best", frameon=True)
         else:
             if show_legend:
-                # Retrieve handles and labels from one of the subplots.
+                # 1) tighten subplots FIRST
+                # fig.tight_layout()
+
+                # 2) collect legend items
                 handles, labels = ax.get_legend_handles_labels()
+
+                # 3) draw legend
+                legend = fig.legend(handles, labels, loc="upper center", ncols=1, frameon=True, bbox_to_anchor=(0.5, 0.965))
+
+                # 4) force draw so matplotlib knows legend size
+                fig.canvas.draw()
+
+                # 5) compute legend height in figure coordinates
+                legend_height = (legend.get_window_extent().transformed(fig.transFigure.inverted()).height) + 0.05
                 
-                # Create one legend for the entire figure.
-                fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/3), shadow=False, bbox_to_anchor=(0.5, 0.965))
-                fig.tight_layout(rect=[0, 0, 1.0, 0.95])
-            else:
-                fig.tight_layout()
+                # 6) push subplots below legend
+                fig.subplots_adjust(top=0.965 - legend_height)
+
+            # else:
+            #     fig.tight_layout()
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
@@ -438,7 +450,7 @@ class SingleExpAnalyzer:
             handles, labels = ax.get_legend_handles_labels()
             
             # Create one legend for the entire figure.
-            fig.legend(handles, labels, loc='upper center', ncols=math.ceil(len(labels)/2), shadow=False, bbox_to_anchor=(0.5, 0.965))
+            fig.legend(handles, labels, loc='upper center', ncols=1, shadow=False, bbox_to_anchor=(0.5, 0.965))
             fig.tight_layout(rect=[0, 0, 1.0, 0.95])
         else:
             fig.tight_layout()
