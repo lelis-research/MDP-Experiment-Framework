@@ -1,4 +1,4 @@
-from RLBase.Evaluate import plot_experiments, gather_experiments, plot_option_usage, plot_option_embeddings
+from RLBase.Evaluate import plot_experiments, gather_experiments, plot_option_usage
 from RLBase.Evaluate import SingleExpAnalyzer
 
 def multi_exp_results():
@@ -8,7 +8,9 @@ def multi_exp_results():
     PPO_Maze = "Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/OptionPPO"
     VQ_Maze = "Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic"
     
-    agent_dict = {       
+    
+    agent_dict = {      
+        
         # "PPO_Maze": gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
         # "VQ_Maze-d2": gather_experiments(VQ_Maze, name_string_conditions=["dim-2"], name_string_anti_conditions=[]),
         # "VQ_Maze-d4": gather_experiments(VQ_Maze, name_string_conditions=["dim-4"], name_string_anti_conditions=[]),
@@ -50,62 +52,60 @@ def multi_exp_results():
         # "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]": gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[con]_"], name_string_anti_conditions=[]),
         
-        "PPO_Maze":                                                             gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
+        # "PPO_Maze":                                                             gather_experiments(PPO_Maze, name_string_conditions=[], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]":      gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot]_dist[cat]":      gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim42-l2]_opt[offline]_emb[uniform]_dist[cat]":      gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim42-l2]_opt[offline]_emb[uniform]_dist[cat]":      gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[offline]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         #  "enc[conv]_cb[dim42-l2]_opt[c20]_emb[onehot-fixed]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         #  "enc[conv]_cb[dim42-l2]_opt[c20]_emb[onehot]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-         "enc[conv]_cb[dim42-l2]_opt[c20]_emb[uniform]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        #  "enc[conv]_cb[dim42-l2]_opt[c20]_emb[uniform]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         #  "enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[onehot-fixed]_dist[cat]":    gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         #  "enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[onehot]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-         "enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[uniform]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        #  "enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[uniform]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c20-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         
         # "enc[conv]_cb[dim42-l2]_opt[c50]_emb[onehot-fixed]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[c50]_emb[onehot]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim42-l2]_opt[c50]_emb[uniform]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim42-l2]_opt[c50]_emb[uniform]_dist[cat]":                gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         # "enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[onehot-fixed]_dist[cat]":    gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[onehot]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[uniform]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[uniform]_dist[cat]":          gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c50-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         
         # "enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot-fixed]_dist[cat]":         gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot]_dist[cat]":               gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim42-l2]_opt[c100]_emb[uniform]_dist[cat]":               gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim42-l2]_opt[c100]_emb[uniform]_dist[cat]":               gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
 
         # "enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[onehot-fixed]_dist[cat]":   gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[onehot-fixed]_dist[cat]_"], name_string_anti_conditions=[]),
         # "enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[onehot]_dist[cat]":         gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[onehot]_dist[cat]_"], name_string_anti_conditions=[]),
-        "enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[uniform]_dist[cat]":         gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
+        # "enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[uniform]_dist[cat]":         gather_experiments(VQ_Maze, name_string_conditions=["enc[conv]_cb[dim42-l2]_opt[c100-reset]_emb[uniform]_dist[cat]_"], name_string_anti_conditions=[]),
   
         
     }
     
     
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"MazeRoom_enc[conv]_cb[dim42-l2]_opt[#]_emb[uniform]_dist[cat]", window_size=1, show_ci=True, ignore_last=True, 
-                     plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
-    
-    # plot_experiments(agent_dict, "Runs/Figures", "MazeRoom_Embedding_Comparison", window_size=1, show_ci=True, ignore_last=True, 
+    # plot_experiments(agent_dict, "Runs/Figures", name=f"SF_Rand_Res", 
+    #                  window_size=1, show_ci=True, ignore_last=True, 
     #                  plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
-    # plot_option_embeddings(agent_dict, "Runs/Figures", name=f"Option_Emb_Codebook_Commit", show_legend=True, min_ep=5000
+    
+    plot_experiments(agent_dict, "Runs/Figures", "test", 
+                     plt_configs=["cb_hm_first", "cb_hm_last"])
 
 
 def single_exp_results():
-    for i in range(50):
-        exp_dir = f"Runs/Train/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/VQOptionCritic/conv-dim2_{i}_seed[{i}]"
+    for i in range(1):
+        exp_dir = f"Runs/Train/MiniGrid-EmptyTwoGoals-v0_/FullyObs_OneHotImageDir/VQOptionCritic/_seed[123123]"
         try:
             analyzer = SingleExpAnalyzer(exp_path=exp_dir)
         except:
             print(f"{i} has error")
             continue
 
-        # analyzer.plot_option_embedding(min_ep=998, max_ep=999)
-        analyzer.plot_option_embedding2(save_dir=exp_dir)
-        analyzer.plot_option_embedding_gif(every=10)
+        analyzer.plot_combined(plt_configs=["cb_hm_first", "cb_hm_last"], save_dir="Runs/Figures", window_size=1, show_ci=False, ignore_last=False, plot_each=False)
 
 if __name__ == "__main__":
     multi_exp_results()

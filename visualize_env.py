@@ -6,7 +6,7 @@ import json
 import matplotlib.pyplot as plt
 
 from RLBase.Environments import get_env, ENV_LST
-from Configs.loader import load_config
+from Configs.loader import load_config, fmt_wrap
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -47,9 +47,11 @@ def main():
     # path = os.path.join(runs_dir, f"{args.env}_{args.name_tag}.pdf")
     # fig.savefig(path, bbox_inches="tight", format="pdf")
 
-
+    env_params_str = "_".join(f"{k}-{v}" for k, v in args.env_params.items())  # env param dictionary to str
+    wrappers_str = "_".join(fmt_wrap(w, p) for w, p in zip(args.env_wrapping, args.wrapping_params))
+    
     img = Image.fromarray(frame)
-    path = os.path.join(runs_dir, f"{args.env}_{args.name_tag}.png")
+    path = os.path.join(runs_dir, f"{args.env}_{env_params_str}_{wrappers_str}_{args.name_tag}.png")
     img.save(path)
 
 if __name__ == "__main__":

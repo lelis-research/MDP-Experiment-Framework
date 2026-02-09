@@ -479,6 +479,37 @@ MINIGRID_CONV_IMGDIRCARRY_ENCODER = [
     {"type":"linear", "id":"fc_fuse", "from":"fused",
      "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
 ]
+MINIGRID_CONV_IMGDIR_ENCODER = [
+    # ---- inputs ----
+    {"type": "input", "id": "img",   "input_key": "onehot_image"},
+    {"type": "input", "id": "dir",   "input_key": "onehot_direction"},
+
+    # ---- image tower ----
+    {"type":"permute", "id":"img_permuted", "from":"img", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type":"conv2d", "id":"c1", "from":"img_permuted", "out_channels":32, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r1", "from":"c1"},
+
+    {"type":"conv2d", "id":"c2", "from":"r1", "out_channels":64, "kernel_size":3, "stride":1, "padding":1,
+     "init_params":{"name":"kaiming_normal","nonlinearity":"relu","mode":"fan_out"}},
+    {"type":"relu",   "id":"r2", "from":"c2"},
+
+    {"type":"flatten","id":"flat_img","from":"r2"},
+
+    {"type":"linear", "id":"fc_img",  "from":"flat_img", "out_features":256,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_img","from":"fc_img"},
+
+    # ---- vector tower (dir) ----
+    {"type":"linear", "id":"fc_vec", "from":"dir", "out_features":64,
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+    {"type":"relu",   "id":"r_vec","from":"fc_vec"},
+
+    # ---- fuse ----
+    {"type":"concat", "id":"fused", "from":["r_img", "r_vec"], "dim":1, "flatten":True},
+    {"type":"linear", "id":"fc_fuse", "from":"fused",
+     "init_params":{"name":"kaiming_uniform","nonlinearity":"relu","mode":"fan_in"}},
+]
 MINIGRID_MLP_ACTOR = [
     {"type":"input",  "id":"x", "input_key":"x"},
 
@@ -542,6 +573,7 @@ NETWORK_PRESETS = {
     
     # MiniGrid VQOptionCritic
     "MiniGrid/VQOptionCritic/conv_imgdircarry": MINIGRID_CONV_IMGDIRCARRY_ENCODER,
+    "MiniGrid/VQOptionCritic/conv_imgdir": MINIGRID_CONV_IMGDIR_ENCODER,
     "MiniGrid/VQOptionCritic/mlp_actor": MINIGRID_MLP_ACTOR,
     "MiniGrid/VQOptionCritic/mlp_critic": MINIGRID_MLP_CRITIC,
 }

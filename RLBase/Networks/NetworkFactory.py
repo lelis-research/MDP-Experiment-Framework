@@ -46,6 +46,29 @@ def _build_module(layer_cfg: Dict[str, Any]) -> Optional[nn.Module]:
 
     elif t == "batchnorm2d":
         return nn.BatchNorm2d(layer_cfg["num_features"])
+    elif t == "layernorm":
+        # You must provide normalized_shape, OR provide "num_features"/"channels" and we'll use it.
+        # For vectors: normalized_shape = feature_dim
+        # For images:  normalized_shape can be (C,H,W) or just C (channel-only LN)
+        if "normalized_shape" in layer_cfg:
+            ns = layer_cfg["normalized_shape"]
+        elif "num_features" in layer_cfg:
+            ns = layer_cfg["num_features"]
+        elif "channels" in layer_cfg:
+            ns = layer_cfg["channels"]
+        else:
+            raise ValueError("layernorm needs 'normalized_shape' (preferred) or 'num_features'/'channels'.")
+        return nn.LayerNorm(ns, eps=layer_cfg.get("eps", 1e-5), elementwise_affine=layer_cfg.get("affine", True))
+    
+    elif t == "dropout":
+        return nn.Dropout(p=layer_cfg.get("p", 0.5), inplace=layer_cfg.get("inplace", False))
+
+    elif t == "dropout2d":
+        return nn.Dropout2d(p=layer_cfg.get("p", 0.5), inplace=layer_cfg.get("inplace", False))
+
+    elif t == "dropout1d":
+        return nn.Dropout1d(p=layer_cfg.get("p", 0.5), inplace=layer_cfg.get("inplace", False))
+    
     elif t == "relu":
         return nn.ReLU(inplace=layer_cfg.get("inplace", False))
     elif t == "leakyrelu":
@@ -299,6 +322,20 @@ def prepare_network_config(config,
             if "num_features" not in layer:
                 layer["num_features"] = C
             shapes[layer_id] = s
+        
+        elif layer_type == "layernorm":
+            assert src and len(src) == 1
+            s = shapes[src[0]]
+            # If user didn't specify normalized_shape, set something reasonable
+            if "normalized_shape" not in layer:
+                if isinstance(s, int):
+                    layer["normalized_shape"] = s                 # vector LN
+                elif is_tuple_shape(s):
+                    C, H, W = s
+                    layer["normalized_shape"] = (C, H, W)         # full image LN
+                else:
+                    raise ValueError(f"layernorm '{layer_id}' unknown shape {s}")
+            shapes[layer_id] = s
 
         elif layer_type == "flatten":
             assert src and len(src) == 1
@@ -313,8 +350,9 @@ def prepare_network_config(config,
                 layer["in_features"] = fin
             
             shapes[layer_id] = layer["out_features"]
-
-        elif layer_type in ("relu", "leakyrelu", "sigmoid", "tanh", "identity"):
+            
+        elif layer_type in ("relu", "leakyrelu", "sigmoid", "tanh", "identity",
+                    "dropout", "dropout1d", "dropout2d"):
             assert src and len(src) == 1
             shapes[layer_id] = shapes[src[0]]
 

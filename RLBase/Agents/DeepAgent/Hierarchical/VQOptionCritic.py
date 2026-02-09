@@ -47,7 +47,6 @@ class LowLevelPolicy(BasePolicy):
     def select_action(self, x, emb, greedy):
         return [0] * len(x)
 
-
 class Encoder(RandomGenerator):
     def __init__(self, hyper_params, features_dict, device):
         self.features_dict = features_dict
@@ -392,15 +391,24 @@ class CodeBook(RandomGenerator):
         self.hp = hyper_params
         self.emb = nn.Embedding(self.num_codes, self.hp.embedding_dim).to(self.device)
         
-        if self.hp.update_type == "grad":
-            self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
-        elif self.hp.update_type == "ema":
+        if "grad" in self.hp.update_type:
+            params = list(self.emb.parameters())
+            if "delta_sf" in self.hp.update_type:
+                in_dim = self.hp.embedding_dim + self.hp.enc_dim # embedding + start state
+                self.sf_head = nn.Sequential(nn.Linear(in_dim, 256),
+                                             nn.Tanh(),
+                                             nn.Linear(256, self.hp.enc_dim)).to(self.device)
+                params += list(self.sf_head.parameters())
+            self.optimizer = optim.Adam(params, lr=self.hp.step_size, eps=self.hp.eps)
+    
+        elif "ema" in self.hp.update_type:
             self.ema_counts = torch.zeros(self.num_codes, device=self.device, dtype=torch.float32)
             self.ema_sum = torch.zeros(self.num_codes, self.hp.embedding_dim, device=self.device, dtype=torch.float32)
         else:
             raise ValueError(f"[CodeBook] Unknown update_type={self.hp.update_type}")
             
-    
+            
+            
     def _init_weights(self):
         if self.init_embs is None:
             with torch.no_grad():
@@ -431,9 +439,16 @@ class CodeBook(RandomGenerator):
         self.emb = nn.Embedding(self.num_codes, self.hp.embedding_dim).to(self.device)
         self._init_weights()
         
-        if self.hp.update_type == "grad":
-            self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
-        elif self.hp.update_type == "ema":
+        if "grad" in self.hp.update_type:
+            params = list(self.emb.parameters())
+            if "delta_sf" in self.hp.update_type:
+                in_dim = self.hp.embedding_dim + self.hp.enc_dim # embedding + start state
+                self.sf_head = nn.Sequential(nn.Linear(in_dim, 256),
+                                             nn.Tanh(),
+                                             nn.Linear(256, self.hp.enc_dim)).to(self.device)
+                params += list(self.sf_head.parameters())
+            self.optimizer = optim.Adam(params, lr=self.hp.step_size, eps=self.hp.eps)
+        elif "ema" in self.hp.update_type:
             self.ema_counts = torch.zeros(self.num_codes, device=self.device, dtype=torch.float32)
             self.ema_sum = torch.zeros(self.num_codes, self.hp.embedding_dim, device=self.device, dtype=torch.float32)
     
@@ -451,24 +466,32 @@ class CodeBook(RandomGenerator):
             raise ValueError(f"[CodeBook] similarity metric {self.hp.similarity_metric} not defined for commit_loss")
         return loss
     
-    def update(self, proto_e, call_back=None) -> float:
+    def update(self, proto_e, delta_sf=None, start_enc=None, call_back=None) -> float:
         proto_e = torch.as_tensor(np.array(proto_e), device=self.device, dtype=torch.float32)  # (T,d)
         if proto_e.numel() == 0:
             if call_back is not None:
                 call_back({"cb_loss": 0.0, "cb_batch_T": 0})
             return 0.0
-
+        
         # Assign nearest codes (non-diff)
         with torch.no_grad():
             idx = self.get_closest_ind(proto_e)  # (T,)
 
 
         e = self.emb(idx)  # (T,d)
-        loss_cb = self.commit_loss(e, proto_e.detach())
         
-        if self.hp.update_type == "grad":
+        if "grad" in self.hp.update_type:
+            loss_cb = self.commit_loss(e, proto_e.detach())
+            if "delta_sf" in self.hp.update_type:
+                target_t = delta_sf  # (T, enc_dim)
+                input_t = torch.cat([e, start_enc], dim=-1)  # (T, d + enc_dim)
+                pred = self.sf_head(input_t)      # (T, enc_dim)
+                loss_sf = F.mse_loss(pred, target_t)
+                loss = loss_cb + loss_sf
+            else:
+                loss = loss_cb
             self.optimizer.zero_grad(set_to_none=True)
-            loss_cb.backward()
+            loss.backward()
 
             if call_back is not None:
                 grad_n = float(nn.utils.clip_grad_norm_(self.emb.parameters(), self.hp.max_grad_norm).item())
@@ -478,7 +501,7 @@ class CodeBook(RandomGenerator):
 
             self.optimizer.step()
         
-        elif self.hp.update_type == "ema":
+        elif "ema" in self.hp.update_type:
             with torch.no_grad():
                 K = self.emb.num_embeddings
                 idx_int = idx.to(torch.int64)
@@ -538,9 +561,8 @@ class CodeBook(RandomGenerator):
 
                 # unified "distance" metric consistent with your training objective
                 cb_commit = float(self.commit_loss(e.detach(), proto_e.detach()).item())
-
+            
             payload = {
-                "cb_loss": float(loss_cb.item()),
                 "cb_commit": cb_commit,
                 "cb_grad_norm": grad_n,
                 "cb_used_codes": used,
@@ -549,10 +571,14 @@ class CodeBook(RandomGenerator):
                 "cb_num_codes": int(K),
                 "cb_batch_T": int(proto_e.shape[0]),
             }
+            if "grad" in self.hp.update_type:
+                payload["cb_comm_loss"] = float(loss_cb.item())
+                if "delta_sf" in self.hp.update_type:
+                    payload["cb_sf_loss"] = float(loss_sf.item())
 
             call_back(payload)
-
-        return float(loss_cb.item())
+            
+        
     
     def get_closest_ind(self, proto: torch.Tensor) -> torch.Tensor:
         """
@@ -696,10 +722,10 @@ class CodeBook(RandomGenerator):
 
         self.num_codes = K_new
         
-        if self.hp.update_type == "grad":
+        if "grad" in self.hp.update_type:
             self.optimizer = optim.Adam(self.emb.parameters(), lr=self.hp.step_size, eps=self.hp.eps)
             
-        elif self.hp.update_type == "ema":
+        elif "ema" in self.hp.update_type:
             old_counts = self.ema_counts
             old_sum = self.ema_sum
 
@@ -729,7 +755,9 @@ class CodeBook(RandomGenerator):
             "rng_state": self.get_rng_state(),
             "emb_state_dict": self.emb.state_dict(),
         }
-        if self.hp.update_type == "grad":
+        if "grad" in self.hp.update_type:
+            if "delta_sf" in self.hp.update_type:
+                checkpoint["sf_head_state_dict"] = self.sf_head.state_dict()
             checkpoint["optimizer_state_dict"] = self.optimizer.state_dict()
         else:
             checkpoint["ema_counts"] = self.ema_counts.detach().cpu()
@@ -753,7 +781,6 @@ class CodeBook(RandomGenerator):
             num_initial_codes=int(checkpoint["num_codes"]),
             device=checkpoint["device"],
         )
-
         # restore RNG
         instance.set_rng_state(checkpoint["rng_state"])
 
@@ -761,9 +788,11 @@ class CodeBook(RandomGenerator):
         instance.emb.load_state_dict(checkpoint["emb_state_dict"])
         instance.num_codes = int(checkpoint["num_codes"])
         
-        if instance.hp.update_type == "grad":        
-            instance.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        elif instance.hp.update_type == "ema":
+        if "grad" in instance.hp.update_type:
+            if "delta_sf" in instance.hp.update_type:
+                instance.sf_head.load_state_dict(checkpoint["sf_head_state_dict"])
+            # instance.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        elif "ema" in instance.hp.update_type:
             instance.ema_counts.copy_(checkpoint["ema_counts"].to(instance.device))
             instance.ema_sum.copy_(checkpoint["ema_sum"].to(instance.device))
         return instance
@@ -822,6 +851,7 @@ class VQOptionCriticAgent(BaseAgent):
         print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_option_lst) if init_option_lst is not None else 0)
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
         self.options_lst = [] if init_option_lst is None else init_option_lst
+        self.hp.codebook.update(enc_dim=self.hp.enc.enc_dim)
         
         self.encoder = Encoder(self.hp.enc, self.feature_extractor.features_dict, device)
         self.code_book = CodeBook(self.hp.codebook, len(self.options_lst), device, init_embs=init_option_embs)
@@ -849,6 +879,12 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
         
+        # --- Intra-option successor-feature accumulators (per env) ---
+        self.sf_start_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
+        self.sf_cumulative_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
+        self.sf_cumulative_discounts = [0.0 for _ in range(self.num_envs)]  # float is fine; can also be torch scalar
+        
+        
         self.option_learner_tmp = {}
         
     
@@ -857,10 +893,9 @@ class VQOptionCriticAgent(BaseAgent):
         self.log_buf = []
         for _ in range(self.num_envs):
             self.log_buf.append({
-                "proto_e": [],       # list of (d,) arrays
-                "e": [],             # list of (d,) arrays
                 "num_options": [],   # list of ints
                 "option_index": [],  # list of ints
+                "code_book": [],   # final codebook at end of episode
             })
 
     def act(self, observation):
@@ -879,6 +914,7 @@ class VQOptionCriticAgent(BaseAgent):
             with torch.no_grad():
                 needed_state = get_batch_state(state, need_new)
                 idx, e, proto_e, proto_log_prob, proto_raw = self.hl_policy.select_action(needed_state, greedy=not self.training)
+                encoded_needed_state = self.encoder(needed_state)
                 
                 # add the new ones to the lists
                 for j, env_i in enumerate(need_new.tolist()):                    
@@ -892,6 +928,10 @@ class VQOptionCriticAgent(BaseAgent):
                     self.option_cumulative_reward[env_i] = 0.0
                     self.option_multiplier[env_i] = 1.0
                     self.option_num_steps[env_i] = 0
+                    
+                    self.sf_start_enc[env_i].copy_(encoded_needed_state['x'][j])
+                    self.sf_cumulative_enc[env_i].zero_()
+                    self.sf_cumulative_discounts[env_i] = 0.0
                     
          
         # 3) Batch low-level policy for all envs
@@ -907,28 +947,15 @@ class VQOptionCriticAgent(BaseAgent):
 
     def update(self, observation, reward, terminated, truncated, call_back=None):
         if self.training:
-            self.update_hl(observation, reward, terminated, truncated, call_back=call_back)
+            self.update_buffers(observation, reward, terminated, truncated, call_back=call_back)
             
-            # add new options
+            self.update_hl_and_codebook(observation, reward, terminated, truncated, call_back=call_back)
+            self.update_ll_and_codebook(observation, reward, terminated, truncated, call_back=call_back)
+            
+            self.manual_option_learner(observation, reward, terminated, truncated, call_back=call_back)
             for i in range(self.num_envs):
                 if terminated[i] or truncated[i]:
-                    obs_option = get_single_observation_nobatch(observation, i)
-                    for c, opt in enumerate(self.hp.all_options):
-                        if hasattr(opt, "should_initiate") and \
-                        opt.should_initiate(obs_option) and \
-                        opt not in self.options_lst:
-                            if opt.option_id not in self.option_learner_tmp:
-                                self.option_learner_tmp[opt.option_id] = 0
-                            self.option_learner_tmp[opt.option_id] += 1
-
-                            if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
-                                print(f"Added option with id: {opt.option_id}")
-                                self.options_lst.append(opt)
-                                new_embs = torch.from_numpy(self.hp.all_embeddings[c]) if self.hp.all_embeddings is not None else None
-                                self.code_book.add_row(new_embs)
-                                self.hl_policy.reheat()
-                                if self.hp.option_learner_reset_at_add:
-                                    self.option_learner_tmp = {}
+                    self.log_buf[i]["code_book"].append(self.code_book.emb.weight.detach().cpu().numpy())
                     
         else:
             for i in range(self.num_envs):
@@ -941,8 +968,6 @@ class VQOptionCriticAgent(BaseAgent):
                 self.option_multiplier[i] *= self.hp.hl.gamma
                 self.option_num_steps[i] += 1
                 if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
-                    self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
-                    self.log_buf[i]["e"].append(np.asarray(self.running_option_emb[i], dtype=np.float32))
                     self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                     self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                     if call_back is not None:
@@ -950,26 +975,39 @@ class VQOptionCriticAgent(BaseAgent):
                     
                     self.options_lst[curr_option_idx].reset()
                     self.running_option_index[i] = None
-        
-    def update_hl(self, observation, reward, terminated, truncated, call_back=None):
+    
+    def update_buffers(self, observation, reward, terminated, truncated, call_back=None):
         for i in range(self.num_envs):
             # add to the rollouts
             obs = get_single_observation(observation, i)
             obs_option = get_single_observation_nobatch(observation, i)
             curr_option_idx = self.running_option_index[i]
+            if curr_option_idx is None:
+                continue  # no running option in this env slot
             
+            # reward bookkeeping
             self.option_cumulative_reward[i] += self.option_multiplier[i] * float(reward[i])
             self.option_multiplier[i] *= self.hp.hl.gamma
             self.option_num_steps[i] += 1
-            if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+            
+            # sf bookkeeping
+            with torch.no_grad():       
+                encoded_features = self.encoder(self.feature_extractor(obs))['x'].squeeze()         # shape: (enc_dim)
                 
-                self.log_buf[i]["proto_e"].append(np.asarray(self.running_option_proto_emb[i], dtype=np.float32))
-                self.log_buf[i]["e"].append(np.asarray(self.running_option_emb[i], dtype=np.float32))
+            w = (self.hp.hl.gamma ** (self.option_num_steps[i] - 1))
+            self.sf_cumulative_enc[i] += w * encoded_features
+            self.sf_cumulative_discounts[i] += w
+        
+            if self.options_lst[curr_option_idx].is_terminated(obs_option) or terminated[i] or truncated[i]:
+                delta_sf = self.sf_cumulative_enc[i] - (self.sf_cumulative_discounts[i] * self.sf_start_enc[i])
+                delta_sf = delta_sf / (self.sf_cumulative_discounts[i] + 1e-8) # optional normalization (recommended if option lengths vary)
+                
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
-
-                call_back({"curr_hl_option_idx": curr_option_idx,
-                           "num_options": len(self.options_lst)})
+                
+                if call_back is not None:
+                    call_back({"curr_hl_option_idx": curr_option_idx,
+                            "num_options": len(self.options_lst)})
                 
                 transition = (
                     self.option_start_obs[i], 
@@ -982,12 +1020,17 @@ class VQOptionCriticAgent(BaseAgent):
                     self.option_multiplier[i], 
                     obs, 
                     terminated[i],
-                    truncated[i]
+                    truncated[i],
+                    delta_sf,
+                    self.sf_start_enc[i],
                 )    
                 self.options_lst[curr_option_idx].reset()
                 self.running_option_index[i] = None
-                self.rollout_buffer[i].add(transition)
             
+                self.rollout_buffer[i].add(transition)
+        
+    def update_hl_and_codebook(self, observation, reward, terminated, truncated, call_back=None):
+        for i in range(self.num_envs):
             # update with the rollouts
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
@@ -1003,6 +1046,8 @@ class VQOptionCriticAgent(BaseAgent):
                     rollout_next_observations,
                     rollout_terminated,
                     rollout_truncated,
+                    rollout_delta_sf,
+                    rollout_sf_start_enc,
                 ) = zip(*rollout)
                 
                 rollout_observations, rollout_next_observations = (
@@ -1026,13 +1071,21 @@ class VQOptionCriticAgent(BaseAgent):
                                    call_back=call_back)
                 
                 # update codebook
-                if not ("fixed" in self.code_book.hp.init_type):
-                    self.code_book.update(rollout_option_proto_raw,
-                                        call_back=call_back)
+                if not ("fixed" in self.code_book.hp.update_type):
+                    rollout_delta_sf = torch.stack(rollout_delta_sf)
+                    rollout_start_enc = torch.stack(rollout_sf_start_enc)
+                    self.code_book.update(
+                        rollout_option_proto_raw,
+                        delta_sf=rollout_delta_sf,
+                        start_enc=rollout_start_enc,
+                        call_back=call_back)
             
                 
                 self.rollout_buffer[i].clear()
-            
+    
+    def update_ll_and_codebook(self, observation, reward, terminated, truncated, call_back=None):
+        pass
+         
     def reset(self, seed):
         super().reset(seed)
         
@@ -1053,8 +1106,33 @@ class VQOptionCriticAgent(BaseAgent):
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
         
+        # --- Intra-option successor-feature accumulators (per env) ---
+        self.sf_start_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
+        self.sf_cumulative_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
+        self.sf_cumulative_discounts = [0.0 for _ in range(self.num_envs)]  # float is fine; can also be torch scalar
+        
         self.option_learner_tmp = {}
 
+    def manual_option_learner(self, observation, reward, terminated, truncated, call_back=None): # needs to be changed later
+        for i in range(self.num_envs):
+            if terminated[i] or truncated[i]:
+                obs_option = get_single_observation_nobatch(observation, i)
+                for c, opt in enumerate(self.hp.all_options):
+                    if hasattr(opt, "should_initiate") and \
+                    opt.should_initiate(obs_option) and \
+                    opt not in self.options_lst:
+                        if opt.option_id not in self.option_learner_tmp:
+                            self.option_learner_tmp[opt.option_id] = 0
+                        self.option_learner_tmp[opt.option_id] += 1
+
+                        if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
+                            print(f"Added option with id: {opt.option_id}")
+                            self.options_lst.append(opt)
+                            new_embs = torch.from_numpy(self.hp.all_embeddings[c]) if self.hp.all_embeddings is not None else None
+                            self.code_book.add_row(new_embs)
+                            self.hl_policy.reheat()
+                            if self.hp.option_learner_reset_at_add:
+                                self.option_learner_tmp = {}
     
     def save(self, file_path: str | None = None):
         """
@@ -1091,7 +1169,7 @@ class VQOptionCriticAgent(BaseAgent):
 
         # 1) load options first (so we can size codebook consistently if needed)
         options_lst = load_options_list(file_path=None, checkpoint=checkpoint["options_lst"])
-
+        
         # 2) construct instance
         instance = cls(
             action_space=checkpoint["action_space"],

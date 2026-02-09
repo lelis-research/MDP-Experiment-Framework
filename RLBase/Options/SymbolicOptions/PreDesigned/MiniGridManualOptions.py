@@ -720,15 +720,7 @@ actions = [
     ActionToggle(), 
     ActionDone()
     ]
-action_embeddings = np.array([
-    [ 0.0, -1.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionLeft
-    [ 0.0,  1.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionRight
-    [ 0.8,  0.0,  0.0,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionForward
-    [ 0.0,  0.0,  0.9,  0.0,  0.0,  0.0, -0.8,  0.0],  # ActionPickup
-    [ 0.0,  0.0,  0.0,  0.0,  0.9,  0.0, -0.8,  0.0],  # ActionDrop
-    [ 0.0,  0.0,  0.0,  0.9,  0.0,  0.0, -0.8,  0.0],  # ActionToggle
-    [ 0.0,  0.0,  0.0,  0.0,  0.0,  1.0, -0.8,  0.0],  # ActionDone
-], dtype=np.float32)
+
 
 goal_options = [
     GetNearestGoalOption(
@@ -737,11 +729,7 @@ goal_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
-goal_embeddings = np.array([
-    [1.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.8, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
-    [
-    [1.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.8, 0.0]  # color = None
-    ], dtype=np.float32)
+
 
 key_options = [
     PickupNearestKeyOption(
@@ -750,11 +738,7 @@ key_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
-key_embeddings = np.array([
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.4, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
-    [
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.4, 0.0]  # color = None
-    ], dtype=np.float32)
+
 
 ball_options = [
     PickupNearestBallOption(
@@ -763,11 +747,7 @@ ball_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
-ball_embeddings = np.array([
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.2, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
-    [
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.2, 0.0]  # color = None
-    ], dtype=np.float32)
+
 
 box_pickup_options = [
     PickupNearestBoxOption(
@@ -776,11 +756,7 @@ box_pickup_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
-box_pickup_embeddings = np.array([
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.0, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
-    [
-    [0.9, 0.0, 0.9, 0.0, 0.0, 0.2, 0.0, 0.0]  # color = None
-    ], dtype=np.float32)
+
 
 box_toggle_options = [
     ToggleNearestBoxOption(
@@ -789,11 +765,6 @@ box_toggle_options = [
     )
     for color in COLOR_NAMES + [None]
 ]
-box_toggle_embeddings = np.array([
-    [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, 0.0, (-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0] for i in range(K)] + 
-    [
-    [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, 0.0, 0.0]  # color = None
-    ], dtype=np.float32)
 
 
 door_options = [
@@ -808,45 +779,43 @@ door_options = [
     for color in COLOR_NAMES + [None]
     for state in STATE_TO_IDX.keys()
 ]
-door_embeddings = np.array(
-    [
-        [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, -0.4, 0.5 * ((-1.0 + 2.0 * i / (K - 1)) if K > 1 else 0.0) + 0.5 * ((-0.6 + 1.2 * j / (S - 1)) if S > 1 else 0.0)]
-        for i in range(K)
-        for j in range(S)
-    ] + 
-    [
-        [0.9, 0.0, 0.0, 0.9, 0.0, 0.2, -0.4, (-0.6 + 1.2 * j / (S - 1)) if S > 1 else 0.0]
-        for j in range(S)
-    ],
-    dtype=np.float32
-)
+
 
 manual_options = actions + goal_options + key_options + door_options
-manual_embeddings = np.concatenate([
-    action_embeddings,
-    goal_embeddings,
-    key_embeddings,
-    door_embeddings,
-], axis=0)
+manual_option_lst1 = [
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
 
-# print("action")
-# print(action_embeddings)
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    ]
 
-# print("goal")
-# print(goal_embeddings)
+manual_option_lst2 = [
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
+    
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")),
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")),
 
-# print("key")
-# print(key_embeddings)
-
-# print("ball")
-# print(ball_embeddings)
-
-# print("box-pickup")
-# print(box_pickup_embeddings)
-
-# print("box-toggle")
-# print(box_toggle_embeddings)
-
-# print("door")
-# print(door_embeddings)
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")),
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")),
+    
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")),
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")),
+    
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")),
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")),
+    
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")),
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")),
+    
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")),
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")),
+    
+    ]
 

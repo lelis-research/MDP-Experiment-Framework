@@ -94,6 +94,7 @@ def main():
     # Analyze and plot results
     analyzer = SingleExpAnalyzer(metrics=metrics)
     analyzer.plot_combined(save_dir=exp_dir, show_legend=False)
+    analyzer.plot_combined(save_dir=exp_dir, show_legend=False, plt_configs=["cb_hm_first", "cb_hm_last"])
     analyzer.save_seeds(save_dir=exp_dir)
 
 if __name__ == "__main__":

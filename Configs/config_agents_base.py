@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=manual_options,
+        init_option_lst=manual_option_lst2,
         device=device
     ),
     
@@ -71,7 +71,40 @@ AGENT_DICT = {
         FlattenFeature,
         init_option_lst=manual_options, 
     ),
+    OptionRandomSFCodebookAgent.name: lambda env, info: OptionRandomSFCodebookAgent(
+        get_env_action_space(env),
+        get_env_observation_space(env),
+        HyperParameters(
+            gamma=info.get("gamma", 0.99),
+            # how many completed options to batch before a codebook update (per env slot)
+            sf_rollout_steps=info.get("sf_rollout_steps", 256),
+            codebook=HyperParameters(
+                embedding_dim=info.get("codebook_embedding_dim", 16),
+                init_type=info.get("codebook_init_type", "uniform"),   # "uniform" or "onehot"
+                embedding_low = info.get("codebook_embedding_low", -1.0),
+                embedding_high = info.get("codebook_embedding_high", +1.0),
+                init_emb_range=info.get("codebook_init_emb_range", 0.1),
 
+                step_size=info.get("codebook_step_size", 3e-4),
+                eps=info.get("codebook_eps", 1e-8),
+                max_grad_norm=info.get("codebook_max_grad_norm", 1.0),
+                
+                sf_hidden_dims=info.get("sf_hidden_dims", [256]),
+                obs_proj_dims=info.get("obs_proj_dims", [32]),
+                obs_dropout=info.get("obs_dropout", 0.0),
+                
+                pred_input=info.get("pred_input", "obs-emb"), # "obs", "emb", "obs-emb" 
+                nce_coef=info.get("nce_coef", 0.0), 
+                nce_tau=info.get("nce_tau", 1.0), 
+            ),
+        ),
+        get_num_envs(env),
+        FlattenFeature,                 # feature_extractor isn't used for SF in this agent, but keep the standard signature
+        init_option_lst=manual_option_lst2, # or actions / whatever you pass for options
+        init_option_embs=None,          # or your manual one-hot / custom init embeddings
+        device=device
+    ),
+    
     #Tabular Agents
     QLearningAgent.name: lambda env, info: QLearningAgent(
         get_env_action_space(env), 
@@ -370,7 +403,7 @@ AGENT_DICT = {
         get_env_observation_space(env),
         HyperParameters(               
             enc = HyperParameters(
-                enc_network=NETWORK_PRESETS[info.get("enc_network", "MiniGrid/VQOptionCritic/conv_imgdircarry")],
+                enc_network=NETWORK_PRESETS[info.get("enc_network", "MiniGrid/VQOptionCritic/conv_imgdir")],
                 step_size=info.get("enc_step_size", 3e-4),
                 eps = info.get("enc_eps", 1e-8),
                 enc_dim= info.get("enc_dim", 256)
@@ -422,15 +455,15 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", len(manual_options)),
+                embedding_dim = info.get("codebook_embedding_dim", 2),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 init_emb_range=info.get("codebook_init_emb_range", 1.0),
-                init_type=info.get("codebook_init_type", "onehot-fixed"), # uniform, onehot, "fixed"
+                init_type=info.get("codebook_init_type", "uniform"), # uniform, onehot
                 
-                similarity_metric=info.get("codebook_similarity_metric", "dot"), # cosine, l2, dot
+                similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2, dot
                 
-                update_type=info.get("codebook_update_type", "ema"), # grad, ema
+                update_type=info.get("codebook_update_type", "grad-delta_sf"), # grad, ema, delta_sf, fixed
                 
                 # grad params
                 step_size=info.get("codebook_step_size", 3e-4),
@@ -443,7 +476,7 @@ AGENT_DICT = {
             ),
             
             # Option Learner
-            all_options = manual_options,
+            all_options = [],
             count_to_add = info.get("option_count_to_add", 20),
             option_learner_reset_at_add=info.get("option_learner_reset_at_add", False),
             all_embeddings = None,
@@ -451,7 +484,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_options,
+        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst1,
         init_option_embs=None,
         device=device
     ),
