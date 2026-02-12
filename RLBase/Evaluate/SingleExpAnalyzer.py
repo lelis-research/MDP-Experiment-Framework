@@ -267,11 +267,11 @@ class SingleExpAnalyzer:
                 self._plot_heatmap(
                     ax,
                     mean_dist,
-                    title=f"Codebook L2 Distance (Episode {ep_idx})",
+                    title=f"CB L2 (Ep {ep_idx}) -- {label}",
                     x_label="Option Index",
                     y_label="Option Index",
                     show_colorbar=True,
-                    cbar_label="L2 Distance"
+                    cbar_label="L2 Dist"
                 )
                 
                 

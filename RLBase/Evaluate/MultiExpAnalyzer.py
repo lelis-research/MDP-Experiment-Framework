@@ -70,32 +70,59 @@ def plot_experiments(
     os.makedirs(save_dir, exist_ok=True)
 
     colors = _colors()
-    fig, axs = plt.subplots(len(plt_configs), 1,
-                            figsize=(10, 6 * len(plt_configs)),
-                            constrained_layout=True)
+    if "cb_hm_first" not in plt_configs or "cb_hm_last" not in plt_configs:
+        fig, axs = plt.subplots(len(plt_configs), 1,
+                                figsize=(10, 6 * len(plt_configs)),
+                                constrained_layout=True)
+        generated_name = []
+        for i, (exp_label, payload) in tqdm(enumerate(agent_dict.items())):
+            analyzer = _build_analyzer(payload)
+            fmt = _fmt_for_idx(i)
+            color = colors[i % len(colors)]
 
-    generated_name = []
-    for i, (exp_label, payload) in tqdm(enumerate(agent_dict.items())):
-        analyzer = _build_analyzer(payload)
-        fmt = _fmt_for_idx(i)
-        color = colors[i % len(colors)]
+            analyzer.plot_combined(
+                fig, axs,
+                color=color,
+                marker=fmt,                  # your analyzer expects a single fmt string here
+                label=exp_label,
+                show_legend=(i == len(agent_dict) - 1),
+                window_size=window_size,
+                plot_each=plot_each,
+                show_ci=show_ci,
+                title=name,
+                ignore_last=ignore_last,
+                plt_configs=list(plt_configs),
+                index=i,
+                total_index=len(agent_dict)
+            )
+            generated_name.append(exp_label)
+    else:
+        fig, axs = plt.subplots(len(plt_configs), len(agent_dict),
+                                figsize=(10*len(agent_dict), 6 * len(plt_configs)),
+                                constrained_layout=True)
+        generated_name = []
+        for i, (exp_label, payload) in tqdm(enumerate(agent_dict.items())):
+            analyzer = _build_analyzer(payload)
+            fmt = _fmt_for_idx(i)
+            color = colors[i % len(colors)]
 
-        analyzer.plot_combined(
-            fig, axs,
-            color=color,
-            marker=fmt,                  # your analyzer expects a single fmt string here
-            label=exp_label,
-            show_legend=(i == len(agent_dict) - 1),
-            window_size=window_size,
-            plot_each=plot_each,
-            show_ci=show_ci,
-            title=name,
-            ignore_last=ignore_last,
-            plt_configs=list(plt_configs),
-            index=i,
-            total_index=len(agent_dict)
-        )
-        generated_name.append(exp_label)
+            analyzer.plot_combined(
+                fig, axs[:, i],
+                color=color,
+                marker=fmt,                  # your analyzer expects a single fmt string here
+                label=exp_label,
+                show_legend=False,
+                window_size=window_size,
+                plot_each=plot_each,
+                show_ci=show_ci,
+                title=name,
+                ignore_last=ignore_last,
+                plt_configs=list(plt_configs),
+                index=i,
+                total_index=len(agent_dict)
+            )
+            generated_name.append(exp_label)
+    
 
     out_name = name if name else "_".join(generated_name)
     out_path = os.path.join(save_dir, f"{out_name}.png")

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=train
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
-#SBATCH --time=0-12:00 # time (DD-HH:MM)
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=2G
+#SBATCH --time=0-02:00 # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -39,79 +39,56 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline]_emb[onehot]_dist[cat]_$IDX"
+#"Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
+NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="VQOptionCritic"
-ENV="MiniGrid-MazeRooms-v0"
+AGENT="OptionRandomSFCodebook"
+ENV="MiniGrid-TestOptionRoom-v0"
 
-ENV_WRAPPING='["OneHotImageDirCarry"]'
-WRAPPING_PARAMS='[{}]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDir", "FixedSeed"]'
+WRAPPING_PARAMS='[{}, {}, {"seed": 10}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=3_000_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=500
+EPISODE_MAX_STEPS=200
 
 RENDER_MODE=""
 STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "block_critic_to_encoder": false,
-  "codebook_ema_decay": 0.99,
-  "codebook_ema_eps": 1e-05,
-  "codebook_embedding_dim": 42,
-  "codebook_embedding_high": 1.0,
-  "codebook_embedding_low": -1.0,
-  "codebook_eps": 1e-05,
-  "codebook_init_emb_range": 1.0,
-  "codebook_init_type": "onehot",
-  "codebook_max_grad_norm": 1.0,
-  "codebook_similarity_metric": "l2",
-  "codebook_step_size": 0.0003,
-  "codebook_update_type": "grad",
-  "commit_coef": 0.05,
-  "enc_dim": 256,
-  "enc_eps": 1e-08,
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
-  "enc_step_size": 0.0001,
+  "codebook_embedding_dim": 16,
+  "codebook_init_type": "uniform",
+  "codebook_init_emb_range": 0.05,
+
+  "sf_hidden_dims": [256],
+  "obs_proj_dims": [256, 16],
+  "obs_dropout": 0.2,
+
+  "pred_input": "obs-emb",
+  "nce_coef": 0.01,
+  "nce_tau": 1.0,
+
+
+
+
   "gamma": 0.99,
-  "hl_actor_eps": 1e-08,
-  "hl_actor_network": "MiniGrid/VQOptionCritic/mlp_actor",
-  "hl_actor_step_size": 0.0001,
-  "hl_anneal_clip_range_actor": false,
-  "hl_anneal_clip_range_critic": false,
-  "hl_clip_range_actor_init": 0.2,
-  "hl_clip_range_critic_init": null,
-  "hl_critic_coef": 0.5,
-  "hl_critic_eps": 1e-08,
-  "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
-  "hl_critic_step_size": 0.0001,
-  "hl_distribution_type": "categorical",
-  "hl_enable_advantage_normalization": true,
-  "hl_enable_stepsize_anneal": false,
-  "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.001,
-  "hl_lamda": 0.95,
-  "hl_max_grad_norm": 0.5,
-  "hl_max_logstd": null,
-  "hl_min_logstd": null,
-  "hl_mini_batch_size": 128,
-  "hl_num_epochs": 10,
-  "hl_rollout_steps": 1024,
-  "hl_target_kl": null,
-  "hl_tau_decay": 0.9995,
-  "hl_tau_init": 2.0,
-  "hl_tau_min": 0.8,
-  "hl_total_steps": 200000,
-  "init_options_lst": "all",
-  "option_count_to_add": 100,
-  "option_learner_reset_at_add": true
+  "sf_rollout_steps": 256,
+
+  "codebook_embedding_low": -1.0,
+  "codebook_embedding_high": 1.0,
+
+  "codebook_step_size": 3e-4,
+  "codebook_eps": 1e-8,
+  "codebook_max_grad_norm": 1.0
+
+  
 }'
 # ------------------------------
 
