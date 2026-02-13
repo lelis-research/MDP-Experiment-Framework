@@ -68,7 +68,7 @@ class SFCodeBook(RandomGenerator):
             in_dim = self.feat_dim
             for i, hdim in enumerate(self.hp.obs_proj_dims):
                 self.obs_proj.add_module(f"obs_proj_fc{i}", nn.Linear(in_dim, hdim))
-                self.obs_proj.add_module(f"obs_proj_ln{i}", nn.LayerNorm(hdim))
+                # self.obs_proj.add_module(f"obs_proj_ln{i}", nn.LayerNorm(hdim))
                 self.obs_proj.add_module(f"obs_proj_tanh{i}", nn.Tanh())
                 in_dim = hdim
             self.proj_dim = in_dim
@@ -191,25 +191,41 @@ class SFCodeBook(RandomGenerator):
         loss_sf = F.mse_loss(pred, delta_t)
         
         loss_nce = torch.tensor(0.0, device=self.device)
-        if self.hp.nce_coef > 0.0 and "emb" in self.hp.pred_input:
+        loss_kl = torch.tensor(0.0, device=self.device)
+        if "emb" in self.hp.pred_input:
             with torch.no_grad():
-                # choose positives by nearest neighbor in behavior space (delta-SF)
-                # dist_b: (T,T)
-                dist_b = torch.cdist(delta_t, delta_t, p=2)
-                dist_b.fill_diagonal_(float("inf"))
-                pos_idx = dist_b.argmin(dim=1)  # (T,)
-
+                # behavior distances (delta-SF)
+                dist_b = torch.cdist(delta_t, delta_t, p=2)  # (T,T)
+                
             # pairwise squared L2 distances in embedding space
-            # dist_e2: (T,T)
-            dist_e2 = torch.cdist(e, e, p=2).pow(2)
-            # logits: higher = closer (because negative distance)
-            logits = -dist_e2 / max(self.hp.nce_tau, 1e-8)
-            # remove self from denominator by setting diagonal to -inf
-            logits.fill_diagonal_(float("-inf"))
-            # cross-entropy with target = pos_idx
-            loss_nce = F.cross_entropy(logits, pos_idx)
+            dist_e2 = torch.cdist(e, e, p=2).pow(2) # (T,T)
+            
+            if self.hp.nce_coef > 0.0:
+                with torch.no_grad():
+                    dist_b_clone = dist_b.clone()
+                    dist_b_clone.fill_diagonal_(float("inf"))
+                    pos_idx = dist_b_clone.argmin(dim=1)  # (T,)
+                    
+                logits = -dist_e2 / max(self.hp.nce_tau, 1e-8)
+                logits.fill_diagonal_(float("-inf"))
+                loss_nce = F.cross_entropy(logits, pos_idx)
+            
+            if self.hp.kl_coef > 0.0:
+                with torch.no_grad():
+                    teacher_logits = -dist_b / max(self.hp.kl_b_tau, 1e-8)
+                    teacher_logits.fill_diagonal_(float("-inf"))  # exclude self
+                
+                student_logits = -dist_e2 / max(self.hp.kl_e_tau, 1e-8)
+                student_logits.fill_diagonal_(float("-inf"))  # exclude self
+        
+                # Convert to distributions
+                teacher_probs = torch.softmax(teacher_logits, dim=1)      # (T,T)  (no grad)
+                student_logp  = torch.log_softmax(student_logits, dim=1)  # (T,T)
+                
+                loss_kl = F.kl_div(student_logp, teacher_probs, reduction="batchmean")        
+            
 
-        loss = loss_sf + self.hp.nce_coef * loss_nce
+        loss = loss_sf + self.hp.nce_coef * loss_nce + self.hp.kl_coef * loss_kl
 
         self.optimizer.zero_grad(set_to_none=True)
         loss.backward()
@@ -230,6 +246,7 @@ class SFCodeBook(RandomGenerator):
             call_back({
                 "cb_sf_loss": float(loss_sf.item()),
                 "cb_nce_loss": float(loss_nce.item()),
+                "cb_kl_loss": float(loss_kl.item()),
                 "cb_total_loss": float(loss.item()),
                 
                 "cb_grad_norm": g,

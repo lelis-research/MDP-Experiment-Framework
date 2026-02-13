@@ -793,29 +793,29 @@ manual_option_lst1 = [
     ]
 
 manual_option_lst2 = [
-    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
-    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")), #0 
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")), #1
     
-    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
-    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")),
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")), #2
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")), #3
     
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")),
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")),
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")), #4
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")), #5
 
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")),
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")),
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")), #7
     
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")),
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")),
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")), #8
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")), #9
     
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")),
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")),
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")), #11
     
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")),
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")),
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")), #12
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")), #13
     
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")),
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")),
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")), #14
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")), #15
     
     ]
 

@@ -96,6 +96,11 @@ AGENT_DICT = {
                 pred_input=info.get("pred_input", "obs-emb"), # "obs", "emb", "obs-emb" 
                 nce_coef=info.get("nce_coef", 0.0), 
                 nce_tau=info.get("nce_tau", 1.0), 
+                
+                kl_coef=info.get("kl_coef", 0.01),
+                kl_b_tau=info.get("kl_b_tau", 1.0),
+                kl_e_tau=info.get("kl_e_tau", 1.0),
+                
             ),
         ),
         get_num_envs(env),
