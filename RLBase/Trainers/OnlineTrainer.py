@@ -9,8 +9,11 @@ import argparse
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import torch
+from collections import deque
+import time
 
 from .CallBacks import JsonlCallback, TBCallBack, EmptyCallBack
+
         
 class OnlineTrainer:
     """
@@ -59,6 +62,17 @@ class OnlineTrainer:
         self._dump_actions = True
         self._train = train
         
+        # --- Timing stats ---
+        self._timing_log_every = 2000  # steps (aggregated across envs) between logs
+
+        self._t_act_total = 0.0
+        self._t_upd_total = 0.0
+        self._t_act_count = 0
+        self._t_upd_count = 0
+
+        # optional: recent-window moving averages (smoother)
+        self._act_window = deque(maxlen=200)
+        self._upd_window = deque(maxlen=200)
         
         
         # self.call_back = TBCallBack(log_dir=exp_dir, flush_every=10, flush_mode="raw") #makes it super slow on compute canada
@@ -116,7 +130,7 @@ class OnlineTrainer:
         agent_logs = [[] for _ in range(num_envs)]
         
         seeds = [seed + i for i in range(num_envs)]
-        observation, info = env.reset(seed=seeds)
+        observation, info = env.reset(seed=seeds)        
         frames = [[] for _ in range(num_envs)]
         
         if env.render_mode == "human":
@@ -131,7 +145,15 @@ class OnlineTrainer:
         checkpoint_counter = 0
         
         while episodes_done < num_episodes:
+            t0 = time.perf_counter()
             action = agent.act(observation)
+            dt = time.perf_counter() - t0
+            
+            # update the timers for log
+            self._t_act_total += dt
+            self._t_act_count += 1
+            self._act_window.append(dt)
+            
             
             next_observation, reward, terminated, truncated, info = env.step(action)  
             
@@ -155,9 +177,16 @@ class OnlineTrainer:
             ep_lengths += 1
             steps_so_far += num_envs
             
-        
+            t0 = time.perf_counter()
             agent.update(next_observation, reward, terminated, truncated,
                         call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
+            dt = time.perf_counter() - t0
+            self._t_upd_total += dt
+            self._t_upd_count += 1
+            self._upd_window.append(dt)
+            
+            if self._timing_log_every and (steps_so_far % self._timing_log_every) < num_envs:
+                self._log_timing(run_idx, steps_so_far, num_envs)
             
             if hasattr(agent, 'log'):
                 log_entries = agent.log()  # list length num_envs
@@ -276,7 +305,14 @@ class OnlineTrainer:
         checkpoint_counter = 0
         
         while steps_so_far < total_steps:
+            t0 = time.perf_counter()
             action = agent.act(observation)
+            dt = time.perf_counter() - t0
+            
+            # update the timers for log
+            self._t_act_total += dt
+            self._t_act_count += 1
+            self._act_window.append(dt)
             
             next_observation, reward, terminated, truncated, info = env.step(action)  
     
@@ -303,8 +339,16 @@ class OnlineTrainer:
             # if steps_so_far >= total_steps:
             #     truncated = np.ones_like(truncated)
                     
-            agent.update(next_observation, reward, terminated, truncated, 
+            t0 = time.perf_counter()
+            agent.update(next_observation, reward, terminated, truncated,
                         call_back=lambda data_dict: self.call_back(data_dict, f"agents/run_{run_idx}", steps_so_far))
+            dt = time.perf_counter() - t0
+            self._t_upd_total += dt
+            self._t_upd_count += 1
+            self._upd_window.append(dt)
+            
+            if self._timing_log_every and (steps_so_far % self._timing_log_every) < num_envs:
+                self._log_timing(run_idx, steps_so_far, num_envs)
             
             if hasattr(agent, 'log'):
                 log_entries = agent.log()  # list length num_envs
@@ -513,6 +557,40 @@ class OnlineTrainer:
         self.call_back.close()      
         return all_runs_metrics
     
+    def _log_timing(self, run_idx: int, steps_so_far: int, num_envs: int):
+        if self._t_act_count == 0 or self._t_upd_count == 0:
+            return
+
+        act_avg_iter = self._t_act_total / self._t_act_count
+        upd_avg_iter = self._t_upd_total / self._t_upd_count
+
+        # per env-step
+        act_avg_step = act_avg_iter / max(num_envs, 1)
+        upd_avg_step = upd_avg_iter / max(num_envs, 1)
+
+        # moving window
+        act_ma = (sum(self._act_window) / len(self._act_window)) if self._act_window else act_avg_iter
+        upd_ma = (sum(self._upd_window) / len(self._upd_window)) if self._upd_window else upd_avg_iter
+
+        data = {
+            "time_act_avg_iter_s": act_avg_iter,
+            "time_update_avg_iter_s": upd_avg_iter,
+            "time_act_avg_envstep_s": act_avg_step,
+            "time_update_avg_envstep_s": upd_avg_step,
+            "time_act_ma_iter_s": act_ma,
+            "time_update_ma_iter_s": upd_ma,
+        }
+
+        # log to your callback (TB/Jsonl/etc.)
+        self.call_back(data, f"timing/run_{run_idx}", steps_so_far, force=True)
+
+        # optional: print occasionally
+        # print(
+        #     f"[timing run {run_idx} @ steps {steps_so_far}] "
+        #     f"act {act_avg_iter*1e3:.3f}ms/iter ({act_avg_step*1e3:.3f}ms/envstep), "
+        #     f"upd {upd_avg_iter*1e3:.3f}ms/iter ({upd_avg_step*1e3:.3f}ms/envstep)"
+        # )
+        
     @classmethod
     def load_transitions(cls, exp_dir):
         """

@@ -66,6 +66,10 @@ class GridNavMixin:
     # ---------- Primitive reads ----------
     def _img(self, obs) -> np.ndarray:
         return obs["image"]
+    
+    def _carrying(self, obs) -> Optional[int]:
+        c = obs["carrying"] if "carrying" in obs else None
+        return None if c is None else c  # object id of carried item, or None
 
     def _width_height(self, obs) -> tuple[int, int]:
         img = self._img(obs)
@@ -112,9 +116,9 @@ class GridNavMixin:
             return False
         if oid == OID["door"] and st != SID["open"]:
             return False
-        if oid in (OID["box"], OID["ball"], OID["key"]):
+        if oid in (OID["box"], OID["ball"], OID["key"], OID["goal"]):
             return False
-        # empty, floor, goal, agent => traversable
+        # empty, floor, agent => traversable
         return True
 
     def _forward_is_safe(self, obs) -> bool:
@@ -135,7 +139,11 @@ class GridNavMixin:
     def _door_is_locked(self, obs, xy: np.ndarray) -> bool:
         c = self._cell_xy(obs, xy)
         return int(c[0]) == OID["door"] and int(c[2]) == SID["locked"]
-
+    
+    def _is_carrying(self, obs) -> bool:
+        carrying = self._carrying(obs)
+        return (carrying is not None) and (carrying[0] != -1)
+    
     # ---------- Geometry ----------
     def _ahead_xy(self, obs) -> np.ndarray:
         """

@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=manual_option_lst2,
+        init_option_lst=blocked_unlock_core_options,
         device=device
     ),
     
@@ -83,23 +83,20 @@ AGENT_DICT = {
                 init_type=info.get("codebook_init_type", "uniform"),   # "uniform" or "onehot"
                 embedding_low = info.get("codebook_embedding_low", -1.0),
                 embedding_high = info.get("codebook_embedding_high", +1.0),
-                init_emb_range=info.get("codebook_init_emb_range", 0.1),
+                init_emb_range=info.get("codebook_init_emb_range", 0.05),
 
                 step_size=info.get("codebook_step_size", 3e-4),
                 eps=info.get("codebook_eps", 1e-8),
                 max_grad_norm=info.get("codebook_max_grad_norm", 1.0),
                 
-                sf_hidden_dims=info.get("sf_hidden_dims", [256]),
-                obs_proj_dims=info.get("obs_proj_dims", [32]),
-                obs_dropout=info.get("obs_dropout", 0.0),
+                test_type=info.get("codebook_test_type", "opt_classifier"), # opt_classifier
+                net_type=info.get("codebook_net_type", "cnn"), # cnn, fc
+                out_feature=info.get("codebook_out_feature", "d-last"),
+                out_feature2=info.get("codebook_out_feature2", ""),
                 
-                pred_input=info.get("pred_input", "obs-emb"), # "obs", "emb", "obs-emb" 
-                nce_coef=info.get("nce_coef", 0.0), 
-                nce_tau=info.get("nce_tau", 1.0), 
                 
-                kl_coef=info.get("kl_coef", 0.01),
-                kl_b_tau=info.get("kl_b_tau", 1.0),
-                kl_e_tau=info.get("kl_e_tau", 1.0),
+                
+                
                 
             ),
         ),
@@ -460,15 +457,15 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 2),
+                embedding_dim = info.get("codebook_embedding_dim", 16),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
-                init_emb_range=info.get("codebook_init_emb_range", 1.0),
+                init_emb_range=info.get("codebook_init_emb_range", 0.1),
                 init_type=info.get("codebook_init_type", "uniform"), # uniform, onehot
                 
                 similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2, dot
                 
-                update_type=info.get("codebook_update_type", "grad-delta_sf"), # grad, ema, delta_sf, fixed
+                update_type=info.get("codebook_update_type", "grad"), # grad, ema, delta_sf, fixed
                 
                 # grad params
                 step_size=info.get("codebook_step_size", 3e-4),
@@ -489,7 +486,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst1,
+        init_option_lst=blocked_unlock_core_options, #actions if info.get("init_options_lst", None) == "actions" else manual_options,
         init_option_embs=None,
         device=device
     ),

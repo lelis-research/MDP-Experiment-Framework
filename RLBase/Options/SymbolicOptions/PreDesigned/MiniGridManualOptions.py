@@ -200,7 +200,6 @@ class GetNearestGoalOption(BaseOption, GridNavMixin):
             color_id=COLOR_TO_IDX.get(self.hp.goal_color, None),
             avoid_lava=True,
         )
-        
         if path is None:
             return int(A_DONE)
 
@@ -227,6 +226,17 @@ class GetNearestGoalOption(BaseOption, GridNavMixin):
         super().reset(seed)
         self.counter = 0
 
+    def _passable(self, cell: np.ndarray) -> bool:
+        flag = super()._passable(cell)
+        oid, color, st = int(cell[0]), int(cell[1]),int(cell[2])
+        if self.hp.goal_color is None:
+            if oid == OID["goal"]:
+                return True
+        else:
+            if oid == OID["goal"] and color == COLOR_TO_IDX[self.hp.goal_color]:
+                return True
+        return flag
+    
 @register_option
 class ToggleNearestDoorOption(BaseOption, GridNavMixin):
     def __init__(self, option_id: Optional[str] = "toggle_nearest_door", hyper_params=None, device: str = "cpu"):
@@ -346,7 +356,7 @@ class PickupNearestKeyOption(BaseOption, GridNavMixin):
             color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
             avoid_lava=True,
         )
-        return path is not None
+        return not self._is_carrying(observation) and path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
@@ -367,8 +377,7 @@ class PickupNearestKeyOption(BaseOption, GridNavMixin):
             color_id=COLOR_TO_IDX.get(self.hp.key_color, None),
             avoid_lava=True,
         )
-
-        if path is None:
+        if self._is_carrying(observation) or path is None:
             return int(A_DONE)
 
         key_xy = path[-1]
@@ -403,7 +412,7 @@ class PickupNearestKeyOption(BaseOption, GridNavMixin):
         return int(action)
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        if self.picked:
+        if self.picked or self._is_carrying(observation):
             self.picked = False
             self.counter = 0
             return True
@@ -443,7 +452,7 @@ class PickupNearestBallOption(BaseOption, GridNavMixin):
             color_id=COLOR_TO_IDX.get(self.hp.ball_color, None),
             avoid_lava=True,
         )
-        return path is not None
+        return not self._is_carrying(observation) and path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
@@ -465,7 +474,7 @@ class PickupNearestBallOption(BaseOption, GridNavMixin):
             avoid_lava=True,
         )
 
-        if path is None:
+        if self._is_carrying(observation) or path is None:
             return int(A_DONE)
 
         ball_xy = path[-1]
@@ -495,7 +504,7 @@ class PickupNearestBallOption(BaseOption, GridNavMixin):
         return int(action)
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        if self.picked:
+        if self.picked or self._is_carrying(observation):
             self.picked = False
             self.counter = 0
             return True
@@ -535,7 +544,7 @@ class PickupNearestBoxOption(BaseOption, GridNavMixin):
             color_id=COLOR_TO_IDX.get(self.hp.box_color, None),
             avoid_lava=True,
         )
-        return path is not None
+        return not self._is_carrying(observation) and path is not None
 
     def should_initiate(self, observation: Any) -> bool:
         return self.can_initiate(observation)
@@ -557,7 +566,7 @@ class PickupNearestBoxOption(BaseOption, GridNavMixin):
             avoid_lava=True,
         )
 
-        if path is None:
+        if self._is_carrying(observation) or path is None:
             return int(A_DONE)
 
         box_xy = path[-1]
@@ -587,7 +596,7 @@ class PickupNearestBoxOption(BaseOption, GridNavMixin):
         return int(action)
 
     def is_terminated(self, observation: Any, internal_state: Optional[Any] = None) -> bool:
-        if self.picked:
+        if self.picked or self._is_carrying(observation):
             self.picked = False
             self.counter = 0
             return True
@@ -793,29 +802,78 @@ manual_option_lst1 = [
     ]
 
 manual_option_lst2 = [
-    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")), #0 
-    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")), #1
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=50, goal_color="red")), #0 
+    GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=50, goal_color="red")), #1
     
-    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")), #2
-    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")), #3
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=50, goal_color="green")), #2
+    GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=50, goal_color="green")), #3
     
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")), #4
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")), #5
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=50, door_color="red")), #4
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=50, door_color="red")), #5
 
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")), #6
-    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")), #7
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=50, door_color="green")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=50, door_color="green")), #7
+    
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=50, key_color="red")), #8
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=50, key_color="red")), #9
+    
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=50, key_color="green")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=50, key_color="green")), #11
+    
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=50, ball_color="red")), #12
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=50, ball_color="red")), #13
+    
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=50, ball_color="green")), #14
+    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=50, ball_color="green")), #15
+    
+    ]
+manual_option_lst2_nodup = [
+    # GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")), #0 
+    
+    # GetNearestGoalOption(option_id=f"get_nearest_goal_green",hyper_params=HyperParameters(option_max_len=20, goal_color="green")), #2
     
     PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")), #8
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")), #9
     
     PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")), #10
-    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")), #11
     
     PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")), #12
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_red",hyper_params=HyperParameters(option_max_len=20, ball_color="red")), #13
     
     PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")), #14
-    PickupNearestBallOption(option_id=f"pickup_nearest_ball_green",hyper_params=HyperParameters(option_max_len=20, ball_color="green")), #15
+    
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red")), #4
+
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green")), #6
     
     ]
 
+blocked_unlock_core_options = [
+    PickupNearestKeyOption(
+        option_id="PickUpKey",
+        hyper_params=HyperParameters(
+            option_max_len=20,
+            key_color=None,   # any color
+        ),
+    ),
+    ToggleNearestDoorOption(
+        option_id="ToggleDoor",
+        hyper_params=HyperParameters(
+            option_max_len=20,
+            door_color=None,  # any color
+            door_state=None,  # any state
+        ),
+    ),
+    PickupNearestBallOption(
+        option_id="PickUpBall",
+        hyper_params=HyperParameters(
+            option_max_len=20,
+            ball_color=None,  # any color
+        ),
+    ),
+    PickupNearestBoxOption(
+        option_id="PickUpBox",
+        hyper_params=HyperParameters(
+            option_max_len=20,
+            box_color=None,   # any color
+        ),
+    ),
+]
