@@ -877,3 +877,5 @@ blocked_unlock_core_options = [
         ),
     ),
 ]
+
+blocked_unlock_detailed_options = ball_options + key_options + door_options +box_pickup_options

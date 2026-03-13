@@ -486,7 +486,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=blocked_unlock_core_options, #actions if info.get("init_options_lst", None) == "actions" else manual_options,
+        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else blocked_unlock_detailed_options,
         init_option_embs=None,
         device=device
     ),

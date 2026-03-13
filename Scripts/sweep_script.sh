@@ -2,7 +2,7 @@
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-12:00    # time (DD-HH:MM)
+#SBATCH --time=0-3:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -39,26 +39,26 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[c100]_emb[uniform]_dist[cat]" 
+NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline-detailed]_emb[uniform]_dist[cat]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-MazeRooms-v0"
+ENV="MiniGrid-BlockedUnlockPickupReplaceCarry-v0"
 
-ENV_WRAPPING='["OneHotImageDirCarry"]'
-WRAPPING_PARAMS='[{}]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDir"]'
+WRAPPING_PARAMS='[{}, {}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=2_000_000
+TOTAL_STEPS=300_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=500
+EPISODE_MAX_STEPS=200
 
 INFO='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
   "enc_eps": 1e-8,
   "enc_dim": 256,
 
@@ -107,7 +107,7 @@ INFO='{
   "codebook_embedding_dim": 42,
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false,
-  "init_options_lst": "actions",
+  "init_options_lst": "blocked_unlock_core_options",
   "codebook_similarity_metric": "l2",
   "hl_distribution_type": "categorical",
   "codebook_init_type": "uniform"
