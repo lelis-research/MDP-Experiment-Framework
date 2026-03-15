@@ -1,7 +1,7 @@
 ##################################### VQOptionCritic for MiniGrid #####################################
 
 INFO_tier1='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
   "enc_eps": 1e-8,
   "enc_dim": 256,
 
@@ -33,13 +33,11 @@ INFO_tier1='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
-
   "hl_distribution_type": "categorical",
   "hl_tau_min": 0.8,
   "hl_tau_init": 2.0,
   "hl_tau_decay": 0.9995,
 
-  "codebook_embedding_dim": 8,
   "codebook_embedding_low": -1.0,
   "codebook_embedding_high": 1.0,
 
@@ -47,12 +45,15 @@ INFO_tier1='{
   "codebook_max_grad_norm": 1.0,
   "codebook_step_size": 3e-4,
 
-
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
 
-  "option_count_to_add": 20,
-  "init_options_lst": "actions"
+  "codebook_embedding_dim": 42,
+  "option_count_to_add": 100,
+  "option_learner_reset_at_add": false,
+  "init_options_lst": "blocked_unlock_core_options",
+  "codebook_similarity_metric": "l2",
+  "codebook_init_type": "uniform"
 }'
 # 864 configs
 HP_SEARCH_SPACE_tier1='{
@@ -63,7 +64,6 @@ HP_SEARCH_SPACE_tier1='{
   "codebook_init_emb_range": [1e-5, 1e-1, 1.0],
   "block_critic_to_encoder": [true, false],
 
-  "codebook_similarity_metric": ["l2", "cosine"],
   "codebook_update_type": ["grad", "ema"]
 
 }'

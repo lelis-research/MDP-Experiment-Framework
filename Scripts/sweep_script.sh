@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
-#SBATCH --array=0-431     # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-215     # check HP_SEARCH_SPACE to calculate the space size
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -39,26 +39,27 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline-detailed]_emb[uniform]_dist[cat]" 
+# enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
+NAME_TAG="Options" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-BlockedUnlockPickupReplaceCarry-v0"
+ENV="MiniGrid-BlockedUnlockPickupEnvCarry-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDir"]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=300_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=200
 
 INFO='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
   "enc_eps": 1e-8,
   "enc_dim": 256,
 
@@ -90,6 +91,7 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_transform_action": true,
 
+  "hl_distribution_type": "categorical",
   "hl_tau_min": 0.8,
   "hl_tau_init": 2.0,
   "hl_tau_decay": 0.9995,
@@ -109,8 +111,8 @@ INFO='{
   "option_learner_reset_at_add": false,
   "init_options_lst": "blocked_unlock_core_options",
   "codebook_similarity_metric": "l2",
-  "hl_distribution_type": "categorical",
-  "codebook_init_type": "uniform"
+  "codebook_init_type": "uniform",
+  "codebook_update_type": "grad"
 }'
 #categorical, continuous, all, actions, l2, cosine
 #432
@@ -120,9 +122,7 @@ HP_SEARCH_SPACE='{
   "commit_coef": [0.05, 0.1, 0.2],
 
   "codebook_init_emb_range": [1e-5, 1e-1, 1.0],
-  "block_critic_to_encoder": [true, false],
-
-  "codebook_update_type": ["grad", "ema"]
+  "block_critic_to_encoder": [true, false]
 }'
 
 TIED_PARAMS='{

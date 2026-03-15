@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from minigrid.core.constants import COLOR_NAMES
+import numpy as np
+from gymnasium import spaces
+
+from minigrid.core.constants import COLOR_NAMES, OBJECT_TO_IDX, COLOR_TO_IDX
 from minigrid.core.mission import MissionSpace
 from minigrid.core.roomgrid import RoomGrid
 from minigrid.core.world_object import Ball
 from gymnasium.envs.registration import register
-import numpy as np
 
 
-class BlockedUnlockPickupReplaceCarryEnv(RoomGrid):
-    """
-    Same as BlockedUnlockPickupEnv, except pickup replaces the currently carried
-    object instead of requiring a drop first.
-    """
+class BlockedUnlockPickupEnv(RoomGrid):
 
     def __init__(self, max_steps: int | None = None, **kwargs):
         mission_space = MissionSpace(
@@ -33,6 +31,22 @@ class BlockedUnlockPickupReplaceCarryEnv(RoomGrid):
             **kwargs,
         )
 
+        # Extend observation space
+        self.observation_space = spaces.Dict(
+            {
+                **self.observation_space.spaces,
+                "carrying": spaces.Box(
+                    low=np.array([-1, -1], dtype=np.int16),
+                    high=np.array(
+                        [len(OBJECT_TO_IDX) - 1, len(COLOR_TO_IDX) - 1],
+                        dtype=np.int16,
+                    ),
+                    dtype=np.int16,
+                    shape=(2,),
+                ),
+            }
+        )
+
     @staticmethod
     def _gen_mission(color: str, obj_type: str):
         return f"pick up the {color} {obj_type}"
@@ -40,17 +54,13 @@ class BlockedUnlockPickupReplaceCarryEnv(RoomGrid):
     def _gen_grid(self, width, height):
         super()._gen_grid(width, height)
 
-        # Add a box to the room on the right
         obj, _ = self.add_object(1, 0, kind="box")
 
-        # Make sure the two rooms are directly connected by a locked door
         door, pos = self.add_door(0, 0, 0, locked=True)
 
-        # Block the door with a ball
         color = self._rand_color()
         self.grid.set(pos[0] - 1, pos[1], Ball(color))
 
-        # Add a key to unlock the door
         self.add_object(0, 0, "key", door.color)
 
         self.place_agent(0, 0)
@@ -58,58 +68,45 @@ class BlockedUnlockPickupReplaceCarryEnv(RoomGrid):
         self.obj = obj
         self.mission = f"pick up the {obj.color} {obj.type}"
 
-    def _pickup_replace(self):
-        """
-        Custom pickup:
-        - if front cell contains a pickup-able object, pick it up
-        - replace current carrying instead of requiring drop first
-        - previous carried object is discarded
-        """
-        fwd_pos = self.front_pos
-        fwd_cell = self.grid.get(*fwd_pos)
+    # -------------------------------
+    # Carrying encoding
+    # -------------------------------
 
-        if fwd_cell is None:
-            return
+    def _get_carrying_encoding(self):
 
-        if not fwd_cell.can_pickup():
-            return
+        if self.carrying is None:
+            return np.array([-1, -1], dtype=np.int16)
 
-        # Remove object from grid and make it the currently carried object
-        self.grid.set(*fwd_pos, None)
-        fwd_cell.cur_pos = np.array([-1, -1])
-        self.carrying = fwd_cell
+        obj = self.carrying
+
+        return np.array(
+            [
+                OBJECT_TO_IDX[obj.type],
+                COLOR_TO_IDX[obj.color],
+            ],
+            dtype=np.int16,
+        )
+
+    def _augment_obs(self, obs):
+        obs["carrying"] = self._get_carrying_encoding()
+        return obs
+
+    def reset(self, **kwargs):
+        obs, info = super().reset(**kwargs)
+        obs = self._augment_obs(obs)
+        return obs, info
 
     def step(self, action):
-        self.step_count += 1
+        obs, reward, terminated, truncated, info = super().step(action)
 
-        reward = 0
-        terminated = False
-        truncated = False
+        obs = self._augment_obs(obs)
 
         if action == self.actions.pickup:
-            self._pickup_replace()
-        else:
-            obs, reward, terminated, truncated, info = super().step(action)
-
-            # super().step already incremented step_count, so avoid double counting
-            # by returning early for non-pickup actions
-            return obs, reward, terminated, truncated, info
-
-        if self.step_count >= self.max_steps:
-            truncated = True
-
-        if self.carrying is not None and self.carrying == self.obj:
-            reward = self._reward()
-            terminated = True
-
-        obs = self.gen_obs()
-        info = {}
+            if self.carrying and self.carrying == self.obj:
+                reward = self._reward()
+                terminated = True
 
         return obs, reward, terminated, truncated, info
     
     
-register(
-    id="MiniGrid-BlockedUnlockPickupReplaceCarry-v0",
-    entry_point=BlockedUnlockPickupReplaceCarryEnv,
-    kwargs={"max_steps": 100},
-)
+register(id="MiniGrid-BlockedUnlockPickupEnvCarry-v0", entry_point=BlockedUnlockPickupEnv)

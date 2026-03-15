@@ -745,7 +745,7 @@ key_options = [
         option_id=f"pickup_nearest_key_{color}",
         hyper_params=HyperParameters(option_max_len=20, key_color=color),
     )
-    for color in COLOR_NAMES + [None]
+    for color in COLOR_NAMES #+ [None]
 ]
 
 
@@ -754,7 +754,7 @@ ball_options = [
         option_id=f"pickup_nearest_ball_{color}",
         hyper_params=HyperParameters(option_max_len=20, ball_color=color),
     )
-    for color in COLOR_NAMES + [None]
+    for color in COLOR_NAMES #+ [None]
 ]
 
 
@@ -763,7 +763,7 @@ box_pickup_options = [
         option_id=f"pickup_nearest_box_{color}",
         hyper_params=HyperParameters(option_max_len=20, box_color=color),
     )
-    for color in COLOR_NAMES + [None]
+    for color in COLOR_NAMES #+ [None]
 ]
 
 
@@ -785,7 +785,7 @@ door_options = [
             door_state=state,
         ),
     )
-    for color in COLOR_NAMES + [None]
+    for color in COLOR_NAMES #+ [None]
     for state in STATE_TO_IDX.keys()
 ]
 
@@ -878,4 +878,4 @@ blocked_unlock_core_options = [
     ),
 ]
 
-blocked_unlock_detailed_options = ball_options + key_options + door_options +box_pickup_options
+blocked_unlock_detailed_options = ball_options + key_options + door_options + box_pickup_options
