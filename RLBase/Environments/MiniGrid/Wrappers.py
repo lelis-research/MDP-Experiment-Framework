@@ -210,9 +210,8 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         onehot_dir = np.zeros(len(DIR_TO_VEC), dtype="uint8")
         onehot_dir[d] = 1
         
-        
         # ----- One-hot the carrying (object, color) -----
-        carry = obs["carrying "]  # shape (2,), int values
+        carry = obs["carrying"]  # shape (2,), int values
         
         obj_type = int(carry[0])
         color = int(carry[1])
