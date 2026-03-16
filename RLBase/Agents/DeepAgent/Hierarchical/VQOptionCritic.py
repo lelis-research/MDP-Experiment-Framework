@@ -8,6 +8,8 @@ import gymnasium
 from gymnasium.spaces import Discrete, Box
 from typing import Optional, Union
 import copy
+import os
+import pickle
 
 from ....utils import RandomGenerator
 from ...Base import BaseAgent, BasePolicy
@@ -883,11 +885,67 @@ class VQOptionCriticAgent(BaseAgent):
         self.sf_start_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
         self.sf_cumulative_enc = [torch.zeros(self.hp.enc.enc_dim, device=self.device, dtype=torch.float32) for _ in range(self.num_envs)]
         self.sf_cumulative_discounts = [0.0 for _ in range(self.num_envs)]  # float is fine; can also be torch scalar
-        
+                        
         
         self.option_learner_tmp = {}
         
+        # For dumping data for offline analysis
+        self.sf_actions = [[] for _ in range(self.num_envs)]
+        self.sf_observations = [[] for _ in range(self.num_envs)]
+        self.dump_path = "Random_Data/options_50K_unblock-unlock-pickup.pkl"
+        self.sf_dump = False
+
+    def sf_bookkeeping(self, obs_option, env_id, action, mode=None):
+        """
+        Store onehot_image trajectories per option, exactly like OptionRandomSFCodebookAgent.
+
+        mode:
+            "s" = start a new option rollout
+            "m" = append one transition step
+            "f" = finish and return tensors
+        """
+        assert mode in ["s", "m", "f"]
+
+        img_t = torch.as_tensor(
+            obs_option["onehot_image"],
+            device=self.device,
+            dtype=torch.float32
+        )
+
+        if mode == "s":
+            self.sf_actions[env_id] = []
+            self.sf_observations[env_id] = [img_t]
+
+        elif mode == "m":
+            self.sf_actions[env_id].append(action)
+            self.sf_observations[env_id].append(img_t)
+
+        elif mode == "f":
+            return torch.tensor(self.sf_actions[env_id]), torch.stack(self.sf_observations[env_id])
+
+        else:
+            raise ValueError(f"Mode {mode} is not defined")
     
+    def dump_option_rollout(self, option_id: int, action_seq: torch.Tensor, obs_seq: torch.Tensor):
+        """
+        Dump one completed option rollout to self.dump_path.
+
+        Args:
+            option_id: int
+            action_seq: (L,)
+            obs_seq: (L+1, H, W, C)
+        """
+        record = {
+            "option_id": int(option_id),
+            "len": int(action_seq.shape[0]),
+            "actions": action_seq.detach().cpu().numpy().astype(np.int16, copy=False),
+            "observations": obs_seq.detach().cpu().numpy().astype(np.float16, copy=False),
+        }
+
+        os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
+        with open(self.dump_path, "ab") as f:
+            pickle.dump(record, f, protocol=pickle.HIGHEST_PROTOCOL)
+        
     def _init_log_buf(self):
         # one buffer per env slot, to avoid mixing logs between envs
         self.log_buf = []
@@ -933,6 +991,12 @@ class VQOptionCriticAgent(BaseAgent):
                     self.sf_cumulative_enc[env_i].zero_()
                     self.sf_cumulative_discounts[env_i] = 0.0
                     
+                    # Added for SF bookkeeping
+                    if self.sf_dump:
+                        obs_option = get_single_observation_nobatch(observation, env_i)
+                        self.sf_bookkeeping(obs_option, env_i, action=None, mode="s")
+    
+                    
          
         # 3) Batch low-level policy for all envs
         with torch.no_grad():
@@ -943,8 +1007,9 @@ class VQOptionCriticAgent(BaseAgent):
                 a = self.options_lst[curr_option_idx].select_action(obs_option)        
                 action.append(a)
         
+        self.last_action = action
         return action
-
+        
     def update(self, observation, reward, terminated, truncated, call_back=None):
         if self.training:
             self.update_buffers(observation, reward, terminated, truncated, call_back=call_back)
@@ -990,6 +1055,9 @@ class VQOptionCriticAgent(BaseAgent):
             self.option_multiplier[i] *= self.hp.hl.gamma
             self.option_num_steps[i] += 1
             
+            if self.sf_dump:
+                self.sf_bookkeeping(obs_option, i, self.last_action[i], mode="m")
+            
             # sf bookkeeping
             with torch.no_grad():       
                 encoded_features = self.encoder(self.feature_extractor(obs))['x'].squeeze()         # shape: (enc_dim)
@@ -1004,6 +1072,10 @@ class VQOptionCriticAgent(BaseAgent):
                 
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
+                
+                if self.sf_dump:
+                    action_seq, obs_seq = self.sf_bookkeeping(obs_option, i, action=None, mode="f")
+                    self.dump_option_rollout(curr_option_idx, action_seq, obs_seq)
                 
                 if call_back is not None:
                     call_back({"curr_hl_option_idx": curr_option_idx,
@@ -1112,6 +1184,11 @@ class VQOptionCriticAgent(BaseAgent):
         self.sf_cumulative_discounts = [0.0 for _ in range(self.num_envs)]  # float is fine; can also be torch scalar
         
         self.option_learner_tmp = {}
+        
+        self.sf_actions = [[] for _ in range(self.num_envs)]
+        self.sf_observations = [[] for _ in range(self.num_envs)]
+        self.last_action = [None for _ in range(self.num_envs)]
+        self._init_log_buf()
 
     def manual_option_learner(self, observation, reward, terminated, truncated, call_back=None): # needs to be changed later
         for i in range(self.num_envs):

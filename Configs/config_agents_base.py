@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=blocked_unlock_core_options,
+        init_option_lst=manual_option_lst3_nodup,
         device=device
     ),
     
@@ -486,7 +486,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else blocked_unlock_detailed_options,
+        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst3_nodup,
         init_option_embs=None,
         device=device
     ),
