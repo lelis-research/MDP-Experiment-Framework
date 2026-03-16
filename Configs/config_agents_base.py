@@ -360,7 +360,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=blocked_unlock_detailed_options,
+        init_option_lst=manual_option_lst5_nodup,
         device=device
     ),
     
@@ -486,7 +486,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst4_nodup,
+        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst5_nodup,
         init_option_embs=None,
         device=device
     ),

@@ -40,14 +40,14 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options" 
+NAME_TAG="Options_Base" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
 ENV="MiniGrid-UnlockPickup-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDir"]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
 ENV_PARAMS='{}'
 
@@ -59,7 +59,7 @@ NUM_ENVS=1
 EPISODE_MAX_STEPS=200
 
 INFO='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
   "enc_eps": 1e-8,
   "enc_dim": 256,
 

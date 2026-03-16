@@ -885,3 +885,10 @@ manual_option_lst4_nodup = [
     PickupNearestBoxOption(option_id=f"pickup_nearest_box_yellow",hyper_params=HyperParameters(option_max_len=20, box_color="yellow")), #10
     PickupNearestBoxOption(option_id=f"pickup_nearest_box_grey",hyper_params=HyperParameters(option_max_len=20, box_color="grey")), #10 
     ] + actions
+
+manual_option_lst5_nodup = [
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key",hyper_params=HyperParameters(option_max_len=20, key_color=None)), #8
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door",hyper_params=HyperParameters(option_max_len=20, door_color=None, door_state="locked")), #4
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box",hyper_params=HyperParameters(option_max_len=20, box_color=None)), #8
+
+    ] + actions
