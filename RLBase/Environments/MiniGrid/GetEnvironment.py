@@ -87,6 +87,7 @@ MINIGRID_ENV_LST = [
     "MiniGrid-MazeRooms-v0",
     "MiniGrid-EmptyTwoGoals-v0",
     "MiniGrid-TestOptionRoom-v0",
+    "MiniGrid-UnlockPickupLimitedColor-v0",
     
 ]
 
