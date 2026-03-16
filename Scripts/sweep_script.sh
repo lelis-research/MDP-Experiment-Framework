@@ -2,7 +2,7 @@
 #SBATCH --job-name=sweep
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-3:00    # time (DD-HH:MM)
+#SBATCH --time=0-1:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -45,21 +45,21 @@ NAME_TAG="Options"
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-BlockedUnlockPickupEnvCarry-v0"
+ENV="MiniGrid-UnlockPickup-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDir"]'
 WRAPPING_PARAMS='[{}, {}]'
 ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=500_000
+TOTAL_STEPS=100_000
 NUM_ENVS=1
 EPISODE_MAX_STEPS=200
 
 INFO='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
   "enc_eps": 1e-8,
   "enc_dim": 256,
 
@@ -106,10 +106,10 @@ INFO='{
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
 
-  "codebook_embedding_dim": 42,
+  "codebook_embedding_dim": 4,
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false,
-  "init_options_lst": "blocked_unlock_core_options",
+  "init_options_lst": "manual_option_lst4_nodup",
   "codebook_similarity_metric": "l2",
   "codebook_init_type": "uniform",
   "codebook_update_type": "grad"

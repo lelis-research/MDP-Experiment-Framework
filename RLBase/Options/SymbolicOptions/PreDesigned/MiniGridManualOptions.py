@@ -862,3 +862,26 @@ manual_option_lst3_nodup = [
     ToggleNearestDoorOption(option_id=f"toggle_nearest_door_yellow",hyper_params=HyperParameters(option_max_len=20, door_color="yellow", door_state="locked")), #6
     ToggleNearestDoorOption(option_id=f"toggle_nearest_door_grey",hyper_params=HyperParameters(option_max_len=20, door_color="grey", door_state="locked")), #6
     ]
+
+manual_option_lst4_nodup = [
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_red",hyper_params=HyperParameters(option_max_len=20, key_color="red")), #8
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_green",hyper_params=HyperParameters(option_max_len=20, key_color="green")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_blue",hyper_params=HyperParameters(option_max_len=20, key_color="blue")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_purple",hyper_params=HyperParameters(option_max_len=20, key_color="purple")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_yellow",hyper_params=HyperParameters(option_max_len=20, key_color="yellow")), #10
+    PickupNearestKeyOption(option_id=f"pickup_nearest_key_grey",hyper_params=HyperParameters(option_max_len=20, key_color="grey")), #10
+
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_red",hyper_params=HyperParameters(option_max_len=20, door_color="red", door_state="locked")), #4
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_green",hyper_params=HyperParameters(option_max_len=20, door_color="green", door_state="locked")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_blue",hyper_params=HyperParameters(option_max_len=20, door_color="blue", door_state="locked")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_purple",hyper_params=HyperParameters(option_max_len=20, door_color="purple", door_state="locked")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_yellow",hyper_params=HyperParameters(option_max_len=20, door_color="yellow", door_state="locked")), #6
+    ToggleNearestDoorOption(option_id=f"toggle_nearest_door_grey",hyper_params=HyperParameters(option_max_len=20, door_color="grey", door_state="locked")), #6
+    
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_red",hyper_params=HyperParameters(option_max_len=20, box_color="red")), #8
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_green",hyper_params=HyperParameters(option_max_len=20, box_color="green")), #10
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_blue",hyper_params=HyperParameters(option_max_len=20, box_color="blue")), #10
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_purple",hyper_params=HyperParameters(option_max_len=20, box_color="purple")), #10
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_yellow",hyper_params=HyperParameters(option_max_len=20, box_color="yellow")), #10
+    PickupNearestBoxOption(option_id=f"pickup_nearest_box_grey",hyper_params=HyperParameters(option_max_len=20, box_color="grey")), #10 
+    ] + actions
