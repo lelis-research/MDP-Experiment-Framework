@@ -164,9 +164,14 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         )
         
         # ---- Carrying one-hot space ----
-        carry_space = env.observation_space["carrying"]
-        assert isinstance(carry_space, spaces.Box)
-        assert carry_space.shape == (2,), f"Expected carrying shape (2,), got {carry_space.shape}"
+        
+        self.has_carrying_in_obs = "carrying" in env.observation_space.spaces
+        if self.has_carrying_in_obs:
+            carry_space = env.observation_space["carrying"]
+            assert isinstance(carry_space, spaces.Box)
+            assert carry_space.shape == (2,), (
+                f"Expected carrying shape (2,), got {carry_space.shape}"
+            )
         self.num_carry_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + 1 # +1 for "none"/empty
         onehot_carry_space = spaces.Box(
             low=0,
@@ -211,7 +216,10 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
         onehot_dir[d] = 1
         
         # ----- One-hot the carrying (object, color) -----
-        carry = obs["carrying"]  # shape (2,), int values
+        if "carrying" in obs:
+            carry = obs["carrying"]
+        else:
+            carry = self._get_carrying_from_env()
         
         obj_type = int(carry[0])
         color = int(carry[1])
@@ -236,6 +244,23 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
             "onehot_carrying": onehot_carry,
         }
 
+    def _get_carrying_from_env(self):
+        """
+        Return carrying as np.array([obj_idx, color_idx], dtype=np.int16).
+        Uses [-1, -1] when nothing is carried.
+        """
+        carried_obj = self.env.unwrapped.carrying
+
+        if carried_obj is None:
+            return np.array([-1, -1], dtype=np.int16)
+
+        return np.array(
+            [
+                OBJECT_TO_IDX[carried_obj.type],
+                COLOR_TO_IDX[carried_obj.color],
+            ],
+            dtype=np.int16,
+        )
 class FixedSeedWrapper(gym.Wrapper):
     """
     Force MiniGrid env to always reset with the same seed.
