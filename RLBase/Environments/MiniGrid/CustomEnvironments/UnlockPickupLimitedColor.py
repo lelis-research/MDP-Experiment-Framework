@@ -13,17 +13,28 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
     Same as UnlockPickupEnv but allows restricting the colors
     used for objects in the environment.
 
+    Optional behavior:
+        auto_drop=True:
+            if the agent is already carrying an object and performs pickup on a
+            new pickable object, the old carried object is automatically dropped
+            onto the front cell and replaced by the new one.
+
     Example:
-        env = UnlockPickupLimitedColorEnv(allowed_colors=["red", "green"])
+        env = UnlockPickupLimitedColorEnv(
+            allowed_colors=["red", "green"],
+            auto_drop=True,
+        )
     """
 
     def __init__(
         self,
         allowed_colors=None,
+        auto_drop: bool = False,
         max_steps: int | None = None,
         **kwargs,
     ):
         self.allowed_colors = allowed_colors or COLOR_NAMES
+        self.auto_drop = auto_drop
 
         room_size = 6
 
@@ -68,19 +79,55 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
         self.obj = obj
         self.mission = f"pick up the {obj.color} {obj.type}"
 
+    def _maybe_auto_drop_before_pickup(self):
+        """
+        If auto_drop is enabled and the agent is already carrying something,
+        try to put the currently carried object onto the front cell so the
+        normal MiniGrid pickup can grab the new object there.
+        """
+        if not self.auto_drop:
+            return
+
+        if self.carrying is None:
+            return
+
+        fwd_pos = self.front_pos
+        fwd_cell = self.grid.get(*fwd_pos)
+
+        # Need something in front to pick up
+        if fwd_cell is None:
+            return
+
+        # Only do this if the front object is pickable
+        if not fwd_cell.can_pickup():
+            return
+
+        # Put down the old carried object on the front cell and clear carrying.
+        # The subsequent normal pickup will then pick up the front object.
+        old_carry = self.carrying
+        self.grid.set(fwd_pos[0], fwd_pos[1], old_carry)
+        self.carrying = None
+
     def step(self, action):
+        if action == self.actions.pickup:
+            self._maybe_auto_drop_before_pickup()
+
         obs, reward, terminated, truncated, info = super().step(action)
 
         if action == self.actions.pickup:
-            if self.carrying and self.carrying == self.obj:
+            if self.carrying is not None and self.carrying == self.obj:
                 reward = self._reward()
                 terminated = True
 
         return obs, reward, terminated, truncated, info
-    
-    
+
+
 register(
     id="MiniGrid-UnlockPickupLimitedColor-v0",
     entry_point=UnlockPickupLimitedColorEnv,
-    kwargs={"allowed_colors": ['red', 'green'], "max_steps": 100},
+    kwargs={
+        "allowed_colors": ["red", "green"],
+        "auto_drop": False,
+        "max_steps": 100,
+    },
 )

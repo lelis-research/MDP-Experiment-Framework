@@ -6,7 +6,7 @@
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
-#SBATCH --array=0-5
+#SBATCH --array=0-0
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -41,14 +41,14 @@ IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
 #"Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
 # NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline-detailed]_emb[uniform]_dist[cat]_$IDX"
+NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline-LimitedColor]_emb[uniform]_dist[cat]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-BlockedUnlockPickupReplaceCarry-v0"
+ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDir"]'
+ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
 ENV_PARAMS='{}'
 
@@ -64,10 +64,10 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "block_critic_to_encoder": false,
+  "block_critic_to_encoder": true,
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-05,
-  "codebook_embedding_dim": 42,
+  "codebook_embedding_dim": 4,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
   "codebook_eps": 1e-05,
@@ -77,10 +77,10 @@ INFO='{
   "codebook_similarity_metric": "l2",
   "codebook_step_size": 0.0003,
   "codebook_update_type": "grad",
-  "commit_coef": 0.1,
+  "commit_coef": 0.05,
   "enc_dim": 256,
   "enc_eps": 1e-08,
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdir",
+  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
   "enc_step_size": 0.0001,
   "gamma": 0.99,
   "hl_actor_eps": 1e-08,
@@ -98,7 +98,7 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.001,
+  "hl_entropy_coef": 0.0,
   "hl_lamda": 0.95,
   "hl_max_grad_norm": 0.5,
   "hl_max_logstd": null,
@@ -111,7 +111,7 @@ INFO='{
   "hl_tau_init": 2.0,
   "hl_tau_min": 0.8,
   "hl_total_steps": 200000,
-  "init_options_lst": "blocked_unlock_core_options",
+  "init_options_lst": "unlock_pickup_lst_limited_color",
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false
 

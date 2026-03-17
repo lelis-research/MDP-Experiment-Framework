@@ -2,7 +2,7 @@
 #SBATCH --job-name=analyze_sweep
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-01:30    # time (DD-HH:MM)
+#SBATCH --time=0-00:30    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -41,7 +41,7 @@ IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 
 
 # ---------------Configs---------
-EXP_DIR="Runs/Sweep/MiniGrid-UnlockPickup-v0_/FullyObs_OneHotImageDirCarry/VQOptionCritic/Options_seed[1]"
+EXP_DIR="Runs/Sweep/MiniGrid-UnlockPickupLimitedColor-v0_/FullyObs_OneHotImageDirCarry/OptionPPO/Options_WithColor_seed[1]"
 RATIO=0.9
 AUC_TYPE="steps"
 

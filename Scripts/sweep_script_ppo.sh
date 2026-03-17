@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sweep-vq
+#SBATCH --job-name=sweep-ppo
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
 #SBATCH --time=0-2:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
-#SBATCH --array=0-215     # check HP_SEARCH_SPACE to calculate the space size
+#SBATCH --array=0-35     # check HP_SEARCH_SPACE to calculate the space size
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -40,11 +40,11 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_NoColor" 
+NAME_TAG="Options_WithColor" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="VQOptionCritic"
+AGENT="OptionPPO"
 ENV="MiniGrid-Unlock-v0"
 
 ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
@@ -59,75 +59,51 @@ NUM_ENVS=1
 EPISODE_MAX_STEPS=200
 
 INFO='{
-  "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
-  "enc_eps": 1e-8,
-  "enc_dim": 256,
-
   "gamma": 0.99,
-  "hl_lamda": 0.95,
-  "hl_rollout_steps": 1024,
-  "hl_mini_batch_size": 128,
-  "hl_num_epochs": 10,
-  "hl_target_kl": null,
+  "lamda": 0.95,
 
-  "hl_actor_network": "MiniGrid/VQOptionCritic/mlp_actor",
-  "hl_actor_eps": 1e-8,
-  "hl_clip_range_actor_init": 0.2,
-  "hl_anneal_clip_range_actor": false,
+  "actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
+  "critic_network": "MiniGrid/PPO/conv_imgdircarry_critic",
 
-  "hl_critic_network": "MiniGrid/VQOptionCritic/mlp_critic",
-  "hl_critic_eps": 1e-8,
-  "hl_clip_range_critic_init": null,
-  "hl_anneal_clip_range_critic": false,
+  "actor_eps": 1e-8,
+  "critic_eps": 1e-8,
 
-  "hl_critic_coef": 0.5,
-  "hl_max_grad_norm": 0.5,
+  "clip_range_actor_init": 0.2,
+  "anneal_clip_range_actor": false,
 
-  "hl_min_logstd": null,
-  "hl_max_logstd": null,
+  "clip_range_critic_init": null,
+  "anneal_clip_range_critic": false,
 
-  "hl_enable_stepsize_anneal": false,
-  "hl_total_steps": 200000,
-  "hl_enable_advantage_normalization": true,
-  "hl_enable_transform_action": true,
+  "critic_coef": 0.5,
+  "max_grad_norm": 0.5,
 
-  "hl_distribution_type": "categorical",
-  "hl_tau_min": 0.8,
-  "hl_tau_init": 2.0,
-  "hl_tau_decay": 0.9995,
+  "min_logstd": null,
+  "max_logstd": null,
 
-  "codebook_embedding_low": -1.0,
-  "codebook_embedding_high": 1.0,
+  "enable_stepsize_anneal": false,
+  "total_steps": 500000,
 
-  "codebook_eps": 1e-5,
-  "codebook_max_grad_norm": 1.0,
-  "codebook_step_size": 3e-4,
+  "update_type": "per_env",
+  "enable_advantage_normalization": true,
+  "enable_transform_action": true,
 
-  "codebook_ema_decay": 0.99,
-  "codebook_ema_eps": 1e-5,
+  "target_kl": null,
 
-  "codebook_embedding_dim": 4,
-  "option_count_to_add": 100,
-  "option_learner_reset_at_add": false,
-  "init_options_lst": "unlock_pickup_lst_nocolor",
-  "codebook_similarity_metric": "l2",
-  "codebook_init_type": "uniform",
-  "codebook_update_type": "grad"
+  "rollout_steps": 1024,
+  "mini_batch_size": 128,
+  "num_epochs": 10, 
+
+  "init_option_lst": "unlock_pickup_lst_withcolor"
 }'
 #categorical, continuous, all, actions, l2, cosine
 #432
 HP_SEARCH_SPACE='{
-  "hl_actor_step_size": [1e-4, 3e-4, 1e-3],
-  "hl_entropy_coef": [0.0, 0.001, 0.01, 0.05],
-  "commit_coef": [0.05, 0.1, 0.2],
-
-  "codebook_init_emb_range": [1e-5, 1e-1, 1.0],
-  "block_critic_to_encoder": [true, false]
+  "actor_step_size": [1e-4, 3e-4, 1e-3],
+  "critic_step_size": [1e-4, 3e-4, 1e-3],
+  "entropy_coef": [0.0, 0.001, 0.01, 0.05]
 }'
 
-TIED_PARAMS='{
-  "hl_actor_step_size": ["hl_critic_step_size", "enc_step_size"]
-}'
+TIED_PARAMS='{}'
 
 # ------------------ Run inside container ------------------
 $APPTAINER_CMD "$CONTAINER" \

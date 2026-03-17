@@ -141,7 +141,7 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
 
         # ---- Image one-hot shape (same as original wrapper) ----
         obs_shape = env.observation_space["image"].shape
-        num_bits = len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + len(STATE_TO_IDX) + 1
+        num_bits = len(OBJECT_TO_IDX) + (len(COLOR_TO_IDX) + 1) + (len(STATE_TO_IDX) + 1) # +1 is for the state that is none and + 1 for colours that is none
 
         onehot_image_space = spaces.Box(
             low=0,
@@ -203,10 +203,22 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
                 obj_type = img[i, j, 0]
                 color = img[i, j, 1]
                 state = img[i, j, 2]
-
+                if obj_type in (OBJECT_TO_IDX["unseen"], OBJECT_TO_IDX["empty"], OBJECT_TO_IDX["agent"]):
+                    color = len(COLOR_TO_IDX)  # "none" color
+                    state = len(STATE_TO_IDX)  # "none" state
+                elif obj_type in (OBJECT_TO_IDX["wall"], OBJECT_TO_IDX["floor"], 
+                                  OBJECT_TO_IDX["key"], OBJECT_TO_IDX["ball"], 
+                                  OBJECT_TO_IDX["box"], OBJECT_TO_IDX["lava"], 
+                                  OBJECT_TO_IDX["goal"]):
+                    state = len(STATE_TO_IDX)  # "none" state
+                elif obj_type == OBJECT_TO_IDX["door"]:
+                    pass  # keep color and state as-is
+                else:
+                    raise ValueError(f"Unexpected object type: {obj_type}")
+                    
                 onehot_img[i, j, obj_type] = 1
                 onehot_img[i, j, len(OBJECT_TO_IDX) + color] = 1
-                onehot_img[i, j, len(OBJECT_TO_IDX) + len(COLOR_TO_IDX) + state] = 1
+                onehot_img[i, j, len(OBJECT_TO_IDX) + (len(COLOR_TO_IDX) + 1) + state] = 1
 
         # ----- One-hot the direction -----
         d = obs["direction"]  # integer in {0,1,2,3}
@@ -261,6 +273,7 @@ class OneHotImageDirCarryWrapper(ObservationWrapper):
             ],
             dtype=np.int16,
         )
+
 class FixedSeedWrapper(gym.Wrapper):
     """
     Force MiniGrid env to always reset with the same seed.

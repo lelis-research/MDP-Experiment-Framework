@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=manual_option_lst5_nodup,
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         device=device
     ),
     
@@ -69,7 +69,7 @@ AGENT_DICT = {
             ),
         get_num_envs(env),
         FlattenFeature,
-        init_option_lst=manual_options, 
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []), 
     ),
     OptionRandomSFCodebookAgent.name: lambda env, info: OptionRandomSFCodebookAgent(
         get_env_action_space(env),
@@ -102,7 +102,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         FlattenFeature,                 # feature_extractor isn't used for SF in this agent, but keep the standard signature
-        init_option_lst=manual_option_lst2, # or actions / whatever you pass for options
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []), # or actions / whatever you pass for options
         init_option_embs=None,          # or your manual one-hot / custom init embeddings
         device=device
     ),
@@ -143,7 +143,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=manual_options, 
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []), 
     ),
     
     
@@ -209,7 +209,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=manual_options,
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         device=device
     ),
     
@@ -276,7 +276,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         OneHotFlattenFeature,
-        init_option_lst=manual_options,
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         device=device
     ),
     
@@ -360,7 +360,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=manual_option_lst5_nodup,
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         device=device
     ),
     
@@ -486,7 +486,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=actions if info.get("init_options_lst", None) == "actions" else manual_option_lst5_nodup,
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         init_option_embs=None,
         device=device
     ),

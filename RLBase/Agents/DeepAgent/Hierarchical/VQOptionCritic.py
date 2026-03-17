@@ -892,12 +892,12 @@ class VQOptionCriticAgent(BaseAgent):
         # For dumping data for offline analysis
         self.sf_actions = [[] for _ in range(self.num_envs)]
         self.sf_observations = [[] for _ in range(self.num_envs)]
-        self.dump_path = "Random_Data/options_50K_unblock-unlock-pickup.pkl"
-        self.sf_dump = False
+        self.dump_path = "Random_Data/options_500K_LimitedColor_2.pkl"
+        self.sf_dump = True
 
     def sf_bookkeeping(self, obs_option, env_id, action, mode=None):
         """
-        Store onehot_image trajectories per option, exactly like OptionRandomSFCodebookAgent.
+        Store option trajectories.
 
         mode:
             "s" = start a new option rollout
@@ -906,40 +906,69 @@ class VQOptionCriticAgent(BaseAgent):
         """
         assert mode in ["s", "m", "f"]
 
-        img_t = torch.as_tensor(
-            obs_option["onehot_image"],
-            device=self.device,
-            dtype=torch.float32
-        )
+        obs_t = {
+            "onehot_image": torch.as_tensor(
+                obs_option["onehot_image"],
+                device=self.device,
+                dtype=torch.float32,
+            ),
+            "onehot_direction": torch.as_tensor(
+                obs_option["onehot_direction"],
+                device=self.device,
+                dtype=torch.float32,
+            ),
+            "onehot_carrying": torch.as_tensor(
+                obs_option["onehot_carrying"],
+                device=self.device,
+                dtype=torch.float32,
+            ),
+        }
 
         if mode == "s":
             self.sf_actions[env_id] = []
-            self.sf_observations[env_id] = [img_t]
+            self.sf_observations[env_id] = [obs_t]
 
         elif mode == "m":
             self.sf_actions[env_id].append(action)
-            self.sf_observations[env_id].append(img_t)
+            self.sf_observations[env_id].append(obs_t)
 
         elif mode == "f":
-            return torch.tensor(self.sf_actions[env_id]), torch.stack(self.sf_observations[env_id])
+            obs_seq = self.sf_observations[env_id]
+
+            stacked_obs = {
+                "onehot_image": torch.stack([o["onehot_image"] for o in obs_seq], dim=0),
+                "onehot_direction": torch.stack([o["onehot_direction"] for o in obs_seq], dim=0),
+                "onehot_carrying": torch.stack([o["onehot_carrying"] for o in obs_seq], dim=0),
+            }
+
+            return torch.tensor(self.sf_actions[env_id]), stacked_obs
 
         else:
             raise ValueError(f"Mode {mode} is not defined")
     
-    def dump_option_rollout(self, option_id: int, action_seq: torch.Tensor, obs_seq: torch.Tensor):
+    def dump_option_rollout(self, option_id: int, action_seq: torch.Tensor, obs_seq: dict):
         """
         Dump one completed option rollout to self.dump_path.
 
         Args:
             option_id: int
             action_seq: (L,)
-            obs_seq: (L+1, H, W, C)
+            obs_seq:
+                {
+                    "onehot_image": (L+1, ...),
+                    "onehot_direction": (L+1, ...),
+                    "onehot_carrying": (L+1, ...),
+                }
         """
         record = {
             "option_id": int(option_id),
             "len": int(action_seq.shape[0]),
             "actions": action_seq.detach().cpu().numpy().astype(np.int16, copy=False),
-            "observations": obs_seq.detach().cpu().numpy().astype(np.float16, copy=False),
+            "observations": {
+                "onehot_image": obs_seq["onehot_image"].detach().cpu().numpy().astype(np.float16, copy=False),
+                "onehot_direction": obs_seq["onehot_direction"].detach().cpu().numpy().astype(np.float16, copy=False),
+                "onehot_carrying": obs_seq["onehot_carrying"].detach().cpu().numpy().astype(np.float16, copy=False),
+            },
         }
 
         os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
