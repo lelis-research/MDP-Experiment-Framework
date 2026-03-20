@@ -61,6 +61,9 @@ class OnlineTrainer:
         self._checkpoint_freq = None
         self._dump_actions = True
         self._train = train
+        self._dump_metrics = True
+        self._metrics_dump_every = 50   # flush every 50 finished episodes
+        self._keep_metrics_in_memory = False
         
         # --- Timing stats ---
         self._timing_log_every = 2000  # steps (aggregated across envs) between logs
@@ -75,8 +78,8 @@ class OnlineTrainer:
         self._upd_window = deque(maxlen=200)
         
         
-        # self.call_back = TBCallBack(log_dir=exp_dir, flush_every=10, flush_mode="raw") #makes it super slow on compute canada
-        self.call_back = EmptyCallBack(log_dir=exp_dir)
+        self.call_back = TBCallBack(log_dir=exp_dir, flush_every=10, flush_mode="raw") #makes it super slow on compute canada
+        # self.call_back = EmptyCallBack(log_dir=exp_dir)
         # self.call_back = JsonlCallback(log_path=os.path.join(exp_dir, "metrics.jsonl"), flush_every=100)
         
     @staticmethod
@@ -117,7 +120,9 @@ class OnlineTrainer:
         else:
             agent.eval()
             
-        all_metrics = []
+        metrics_buffer = []
+        all_metrics = [] if self._keep_metrics_in_memory else None
+        
         pbar = tqdm(range(1, num_episodes + 1), desc="Running episodes")
         num_envs = env.num_envs
         agent.set_num_env(num_envs)
@@ -218,7 +223,15 @@ class OnlineTrainer:
                     "episode_index": episodes_done,
                     "agent_logs": self.concat_dicts_of_arrays(agent_logs[i], axis=0)
                 }
-                all_metrics.append(metrics)
+                metrics_buffer.append(metrics)
+
+                if self._keep_metrics_in_memory:
+                    all_metrics.append(metrics)
+
+                if self._dump_metrics and len(metrics_buffer) >= self._metrics_dump_every:
+                    self._append_metrics_chunk(run_idx, metrics_buffer)
+                    metrics_buffer.clear()
+    
 
                 # Best agent snapshot (checkpoint dict from agent.save())
                 if ep_returns[i] >= best_return:
@@ -258,6 +271,7 @@ class OnlineTrainer:
            
             
         pbar.close()
+        self._flush_metrics_buffer(run_idx, metrics_buffer)
         return all_metrics, best_agent
     
     def _single_run_steps(self, env, agent, total_steps, seed, run_idx):
@@ -276,7 +290,9 @@ class OnlineTrainer:
         else:
             agent.eval()
             
-        all_metrics = []
+        metrics_buffer = []
+        all_metrics = [] if self._keep_metrics_in_memory else None
+        
         pbar = tqdm(total=total_steps, desc="Running steps")
         num_envs = env.num_envs
         agent.set_num_env(num_envs)
@@ -386,7 +402,14 @@ class OnlineTrainer:
                     "episode_index": episodes_done,
                     "agent_logs": self.concat_dicts_of_arrays(agent_logs[i], axis=0)
                 }
-                all_metrics.append(metrics)
+                metrics_buffer.append(metrics)
+
+                if self._keep_metrics_in_memory:
+                    all_metrics.append(metrics)
+
+                if self._dump_metrics and len(metrics_buffer) >= self._metrics_dump_every:
+                    self._append_metrics_chunk(run_idx, metrics_buffer)
+                    metrics_buffer.clear()
                 
                 # Best agent snapshot (checkpoint dict from agent.save())
                 if ep_returns[i] >= best_return:
@@ -420,6 +443,7 @@ class OnlineTrainer:
 
 
         pbar.close()
+        self._flush_metrics_buffer(run_idx, metrics_buffer)
         return all_metrics, best_agent
 
     def _one_run(self, run_idx, case_num, num_episodes, total_steps, seed_offset, tuning_hp=None):
@@ -435,6 +459,9 @@ class OnlineTrainer:
             else:
                 seed = (run_idx - 1) * total_steps + seed_offset
 
+        if self._dump_metrics:
+            self._reset_metrics_stream(run_idx)
+    
         # build fresh env & agent each run
         env   = self._make_env()
         agent = self._make_agent(env)
@@ -450,7 +477,6 @@ class OnlineTrainer:
         print(f"💻 Device            : {agent.device}")
         # print("=" * 70 + "\n")
         
-        self.env, self.agent = env, agent
         if tuning_hp is not None:
             agent.set_hp(tuning_hp)
 
@@ -475,7 +501,8 @@ class OnlineTrainer:
                   num_episodes=0, total_steps=0,
                   seed_offset=None, 
                   dump_metrics=True, checkpoint_freq=None, 
-                  dump_transitions=False, num_workers=1, tuning_hp=None):
+                  dump_transitions=False, num_workers=1, tuning_hp=None,
+                  metrics_dump_every=50, keep_metrics_in_memory=False):
         """
         Run multiple independent runs (either by episode count or total step budget).
         
@@ -505,9 +532,13 @@ class OnlineTrainer:
 
         self._checkpoint_freq = checkpoint_freq
         self._dump_transitions = dump_transitions
+        self._dump_metrics = dump_metrics
+        self._metrics_dump_every = metrics_dump_every
+        self._keep_metrics_in_memory = keep_metrics_in_memory
+
         
-        all_runs_metrics = []
-                
+        all_runs_metrics = [None] * num_runs if keep_metrics_in_memory else None
+
         if num_workers > 1:
             with ThreadPoolExecutor(max_workers=num_workers) as executor:
                 futures = {
@@ -525,31 +556,29 @@ class OnlineTrainer:
                 for fut in as_completed(futures):
                     run_idx     = futures[fut]
                     run_metrics = fut.result()
-                    all_runs_metrics.append(run_metrics)
-                    if dump_metrics:
-                        path = os.path.join(self.exp_dir, f"metrics_run{run_idx}.pkl")
-                        with open(path, "wb") as f:
-                            pickle.dump(run_metrics, f)
+                    
+                    if keep_metrics_in_memory:
+                        all_runs_metrics[run_idx - 1] = run_metrics
+                    
 
         # Serial execution
         else:
-            for run in range(1, num_runs + 1):
+            for run_idx in range(1, num_runs + 1):
                 run_metrics = self._one_run(
-                    run_idx=run,
+                    run_idx=run_idx,
                     case_num=case_num,
                     num_episodes=num_episodes,
                     total_steps=total_steps,
                     seed_offset=seed_offset,
                     tuning_hp=tuning_hp
                 )
-                all_runs_metrics.append(run_metrics)
-                if dump_metrics:
-                    path = os.path.join(self.exp_dir, f"metrics_run{run}.pkl")
-                    with open(path, "wb") as f:
-                        pickle.dump(run_metrics, f)
+                
+                if keep_metrics_in_memory:
+                    all_runs_metrics[run_idx - 1] = run_metrics
+                
 
         # Dump aggregated metrics
-        if dump_metrics:
+        if dump_metrics and keep_metrics_in_memory:
             agg_path = os.path.join(self.exp_dir, "all_metrics.pkl")
             with open(agg_path, "wb") as f:
                 pickle.dump(all_runs_metrics, f)
@@ -594,27 +623,19 @@ class OnlineTrainer:
     @classmethod
     def load_transitions(cls, exp_dir):
         """
-        Load and return all transitions stored in the metrics file from a previous experiment run.
-
-        Args:
-            exp_dir (str): The directory where the metrics file is stored.
-
+        Load transitions from all per-run streamed metric files.
         Returns:
-            list: A list of transitions collected across episodes and runs.
+            list[run][episode] = transitions
         """
-        metrics_file = os.path.join(exp_dir, "all_metrics.pkl")
-        if not os.path.exists(metrics_file):
-            raise FileNotFoundError(f"No metrics file found in {exp_dir}")
-        with open(metrics_file, "rb") as f:
-            all_runs_metrics = pickle.load(f)
-        
-        # Extract transitions from every episode across all runs.
+        all_runs_metrics = cls.load_all_run_metrics(exp_dir)
+
         all_transitions = []
         for run in all_runs_metrics:
             episode_transitions = []
             for episode in run:
                 episode_transitions.append(episode.get("transitions", []))
             all_transitions.append(episode_transitions)
+
         return all_transitions
 
     @classmethod
@@ -660,36 +681,154 @@ class OnlineTrainer:
         
         return config
 
+    @classmethod
+    def load_run_metrics(cls, exp_dir, run_idx):
+        """
+        Load a streamed metrics file for one run.
+        Supports files written via repeated pickle.dump(..., 'ab').
+        Returns a flat list of episode metric dicts.
+        """
+        path = os.path.join(exp_dir, f"metrics_run{run_idx}.pkl")
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"No metrics file found for run {run_idx} in {exp_dir}")
+
+        all_metrics = []
+        with open(path, "rb") as f:
+            while True:
+                try:
+                    chunk = pickle.load(f)
+                except EOFError:
+                    break
+
+                if isinstance(chunk, list):
+                    all_metrics.extend(chunk)
+                else:
+                    raise TypeError(
+                        f"Expected each pickle chunk to be a list, got {type(chunk)}"
+                    )
+
+        return all_metrics
+    
+    @classmethod
+    def load_all_run_metrics(cls, exp_dir):
+        """
+        Load all streamed per-run metrics files in sorted run order.
+        Returns:
+            list_of_runs where each entry is a flat list of episode metric dicts.
+        """
+        run_files = []
+        for name in os.listdir(exp_dir):
+            if name.startswith("metrics_run") and name.endswith(".pkl"):
+                stem = name[len("metrics_run"):-len(".pkl")]
+                if stem.isdigit():
+                    run_files.append((int(stem), name))
+
+        run_files.sort(key=lambda x: x[0])
+
+        all_runs = []
+        for run_idx, _ in run_files:
+            all_runs.append(cls.load_run_metrics(exp_dir, run_idx))
+
+        return all_runs
+    
+    @classmethod
+    def load_agent_logs(cls, exp_dir):
+        """
+        Load agent_logs from all per-run streamed metric files.
+
+        Returns:
+            list[run][episode] = agent_logs
+        """
+        all_runs_metrics = cls.load_all_run_metrics(exp_dir)
+
+        all_agent_logs = []
+        for run in all_runs_metrics:
+            episode_agent_logs = []
+            for episode in run:
+                episode_agent_logs.append(episode.get("agent_logs", None))
+            all_agent_logs.append(episode_agent_logs)
+
+        return all_agent_logs
+
+    @classmethod
+    def load_run_agent_logs(cls, exp_dir, run_idx):
+        """
+        Load agent_logs for a single run.
+
+        Returns:
+            list[episode] = agent_logs
+        """
+        run_metrics = cls.load_run_metrics(exp_dir, run_idx)
+
+        episode_agent_logs = []
+        for episode in run_metrics:
+            episode_agent_logs.append(episode.get("agent_logs", None))
+
+        return episode_agent_logs
     
     @staticmethod
     def concat_dicts_of_arrays(chunks, axis=0):
         """
-        Generic concat for a list of dicts where each value is a numpy array.
-        Assumes:
-        - chunks is a list of dicts
-        - all dicts share the same keys (or at least consistent keys you want to keep)
-        - for each key, arrays are concat-compatible along `axis`
+        Concatenate a list of dicts whose values are numpy arrays.
+        Unlike the old version, this uses the union of keys across chunks,
+        so keys that appear only in later chunks are preserved.
 
         Returns:
         - None if chunks empty
-        - dict[key] = np.concatenate([chunk[key] ...], axis=axis)
+        - dict[key] = np.concatenate([...], axis=axis)
         """
         if not chunks:
             return None
 
-        # Use keys from the first chunk; ignore missing keys in later chunks (or raise)
-        keys = list(chunks[0].keys())
+        all_keys = set()
+        for c in chunks:
+            all_keys.update(c.keys())
 
         out = {}
-        for k in keys:
+        for k in sorted(all_keys):
             arrs = []
             for c in chunks:
                 if k not in c:
-                    raise KeyError(f"Missing key '{k}' in one of the chunks")
+                    continue
                 v = c[k]
                 if not isinstance(v, np.ndarray):
                     raise TypeError(f"Value for key '{k}' must be np.ndarray, got {type(v)}")
                 arrs.append(v)
+
+            if len(arrs) == 0:
+                continue
+
             out[k] = np.concatenate(arrs, axis=axis)
 
         return out
+    
+    def _metrics_stream_path(self, run_idx):
+        return os.path.join(self.exp_dir, f"metrics_run{run_idx}.pkl")
+
+    def _append_metrics_chunk(self, run_idx, metrics_chunk):
+        """
+        Append one chunk of episode metrics to the per-run pickle stream.
+        Each chunk is itself a list of episode metric dicts.
+        """
+        if not metrics_chunk:
+            return
+        path = self._metrics_stream_path(run_idx)
+        with open(path, "ab") as f:
+            pickle.dump(metrics_chunk, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def _reset_metrics_stream(self, run_idx):
+        """
+        Remove an existing streamed metrics file for this run so a fresh run
+        does not append onto stale data.
+        """
+        path = self._metrics_stream_path(run_idx)
+        if os.path.exists(path):
+            os.remove(path)
+
+    def _flush_metrics_buffer(self, run_idx, metrics_buffer):
+        """
+        Dump remaining buffered metrics to disk and clear the buffer in-place.
+        """
+        if self._dump_metrics and metrics_buffer:
+            self._append_metrics_chunk(run_idx, metrics_buffer)
+            metrics_buffer.clear()

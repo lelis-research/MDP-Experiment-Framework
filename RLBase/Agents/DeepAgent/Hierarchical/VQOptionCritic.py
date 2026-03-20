@@ -434,6 +434,7 @@ class CodeBook(RandomGenerator):
             
             with torch.no_grad():
                 self.emb.weight.copy_(init)
+
             
     def reset(self, seed):
         self.set_seed(seed)
@@ -892,8 +893,7 @@ class VQOptionCriticAgent(BaseAgent):
         # For dumping data for offline analysis
         self.sf_actions = [[] for _ in range(self.num_envs)]
         self.sf_observations = [[] for _ in range(self.num_envs)]
-        self.dump_path = "Random_Data/options_500K_LimitedColor_2.pkl"
-        self.sf_dump = True
+        self.dump_path = "./vq_option_critic_dumps"
 
     def sf_bookkeeping(self, obs_option, env_id, action, mode=None):
         """
@@ -945,44 +945,16 @@ class VQOptionCriticAgent(BaseAgent):
 
         else:
             raise ValueError(f"Mode {mode} is not defined")
-    
-    def dump_option_rollout(self, option_id: int, action_seq: torch.Tensor, obs_seq: dict):
-        """
-        Dump one completed option rollout to self.dump_path.
-
-        Args:
-            option_id: int
-            action_seq: (L,)
-            obs_seq:
-                {
-                    "onehot_image": (L+1, ...),
-                    "onehot_direction": (L+1, ...),
-                    "onehot_carrying": (L+1, ...),
-                }
-        """
-        record = {
-            "option_id": int(option_id),
-            "len": int(action_seq.shape[0]),
-            "actions": action_seq.detach().cpu().numpy().astype(np.int16, copy=False),
-            "observations": {
-                "onehot_image": obs_seq["onehot_image"].detach().cpu().numpy().astype(np.float16, copy=False),
-                "onehot_direction": obs_seq["onehot_direction"].detach().cpu().numpy().astype(np.float16, copy=False),
-                "onehot_carrying": obs_seq["onehot_carrying"].detach().cpu().numpy().astype(np.float16, copy=False),
-            },
-        }
-
-        os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
-        with open(self.dump_path, "ab") as f:
-            pickle.dump(record, f, protocol=pickle.HIGHEST_PROTOCOL)
-        
+                
+            
     def _init_log_buf(self):
         # one buffer per env slot, to avoid mixing logs between envs
         self.log_buf = []
         for _ in range(self.num_envs):
             self.log_buf.append({
-                "num_options": [],   # list of ints
-                "option_index": [],  # list of ints
-                "code_book": [],   # final codebook at end of episode
+                "num_options": [],        # list of np arrays, e.g. shape (1,)
+                "option_index": [],       # list of np arrays, e.g. shape (1,)
+                "code_book": [],          # list of np arrays, e.g. shape (K, D)
             })
 
     def act(self, observation):
@@ -1021,9 +993,8 @@ class VQOptionCriticAgent(BaseAgent):
                     self.sf_cumulative_discounts[env_i] = 0.0
                     
                     # Added for SF bookkeeping
-                    if self.sf_dump:
-                        obs_option = get_single_observation_nobatch(observation, env_i)
-                        self.sf_bookkeeping(obs_option, env_i, action=None, mode="s")
+                    obs_option = get_single_observation_nobatch(observation, env_i)
+                    self.sf_bookkeeping(obs_option, env_i, action=None, mode="s")
     
                     
          
@@ -1084,8 +1055,8 @@ class VQOptionCriticAgent(BaseAgent):
             self.option_multiplier[i] *= self.hp.hl.gamma
             self.option_num_steps[i] += 1
             
-            if self.sf_dump:
-                self.sf_bookkeeping(obs_option, i, self.last_action[i], mode="m")
+            # Added for SF bookkeeping
+            self.sf_bookkeeping(obs_option, i, self.last_action[i], mode="m")
             
             # sf bookkeeping
             with torch.no_grad():       
@@ -1102,9 +1073,9 @@ class VQOptionCriticAgent(BaseAgent):
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([curr_option_idx]))
                 
-                if self.sf_dump:
-                    action_seq, obs_seq = self.sf_bookkeeping(obs_option, i, action=None, mode="f")
-                    self.dump_option_rollout(curr_option_idx, action_seq, obs_seq)
+                # Added for SF bookkeeping
+                action_seq, obs_seq = self.sf_bookkeeping(obs_option, i, action=None, mode="f")
+                self.dump_option_rollout(curr_option_idx, action_seq, obs_seq)
                 
                 if call_back is not None:
                     call_back({"curr_hl_option_idx": curr_option_idx,
@@ -1217,8 +1188,36 @@ class VQOptionCriticAgent(BaseAgent):
         self.sf_actions = [[] for _ in range(self.num_envs)]
         self.sf_observations = [[] for _ in range(self.num_envs)]
         self.last_action = [None for _ in range(self.num_envs)]
-        self._init_log_buf()
 
+    def dump_option_rollout(self, option_id: int, action_seq: torch.Tensor, obs_seq: dict, env_id: int | None = None):
+        """
+        Dump one completed option rollout to self.dump_path.
+
+        Args:
+            option_id: int
+            action_seq: torch.Tensor of shape (L,)
+            obs_seq: dict with keys:
+                - "onehot_image":      torch.Tensor of shape (L+1, ...)
+                - "onehot_direction":  torch.Tensor of shape (L+1, ...)
+                - "onehot_carrying":   torch.Tensor of shape (L+1, ...)
+            env_id: optional env slot id
+        """
+        record = {
+            "option_id": int(option_id),
+            "length": int(action_seq.shape[0]),
+            "env_id": None if env_id is None else int(env_id),
+            "actions": action_seq.detach().cpu().numpy().astype(np.int16, copy=False),
+            "observations": {
+                "onehot_image": obs_seq["onehot_image"].detach().cpu().numpy().astype(np.float16, copy=False),
+                "onehot_direction": obs_seq["onehot_direction"].detach().cpu().numpy().astype(np.float16, copy=False),
+                "onehot_carrying": obs_seq["onehot_carrying"].detach().cpu().numpy().astype(np.float16, copy=False),
+            },
+        }
+        
+        os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
+        with open(self.dump_path, "ab") as f:
+            pickle.dump(record, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
     def manual_option_learner(self, observation, reward, terminated, truncated, call_back=None): # needs to be changed later
         for i in range(self.num_envs):
             if terminated[i] or truncated[i]:

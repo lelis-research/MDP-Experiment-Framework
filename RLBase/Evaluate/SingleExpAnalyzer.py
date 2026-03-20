@@ -11,6 +11,7 @@ from collections import Counter, defaultdict
 
 from .Utils import get_mono_font, normalize_ansi_frames, render_fixed_ansi
 from .. import load_agent
+from ..Trainers import OnlineTrainer
 
 plt.rcParams.update({
     "font.size": 18,            # base font size
@@ -39,14 +40,15 @@ class SingleExpAnalyzer:
         """
         Args:
             metrics (list): List of runs (each run is a list of episode dictionaries).
-            exp_path (str): Directory containing a "all_metrics.pkl" file.
+            exp_path (str): Directory containing a "metrics.pkl" file.
         """
         if metrics is None and exp_path is None:
             raise ValueError("Both metrics and exp_path are None")
         if metrics is None:
-            metrics_path = os.path.join(exp_path, "all_metrics.pkl")
-            with open(metrics_path, "rb") as f:
-                metrics = pickle.load(f)
+            metrics = OnlineTrainer.load_all_run_metrics(exp_path)
+            # metrics_path = os.path.join(exp_path, "all_metrics.pkl")
+            # with open(metrics_path, "rb") as f:
+            #     metrics = pickle.load(f)
 
         self.exp_path = exp_path
         self.metrics = metrics

@@ -615,7 +615,7 @@ class OptionRandomSFCodebookAgent(BaseAgent):
 
         self._init_log_buf()
         
-        self.dump_path = "Random_Data/options_fixedseed-100_dup_50K.pkl"
+        self.dump_path = "Option_Data/LimitedColor_SFRandom.pkl"
         
 
     def _init_log_buf(self):

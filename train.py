@@ -87,12 +87,12 @@ def main():
     experiment = OnlineTrainer(env_fn, agent_fn, exp_dir, config=config_path, args=args)
     
     # Run the experiment and collect metrics
-    metrics = experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, total_steps=args.total_steps,
-                                   seed_offset=args.seed, dump_transitions=args.store_transitions, 
-                                   checkpoint_freq=args.checkpoint_freq, num_workers=args.num_workers)
+    experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, total_steps=args.total_steps,
+                        seed_offset=args.seed, dump_transitions=args.store_transitions, 
+                        checkpoint_freq=args.checkpoint_freq, num_workers=args.num_workers)
 
     # Analyze and plot results
-    analyzer = SingleExpAnalyzer(metrics=metrics)
+    analyzer = SingleExpAnalyzer(exp_path=exp_dir)
     analyzer.plot_combined(save_dir=exp_dir, show_legend=False)
     analyzer.plot_combined(save_dir=exp_dir, show_legend=False, plt_configs=["cb_hm_first", "cb_hm_last"])
     analyzer.save_seeds(save_dir=exp_dir)

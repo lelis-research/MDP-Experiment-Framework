@@ -86,27 +86,27 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
         normal MiniGrid pickup can grab the new object there.
         """
         if not self.auto_drop:
-            return
+            return None
 
         if self.carrying is None:
-            return
+            return None
 
         fwd_pos = self.front_pos
         fwd_cell = self.grid.get(*fwd_pos)
 
         # Need something in front to pick up
         if fwd_cell is None:
-            return
+            return None
 
         # Only do this if the front object is pickable
         if not fwd_cell.can_pickup():
-            return
-
-        # Put down the old carried object on the front cell and clear carrying.
-        # The subsequent normal pickup will then pick up the front object.
+            return None
+        
         old_carry = self.carrying
-        self.grid.set(fwd_pos[0], fwd_pos[1], old_carry)
+        # self.grid.sets(fwd_pos[0], fwd_pos[1], old_carry)
+        
         self.carrying = None
+        return old_carry
 
     def step(self, action):
         if action == self.actions.pickup:
@@ -126,7 +126,7 @@ register(
     id="MiniGrid-UnlockPickupLimitedColor-v0",
     entry_point=UnlockPickupLimitedColorEnv,
     kwargs={
-        "allowed_colors": ["red", "green"],
+        "allowed_colors": ["red", "green"], #, "blue", "yellow", "purple", "grey"],
         "auto_drop": False,
         "max_steps": 100,
     },

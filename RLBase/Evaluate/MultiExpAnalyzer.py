@@ -255,7 +255,7 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
     if file_counter == 0:
         raise FileNotFoundError(f"No experiment folders matched {name_string_conditions} (and not {name_string_anti_conditions}).")
     if no_metrics_file_lst:
-        print("These folders matched naming but had no 'all_metrics.pkl':")
+        print("These folders matched naming but had no 'metrics.pkl':")
         print(*no_metrics_file_lst, sep="\n")
 
     print(f"Found {run_counter} runs from {file_counter} folders")

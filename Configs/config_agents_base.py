@@ -50,7 +50,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color"), []),
         device=device
     ),
     
@@ -93,16 +93,12 @@ AGENT_DICT = {
                 net_type=info.get("codebook_net_type", "cnn"), # cnn, fc
                 out_feature=info.get("codebook_out_feature", "d-last"),
                 out_feature2=info.get("codebook_out_feature2", ""),
-                
-                
-                
-                
-                
+
             ),
         ),
         get_num_envs(env),
         FlattenFeature,                 # feature_extractor isn't used for SF in this agent, but keep the standard signature
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []), # or actions / whatever you pass for options
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color"), []), # or actions / whatever you pass for options
         init_option_embs=None,          # or your manual one-hot / custom init embeddings
         device=device
     ),
@@ -405,7 +401,7 @@ AGENT_DICT = {
         get_env_observation_space(env),
         HyperParameters(               
             enc = HyperParameters(
-                enc_network=NETWORK_PRESETS[info.get("enc_network", "MiniGrid/VQOptionCritic/conv_imgdir")],
+                enc_network=NETWORK_PRESETS[info.get("enc_network", "MiniGrid/VQOptionCritic/conv_imgdircarry")],
                 step_size=info.get("enc_step_size", 3e-4),
                 eps = info.get("enc_eps", 1e-8),
                 enc_dim= info.get("enc_dim", 256)
@@ -414,8 +410,8 @@ AGENT_DICT = {
             hl = HyperParameters(
                 gamma=info.get("gamma", 0.99),
                 lamda=info.get("hl_lamda", 0.95),
-                rollout_steps=info.get("hl_rollout_steps", 2048),
-                mini_batch_size=info.get("hl_mini_batch_size", 64),
+                rollout_steps=info.get("hl_rollout_steps", 1024),
+                mini_batch_size=info.get("hl_mini_batch_size", 128),
                 num_epochs=info.get("hl_num_epochs", 10),
                 target_kl=info.get("hl_target_kl", None), #None means no early stop
                 
@@ -444,8 +440,8 @@ AGENT_DICT = {
                 enable_advantage_normalization=info.get("hl_enable_advantage_normalization", True),
                 enable_transform_action=info.get("hl_enable_transform_action", True),
                 
-                commit_coef = info.get("commit_coef", 0.0),
-                block_critic_to_encoder = info.get("block_critic_to_encoder", False),
+                commit_coef = info.get("commit_coef", 0.05),
+                block_critic_to_encoder = info.get("block_critic_to_encoder", True),
                 
                 distribution_type = info.get("hl_distribution_type", "categorical"), #categorical, continuous
                 
@@ -457,10 +453,10 @@ AGENT_DICT = {
             
             # CodeBook Params
             codebook = HyperParameters(
-                embedding_dim = info.get("codebook_embedding_dim", 16),
+                embedding_dim = info.get("codebook_embedding_dim", 4),
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
-                init_emb_range=info.get("codebook_init_emb_range", 0.1),
+                init_emb_range=info.get("codebook_init_emb_range", 1.0),
                 init_type=info.get("codebook_init_type", "uniform"), # uniform, onehot
                 
                 similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2, dot
@@ -486,7 +482,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color_plus_actions"), []),
         init_option_embs=None,
         device=device
     ),
