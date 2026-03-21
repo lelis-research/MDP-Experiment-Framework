@@ -893,7 +893,7 @@ class VQOptionCriticAgent(BaseAgent):
         # For dumping data for offline analysis
         self.sf_actions = [[] for _ in range(self.num_envs)]
         self.sf_observations = [[] for _ in range(self.num_envs)]
-        self.dump_path = "./vq_option_critic_dumps"
+        self.dump_path = "Dumps/vq_option_critic_dumps" # path or None
 
     def sf_bookkeeping(self, obs_option, env_id, action, mode=None):
         """
@@ -1213,6 +1213,8 @@ class VQOptionCriticAgent(BaseAgent):
                 "onehot_carrying": obs_seq["onehot_carrying"].detach().cpu().numpy().astype(np.float16, copy=False),
             },
         }
+        if self.dump_path is None:
+            return
         
         os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
         with open(self.dump_path, "ab") as f:

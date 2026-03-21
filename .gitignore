@@ -7,6 +7,7 @@ rlbase-amd64.tar
 Runs/*
 !Runs/Figures/
 !Runs/Figures/**
+Dumps/*
 
 # Byte-compiled / cached files
 __pycache__/

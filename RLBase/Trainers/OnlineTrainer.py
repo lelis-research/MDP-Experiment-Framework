@@ -45,13 +45,13 @@ class OnlineTrainer:
             self._make_agent = lambda env: agent
             
             
+        self.exp_dir = exp_dir
         if exp_dir is not None:
             # Copy config file
             os.makedirs(exp_dir, exist_ok=True)
-            self.exp_dir = exp_dir
             if config is not None:
                 shutil.copy(config, os.path.join(exp_dir, "config.py"))
-        
+
             # Save args
             file = os.path.join(self.exp_dir, "args.yaml")
             with open(file, "w") as f:
@@ -311,10 +311,10 @@ class OnlineTrainer:
         
         if env.render_mode == "human":
             env.envs[0].render()
-        elif env.render_mode == "ansi":
+        elif env.render_mode == "ansi" or env.render_mode == "rgb_array":
             for i, fr in enumerate(env.render()):
                 frames[i].append(fr)
-                
+
         steps_so_far = 0
         episodes_done = 0
         
@@ -334,10 +334,10 @@ class OnlineTrainer:
     
             if env.render_mode == "human":
                 env.envs[0].render()
-            elif env.render_mode == "ansi":
+            elif env.render_mode == "ansi" or env.render_mode == "rgb_array":
                 for i, fr in enumerate(env.render()):
                     frames[i].append(fr)
-            
+
             if self._dump_transitions:
                 for i in range(num_envs):
                     transitions[i].append((self.get_single_observation(observation, i), 
@@ -522,6 +522,10 @@ class OnlineTrainer:
         """
         if (num_episodes > 0) == (total_steps > 0):
             raise ValueError("Exactly one of num_episodes or total_steps must be non-zero")
+        if dump_metrics and self.exp_dir is None:
+            raise ValueError("dump_metrics=True requires exp_dir to be set in the constructor")
+        if checkpoint_freq is not None and self.exp_dir is None:
+            raise ValueError("checkpoint_freq requires exp_dir to be set in the constructor")
         case_num = 1 if num_episodes > 0 else 2
         
         if not (self._env_is_factory and self._agent_is_factory):
