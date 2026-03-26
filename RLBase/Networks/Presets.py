@@ -539,6 +539,32 @@ MINIGRID_MLP_CRITIC = [
      "init_params":{"name":"orthogonal","gain":1.0}},
 ]
 
+
+# Classifier
+MINIGRID_MLP_CLASSIFIER = [
+        {"type": "input",  "id": "x",   "input_key": "onehot_image"},
+        {"type": "linear", "id": "fc1", "from": "x",   "out_features": 512,
+         "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+        {"type": "relu",   "id": "r1",  "from": "fc1"},
+        {"type": "linear", "id": "out", "from": "r1",
+         "init_params": {"name": "orthogonal", "gain": 1.0}},
+    ]
+MINIGRID_CNN_CLASSIFIER = [
+    {"type": "input",   "id": "x",   "input_key": "onehot_image"},
+    {"type":"permute",  "id":"img_permuted", "from":"x", "dims":[0,3,1,2]},  # BHWC -> BCHW
+    {"type": "conv2d",  "id": "c1",  "from": "img_permuted",
+     "out_channels": 64, "kernel_size": 3, "stride": 1, "padding": 1,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type": "relu",    "id": "r1",  "from": "c1"},
+    {"type": "maxpool2d", "id": "p1",  "from": "r1",  "kernel_size": 2, "stride": 2},
+    {"type": "conv2d",  "id": "c2",  "from": "p1",
+     "out_channels": 64, "kernel_size": 3, "stride": 1, "padding": 1,
+     "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+    {"type": "relu",    "id": "r2",  "from": "c2"},
+    {"type": "flatten", "id": "flat", "from": "r2"},
+    {"type": "linear", "id": "fc1", "from": "flat",
+         "init_params": {"name": "kaiming_uniform", "nonlinearity": "relu", "mode": "fan_in"}},
+]
 # =========================
 # Public registry
 # =========================
@@ -576,6 +602,10 @@ NETWORK_PRESETS = {
     "MiniGrid/VQOptionCritic/conv_imgdir": MINIGRID_CONV_IMGDIR_ENCODER,
     "MiniGrid/VQOptionCritic/mlp_actor": MINIGRID_MLP_ACTOR,
     "MiniGrid/VQOptionCritic/mlp_critic": MINIGRID_MLP_CRITIC,
+
+    # MiniGrid OptionClassifier
+    "MiniGrid/Classifier/mlp": MINIGRID_MLP_CLASSIFIER,
+    "MiniGrid/Classifier/cnn": MINIGRID_CNN_CLASSIFIER,
 }
 
 if __name__ == "__main__":

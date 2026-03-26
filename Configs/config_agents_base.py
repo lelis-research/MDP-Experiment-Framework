@@ -5,6 +5,7 @@ from RLBase.Networks import NETWORK_PRESETS
 # from RLBase.Options import load_options_list
 from RLBase.Options.SymbolicOptions.PreDesigned import *
 import torch
+import numpy as np
 
 def get_env_action_space(env):
     return env.single_action_space if hasattr(env, 'single_action_space') else env.action_space
@@ -98,8 +99,8 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         FlattenFeature,                 # feature_extractor isn't used for SF in this agent, but keep the standard signature
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color"), []), # or actions / whatever you pass for options
-        init_option_embs=None,          # or your manual one-hot / custom init embeddings
+        init_options_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color"), []), # or actions / whatever you pass for options
+        init_options_emb=np.load(info["init_options_emb"]) if info.get("init_options_emb") else None,
         device=device
     ),
     
@@ -482,8 +483,8 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color_plus_actions"), []),
-        init_option_embs=None,
+        init_options_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color_plus_actions"), []),
+        init_options_emb=np.load(info["init_options_emb"]) if info.get("init_options_emb") else None,
         device=device
     ),
     

@@ -428,7 +428,8 @@ class CodeBook(RandomGenerator):
             init = torch.as_tensor(self.init_embs, 
                                    dtype=self.emb.weight.dtype, 
                                    device=self.emb.weight.device)
-
+            print(f"[CodeBook] Initializing codebook with provided embeddings of shape {init.shape}"
+                  f" and embedding shape {self.emb.weight.shape}")
             assert init.shape == self.emb.weight.shape, \
                 f"init_embs shape {init.shape} != emb.weight {self.emb.weight.shape}"
             
@@ -850,14 +851,14 @@ class VQOptionCriticAgent(BaseAgent):
     SUPPORTED_ACTION_SPACES = (Discrete, Box)
     
     def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, 
-                 init_option_lst=None, init_option_embs=None, device='cpu'):
-        print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_option_lst) if init_option_lst is not None else 0)
+                 init_options_lst=None, init_options_emb=None, device='cpu'):
+        print("[Info] VQOptionCriticAgent: Total Initial Options: ", len(init_options_lst) if init_options_lst is not None else 0)
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
-        self.options_lst = [] if init_option_lst is None else init_option_lst
+        self.options_lst = [] if init_options_lst is None else init_options_lst
         self.hp.codebook.update(enc_dim=self.hp.enc.enc_dim)
         
         self.encoder = Encoder(self.hp.enc, self.feature_extractor.features_dict, device)
-        self.code_book = CodeBook(self.hp.codebook, len(self.options_lst), device, init_embs=init_option_embs)
+        self.code_book = CodeBook(self.hp.codebook, len(self.options_lst), device, init_embs=init_options_emb)
         hl_action_space = Box(
             low=self.hp.codebook.embedding_low,
             high=self.hp.codebook.embedding_high,
@@ -893,7 +894,7 @@ class VQOptionCriticAgent(BaseAgent):
         # For dumping data for offline analysis
         self.sf_actions = [[] for _ in range(self.num_envs)]
         self.sf_observations = [[] for _ in range(self.num_envs)]
-        self.dump_path = "Dumps/vq_option_critic_dumps" # path or None
+        self.dump_path = None # Dumps or None
 
     def sf_bookkeeping(self, obs_option, env_id, action, mode=None):
         """
@@ -1216,7 +1217,8 @@ class VQOptionCriticAgent(BaseAgent):
         if self.dump_path is None:
             return
         
-        os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
+        if not os.path.exists(os.path.dirname(self.dump_path) or "."):
+            os.makedirs(os.path.dirname(self.dump_path) or ".", exist_ok=True)
         with open(self.dump_path, "ab") as f:
             pickle.dump(record, f, protocol=pickle.HIGHEST_PROTOCOL)
             

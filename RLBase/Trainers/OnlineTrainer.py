@@ -78,8 +78,8 @@ class OnlineTrainer:
         self._upd_window = deque(maxlen=200)
         
         
-        self.call_back = TBCallBack(log_dir=exp_dir, flush_every=10, flush_mode="raw") #makes it super slow on compute canada
-        # self.call_back = EmptyCallBack(log_dir=exp_dir)
+        # self.call_back = TBCallBack(log_dir=exp_dir, flush_every=10, flush_mode="raw") #makes it super slow on compute canada
+        self.call_back = EmptyCallBack(log_dir=exp_dir)
         # self.call_back = JsonlCallback(log_path=os.path.join(exp_dir, "metrics.jsonl"), flush_every=100)
         
     @staticmethod
@@ -465,6 +465,8 @@ class OnlineTrainer:
         # build fresh env & agent each run
         env   = self._make_env()
         agent = self._make_agent(env)
+        if hasattr(agent, 'dump_path') and agent.dump_path is not None and self.exp_dir is not None:
+            agent.dump_path = os.path.join(self.exp_dir, f"option_rollouts_run{run_idx}.pkl")
         
         print("\n" + "=" * 70)
         print(f"🎯 Starting Run {run_idx} | Seed: {seed}")
@@ -476,6 +478,8 @@ class OnlineTrainer:
         print(f"🤖 Agent             : {agent}")
         print(f"💻 Device            : {agent.device}")
         # print("=" * 70 + "\n")
+        
+        self.env, self.agent = env, agent
         
         if tuning_hp is not None:
             agent.set_hp(tuning_hp)

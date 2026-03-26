@@ -20,8 +20,9 @@ from functools import partial
 import argcomplete
 import argparse
 
+from RLBase.Trainers.OnlineTrainer import OnlineTrainer
+
 SYMLINK_PREFIX = 'trial_'   # prefix for trial directories
-METRICS_FILE   = 'all_metrics.pkl'
 AGENT_FILE     = 'agent.txt'
 ARGS_FILE      = 'args.yaml'
 
@@ -138,10 +139,7 @@ def check_incomplete_runs(exp_dir):
     incomplete = []
     for trial in find_trials(exp_dir):
         trial_dir = os.path.join(exp_dir, trial)
-        files_ok = (
-            os.path.isfile(os.path.join(trial_dir, METRICS_FILE)) and
-            os.path.isfile(os.path.join(trial_dir, AGENT_FILE))
-        )
+        files_ok = os.path.isfile(os.path.join(trial_dir, AGENT_FILE))
         if not files_ok:
             incomplete.append(trial)
         else:
@@ -157,13 +155,11 @@ def find_best_hyperparameters(exp_dir, ratio, auc_type):
     results = []  # (overall_avg, run_avgs, agent_str, trial)
     for trial in tqdm(find_trials(exp_dir)):
         trial_dir = os.path.join(exp_dir, trial)
-        metrics_path = os.path.join(trial_dir, METRICS_FILE)
-        agent_path   = os.path.join(trial_dir, AGENT_FILE)
-        if not (os.path.isfile(metrics_path) and os.path.isfile(agent_path)):
+        agent_path = os.path.join(trial_dir, AGENT_FILE)
+        if not os.path.isfile(agent_path):
             continue
-        with open(metrics_path, 'rb') as f:
-            metrics = pickle.load(f)
-        
+        metrics = OnlineTrainer.load_all_run_metrics(trial_dir)
+
         with open(agent_path, 'r') as f:
             agent_str = f.read().strip()
         if auc_type == "episode":
@@ -180,13 +176,11 @@ def find_best_hyperparameters(exp_dir, ratio, auc_type):
 
 def _score_one_trial(trial, exp_dir, ratio, auc_type):
     trial_dir = os.path.join(exp_dir, trial)
-    metrics_path = os.path.join(trial_dir, METRICS_FILE)
-    agent_path   = os.path.join(trial_dir, AGENT_FILE)
-    if not (os.path.isfile(metrics_path) and os.path.isfile(agent_path)):
+    agent_path = os.path.join(trial_dir, AGENT_FILE)
+    if not os.path.isfile(agent_path):
         return None
 
-    with open(metrics_path, "rb") as f:
-        metrics = pickle.load(f)
+    metrics = OnlineTrainer.load_all_run_metrics(trial_dir)
 
     if auc_type == "episode":
         run_avgs = compute_run_avgs_by_episodes_AUC(metrics, ratio=ratio)
@@ -274,13 +268,11 @@ def collect_trial_records(exp_dir, ratio, auc_type):
     records = []
     for trial in find_trials(exp_dir):
         trial_dir = os.path.join(exp_dir, trial)
-        metrics_path = os.path.join(trial_dir, METRICS_FILE)
-        agent_path   = os.path.join(trial_dir, AGENT_FILE)
-        if not (os.path.isfile(metrics_path) and os.path.isfile(agent_path)):
+        agent_path = os.path.join(trial_dir, AGENT_FILE)
+        if not os.path.isfile(agent_path):
             continue
-        
-        with open(metrics_path, 'rb') as f:
-            metrics = pickle.load(f)
+
+        metrics = OnlineTrainer.load_all_run_metrics(trial_dir)
         
         if auc_type == "episode":
             run_avgs = compute_run_avgs_by_episodes_AUC(metrics, ratio=ratio)

@@ -2,11 +2,11 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=2G
-#SBATCH --time=0-02:00 # time (DD-HH:MM)
+#SBATCH --time=0-03:00 # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
-#SBATCH --array=0-0
+#SBATCH --array=0-50
 
 ##SBATCH --gres=gpu:1          # <-- uncomment if you want GPU
 
@@ -41,7 +41,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
 #"Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
 # NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
-NAME_TAG="enc[conv]_cb[dim42-l2]_opt[offline-LimitedColor]_emb[uniform]_dist[cat]_$IDX"
+NAME_TAG="Options_LimitedColor_emb[uniform-d8]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -55,9 +55,9 @@ ENV_PARAMS='{}'
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=500_000
+TOTAL_STEPS=1_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=200
+EPISODE_MAX_STEPS=100
 
 RENDER_MODE=""
 STORE_TRANSITIONS=false
@@ -67,7 +67,7 @@ INFO='{
   "block_critic_to_encoder": true,
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-05,
-  "codebook_embedding_dim": 4,
+  "codebook_embedding_dim": 8,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
   "codebook_eps": 1e-05,
@@ -98,7 +98,7 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.0,
+  "hl_entropy_coef": 0.01,
   "hl_lamda": 0.95,
   "hl_max_grad_norm": 0.5,
   "hl_max_logstd": null,
@@ -111,11 +111,9 @@ INFO='{
   "hl_tau_init": 2.0,
   "hl_tau_min": 0.8,
   "hl_total_steps": 200000,
-  "init_options_lst": "unlock_pickup_lst_limited_color",
+  "init_options_lst": "unlock_pickup_lst_limited_color_plus_actions",
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false
-
-  
 }'
 # ------------------------------
 

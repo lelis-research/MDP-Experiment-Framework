@@ -138,7 +138,7 @@ def main():
     # save agent and seeds
     with open(os.path.join(trial_dir, 'agent.txt'), 'w') as f:
         f.write(str(experiment.agent))
-    analyzer = SingleExpAnalyzer(metrics=metrics)
+    analyzer = SingleExpAnalyzer(exp_path=trial_dir)
     analyzer.plot_combined(save_dir=trial_dir, show_legend=False)
     analyzer.save_seeds(save_dir=trial_dir)
     

@@ -2,7 +2,7 @@
 #SBATCH --job-name=sweep-vq
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-2:00    # time (DD-HH:MM)
+#SBATCH --time=0-3:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -40,12 +40,12 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_NoColor" 
+NAME_TAG="Options_LimitedColor_emb[repr[d19]-KL[0.00]-onehot-d19]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="VQOptionCritic"
-ENV="MiniGrid-Unlock-v0"
+ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 
 ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
@@ -54,9 +54,14 @@ ENV_PARAMS='{}'
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=300_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=200
+EPISODE_MAX_STEPS=100
+
+INIT_EMB_PATH="Runs/Embedding/MiniGrid-UnlockPickupLimitedColor-v0_/\
+FullyObs_OneHotImageDirCarry/VQOptionCritic/\
+Options_LimitedColor_emb[onehot-d19]_0_seed[0]/\
+Feat[delta_last]_KL[0.00]_ReprDim[19]/repr/embeddings.npy"
 
 INFO='{
   "enc_network": "MiniGrid/VQOptionCritic/conv_imgdircarry",
@@ -106,13 +111,14 @@ INFO='{
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
 
-  "codebook_embedding_dim": 4,
+  "codebook_embedding_dim": 19,
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false,
-  "init_options_lst": "unlock_pickup_lst_nocolor",
+  "init_options_lst": "unlock_pickup_lst_limited_color_plus_actions",
   "codebook_similarity_metric": "l2",
   "codebook_init_type": "uniform",
-  "codebook_update_type": "grad"
+  "codebook_update_type": "grad",
+  "init_options_emb": "'"$INIT_EMB_PATH"'"
 }'
 #categorical, continuous, all, actions, l2, cosine
 #432
