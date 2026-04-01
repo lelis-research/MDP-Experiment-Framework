@@ -41,7 +41,7 @@ IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
 #"Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
 # NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
-NAME_TAG="Options_LimitedColor_emb[uniform-d8]_$IDX"
+NAME_TAG="Options_LimitedColor_emb[repr[fixed-d4]]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -67,12 +67,12 @@ INFO='{
   "block_critic_to_encoder": true,
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-05,
-  "codebook_embedding_dim": 8,
+  "codebook_embedding_dim": 4,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
   "codebook_eps": 1e-05,
-  "codebook_init_emb_range": 1.0,
-  "codebook_init_type": "uniform",
+  "codebook_init_emb_range": 1e-05,
+  "codebook_init_type": "fixed",
   "codebook_max_grad_norm": 1.0,
   "codebook_similarity_metric": "l2",
   "codebook_step_size": 0.0003,
@@ -98,7 +98,7 @@ INFO='{
   "hl_enable_advantage_normalization": true,
   "hl_enable_stepsize_anneal": false,
   "hl_enable_transform_action": true,
-  "hl_entropy_coef": 0.01,
+  "hl_entropy_coef": 0.001,
   "hl_lamda": 0.95,
   "hl_max_grad_norm": 0.5,
   "hl_max_logstd": null,

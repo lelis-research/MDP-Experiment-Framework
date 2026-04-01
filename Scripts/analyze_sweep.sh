@@ -41,7 +41,7 @@ IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 
 
 # ---------------Configs---------
-EXP_DIR="Runs/Sweep/MiniGrid-UnlockPickupLimitedColor-v0_/FullyObs_OneHotImageDirCarry/VQOptionCritic/Options_LimitedColor_emb[uniform-d4]_seed[1]"
+EXP_DIR="Runs/Sweep/MiniGrid-UnlockPickupLimitedColor-v0_/FullyObs_OneHotImageDirCarry/VQOptionCritic/Options_LimitedColor_emb[repr[fixed-d4]]_seed[1]"
 RATIO=0.9
 AUC_TYPE="steps"
 

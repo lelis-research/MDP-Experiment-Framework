@@ -329,31 +329,37 @@ AGENT_DICT = {
             mini_batch_size=info.get("mini_batch_size", 64),
             num_epochs=info.get("num_epochs", 10),
             target_kl=info.get("target_kl", None), #None means no early stop
-            
+
             actor_network=NETWORK_PRESETS[info.get("actor_network", "MiniGrid/PPO/conv_imgdircarry_actor")],
             actor_step_size=info.get("actor_step_size", 3e-4),
             actor_eps = info.get("actor_eps", 1e-8),
             clip_range_actor_init=info.get("clip_range_actor_init", 0.2),
             anneal_clip_range_actor=info.get("anneal_clip_range_actor", False),
-            
+
             critic_network=NETWORK_PRESETS[info.get("critic_network", "MiniGrid/PPO/conv_imgdircarry_critic")],
             critic_step_size=info.get("critic_step_size", 3e-4),
             critic_eps = info.get("critic_eps", 1e-8),
             clip_range_critic_init=info.get("clip_range_critic_init", 0.2), # None means no clipping
             anneal_clip_range_critic=info.get("anneal_clip_range_critic", False),
-            
+
             critic_coef=info.get("critic_coef", 0.5),
             entropy_coef=info.get("entropy_coef", 0.0),
             max_grad_norm=info.get("max_grad_norm", 0.5),
-            
+
             min_logstd=info.get("min_logstd", None), #None means no clipping for logstd
             max_logstd=info.get("max_logstd", None), #None means no clipping for logstd
-            
+
             enable_stepsize_anneal=info.get("enable_stepsize_anneal", False),
             total_steps=info.get("total_steps", 100_000), # used for anealing step size
             update_type=info.get("update_type", "per_env"), # sync, per_env
             enable_advantage_normalization=info.get("enable_advantage_normalization", True),
             enable_transform_action=info.get("enable_transform_action", True),
+
+            # Option learner
+            all_options=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("all_options", None), []),
+            count_to_add=info.get("option_count_to_add", 20),
+            option_learner_reset_at_add=info.get("option_learner_reset_at_add", False),
+            option_add_policy=info.get("option_add_policy", "recreate"),  # "recreate" or "expand"
         ),
         get_num_envs(env),
         MirrorFeature,
@@ -475,7 +481,7 @@ AGENT_DICT = {
             ),
             
             # Option Learner
-            all_options = [],
+            all_options = MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("all_options", None), []),
             count_to_add = info.get("option_count_to_add", 20),
             option_learner_reset_at_add=info.get("option_learner_reset_at_add", False),
             all_embeddings = None,

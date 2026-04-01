@@ -253,7 +253,87 @@ class OptionPPOAgent(PPOAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
-        
+
+        self.option_learner_tmp = {}
+
+    def _check_option_learner(self, observation, i):
+        """At episode end for env i, check if any pending option has been seen enough times to add."""
+        if not (hasattr(self.hp, 'all_options') and self.hp.all_options):
+            return
+        obs_option = get_single_observation_nobatch(observation, i)
+        for c, opt in enumerate(self.hp.all_options):
+            if hasattr(opt, "should_initiate") and \
+               opt.should_initiate(obs_option) and \
+               opt not in self.options_lst:
+                if opt.option_id not in self.option_learner_tmp:
+                    self.option_learner_tmp[opt.option_id] = 0
+                self.option_learner_tmp[opt.option_id] += 1
+                if self.option_learner_tmp[opt.option_id] >= self.hp.count_to_add:
+                    print(f"Added option with id: {opt.option_id}")
+                    self._add_option(opt)
+                    if getattr(self.hp, 'option_learner_reset_at_add', False):
+                        self.option_learner_tmp = {}
+
+    def _add_option(self, opt):
+        """
+        Add a new option to the agent and expand the policy accordingly.
+
+        Controlled by hp.option_add_policy:
+          'recreate' -- rebuild the entire actor from scratch with the new output size,
+                        transferring critic weights but reinitialising the actor.
+          'expand'   -- keep all actor weights, append one randomly-initialised output
+                        neuron to the last linear layer of the actor.
+        """
+        self.options_lst.append(opt)
+        new_action_space = Discrete(self.atomic_action_space.n + len(self.options_lst))
+        add_policy = getattr(self.hp, 'option_add_policy', 'recreate')
+
+        if add_policy == 'recreate':
+            new_policy = OptionPPOPolicy(
+                new_action_space,
+                self.feature_extractor.features_dict,
+                self.hp,
+                device=self.device,
+            )
+            # Keep the critic (value function) -- it is not affected by the new option
+            new_policy.critic.load_state_dict(self.policy.critic.state_dict())
+            new_policy.critic_optimizer.load_state_dict(self.policy.critic_optimizer.state_dict())
+            self.policy = new_policy
+
+        elif add_policy == 'expand':
+            # Find the last linear layer in the actor
+            last_linear_id = None
+            for cfg in self.policy.actor.config:
+                if cfg["type"] in ("linear", "noisy_linear") and cfg["id"] in self.policy.actor.layers_dict:
+                    last_linear_id = cfg["id"]
+            if last_linear_id is None:
+                raise RuntimeError("Could not find a linear layer in the actor to expand.")
+
+            old_layer = self.policy.actor.layers_dict[last_linear_id]
+            old_w = old_layer.weight.data   # (old_out, in_features)
+            old_b = old_layer.bias.data     # (old_out,)
+            in_features, old_out = old_w.shape[1], old_w.shape[0]
+
+            # New layer: copy old rows, randomly init the extra row (nn.Linear default)
+            new_layer = nn.Linear(in_features, old_out + 1).to(self.device)
+            with torch.no_grad():
+                new_layer.weight[:old_out] = old_w
+                new_layer.bias[:old_out] = old_b
+            self.policy.actor.layers_dict[last_linear_id] = new_layer
+
+            # Update action space on the policy object
+            self.policy.action_space = new_action_space
+
+            # Rebuild the actor optimiser so it tracks the new layer's parameters
+            self.policy.actor_optimizer = optim.Adam(
+                self.policy.actor.parameters(),
+                lr=self.hp.actor_step_size,
+                eps=self.hp.actor_eps,
+            )
+
+        else:
+            raise ValueError(f"Unknown option_add_policy: '{add_policy}'. Use 'recreate' or 'expand'.")
+
     def act(self, observation):
         """
         Select a primitive action. If currently executing an option, return the option's next action.
@@ -380,7 +460,11 @@ class OptionPPOAgent(PPOAgent):
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([-1]))
                 self.rollout_buffer[i].add(transition)
-        
+
+            # Option learner: check for new options to add at episode end
+            if terminated[i] or truncated[i]:
+                self._check_option_learner(observation, i)
+
         # update with the rollouts
         if not all(buf.is_full() for buf in self.rollout_buffer):
             return
@@ -494,7 +578,11 @@ class OptionPPOAgent(PPOAgent):
                 self.log_buf[i]["num_options"].append(np.array([len(self.options_lst)]))
                 self.log_buf[i]["option_index"].append(np.array([-1]))
                 self.rollout_buffer[i].add(transition)
-            
+
+            # Option learner: check for new options to add at episode end
+            if terminated[i] or truncated[i]:
+                self._check_option_learner(observation, i)
+
             # update with the rollouts
             if self.rollout_buffer[i].is_full():
                 rollout = self.rollout_buffer[i].all() 
@@ -547,7 +635,8 @@ class OptionPPOAgent(PPOAgent):
         self.option_multiplier = [1.0 for _ in range(self.num_envs)]           # current gamma^t during option
         self.option_num_steps = [0 for _ in range(self.num_envs)]
         self.option_log_prob = [None for _ in range(self.num_envs)]
-    
+        self.option_learner_tmp = {}
+
     def _init_log_buf(self):
         # one buffer per env slot, to avoid mixing logs between envs
         self.log_buf = []

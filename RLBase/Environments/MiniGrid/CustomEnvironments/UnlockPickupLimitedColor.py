@@ -19,9 +19,16 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
             new pickable object, the old carried object is automatically dropped
             onto the front cell and replaced by the new one.
 
+        curriculum_steps (int | None):
+            if set, every `curriculum_steps` total environment steps a new color
+            is added to allowed_colors (drawn in order from COLOR_NAMES).
+            Once all colors are unlocked further crossings are ignored.
+            If None, allowed_colors never changes.
+
     Example:
         env = UnlockPickupLimitedColorEnv(
-            allowed_colors=["red", "green"],
+            allowed_colors=["red"],
+            curriculum_steps=10_000,
             auto_drop=True,
         )
     """
@@ -29,18 +36,26 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
     def __init__(
         self,
         allowed_colors=None,
+        curriculum_steps: int | None = None,
         auto_drop: bool = False,
         max_steps: int | None = None,
         **kwargs,
     ):
-        self.allowed_colors = allowed_colors or COLOR_NAMES
+        self.all_colors = list(COLOR_NAMES)
+        self.allowed_colors = list(allowed_colors or self.all_colors)
+        self.curriculum_steps = curriculum_steps
         self.auto_drop = auto_drop
+        
+        self._total_steps = 0
+        self._curriculum_counter = 0
 
         room_size = 6
 
+        # Use the full color pool for the mission space so that newly unlocked
+        # colors don't cause mission-validation errors.
         mission_space = MissionSpace(
             mission_func=self._gen_mission,
-            ordered_placeholders=[self.allowed_colors],
+            ordered_placeholders=[self.all_colors],
         )
 
         if max_steps is None:
@@ -108,11 +123,29 @@ class UnlockPickupLimitedColorEnv(RoomGrid):
         self.carrying = None
         return old_carry
 
+    def _maybe_add_curriculum_color(self):
+        """Add the next color from all_colors to allowed_colors if the curriculum threshold is crossed."""
+        if self.curriculum_steps is None:
+            return
+        if self._curriculum_counter < self.curriculum_steps:
+            return
+        else:
+            self._curriculum_counter = 0  # reset step count after crossing threshold
+            
+        for color in self.all_colors:
+            if color not in self.allowed_colors:
+                self.allowed_colors.append(color)
+                print(f"[Curriculum] step {self._total_steps}: added color '{color}' → allowed_colors={self.allowed_colors}")
+                return  # one color per threshold crossing
+
     def step(self, action):
         if action == self.actions.pickup:
             self._maybe_auto_drop_before_pickup()
 
         obs, reward, terminated, truncated, info = super().step(action)
+        self._total_steps += 1
+        self._curriculum_counter += 1
+        self._maybe_add_curriculum_color()
 
         if action == self.actions.pickup:
             if self.carrying is not None and self.carrying == self.obj:
@@ -129,5 +162,6 @@ register(
         "allowed_colors": ["red", "green"], #, "blue", "yellow", "purple", "grey"],
         "auto_drop": False,
         "max_steps": 100,
+        "curriculum_steps": None,
     },
 )

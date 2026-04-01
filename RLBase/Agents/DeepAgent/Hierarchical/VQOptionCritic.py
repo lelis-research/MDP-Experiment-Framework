@@ -424,6 +424,52 @@ class CodeBook(RandomGenerator):
                     else:
                         raise ValueError(f"[CodeBook] Cannot onehot init with Number of Codes ={self.num_codes} > embedding dim={self.hp.embedding_dim}")
                     self.emb.weight.copy_(eye)
+                elif "fixed" in self.hp.init_type:
+                    # tmp = torch.tensor([[1, 0, 0, 0, 0, 0, 0], 
+                    #                     [1, 0, 0, 0, 0, 0, 0],
+                    #                     [0, 1, 0, 0, 0, 0, 0],
+                    #                     [0, 1, 0, 0, 0, 0, 0],
+                    #                     [0, 0, 1, 0, 0, 0, 0],
+                    #                     [0, 0, 1, 0, 0, 0, 0],
+                    #                     [0, 0, 0, 1, 0, 0, 0],
+                    #                     [0, 0, 0, 1, 0, 0, 0],
+                    #                     [0, 0, 0, 0, 1, 0, 0],
+                    #                     [0, 0, 0, 0, 1, 0, 0],
+                    #                     [0, 0, 0, 0, 0, 1, 0],
+                    #                     [0, 0, 0, 0, 0, 1, 0],
+                    #                     [-1,0, 0, 0, 0, 0, 0],
+                    #                     [0,-1, 0, 0, 0, 0, 0],
+                    #                     [0, 0,-1, 0, 0, 0, 0],
+                    #                     [0, 0, 0,-1, 0, 0, 0],
+                    #                     [0, 0, 0, 0,-1, 0, 0],
+                    #                     [0, 0, 0, 0, 0,-1, 0],
+                    #                     [0, 0, 0, 0, 0, 0,-1]], device=self.device, dtype=self.emb.weight.dtype)
+                    
+                    tmp = torch.tensor([
+                                        [ 0.90,  0.85,  0.70,  0.60],   # pickup_nearest_key_red
+                                        [ 0.90,  0.85,  0.70,  0.60],   # pickup_nearest_key_red (dup)
+                                        [ 0.85,  0.80, -0.75,  0.55],   # pickup_nearest_key_green
+                                        [ 0.85,  0.80, -0.75,  0.55],   # pickup_nearest_key_green (dup)
+                                        [-0.70,  0.30,  0.80,  0.65],   # toggle_nearest_door_red
+                                        [-0.70,  0.30,  0.80,  0.65],   # toggle_nearest_door_red (dup)
+                                        [-0.65,  0.25, -0.85,  0.60],   # toggle_nearest_door_green
+                                        [-0.65,  0.25, -0.85,  0.60],   # toggle_nearest_door_green (dup)
+                                        [ 0.75, -0.80,  0.65,  0.50],   # pickup_nearest_box_red
+                                        [ 0.75, -0.80,  0.65,  0.50],   # pickup_nearest_box_red (dup)
+                                        [ 0.70, -0.75, -0.70,  0.45],   # pickup_nearest_box_green
+                                        [ 0.70, -0.75, -0.70,  0.45],   # pickup_nearest_box_green (dup)
+                                        [-0.40, -0.60,  0.10, -0.90],   # ActionLeft
+                                        [ 0.50, -0.55, -0.20, -0.85],   # ActionRight
+                                        [ 0.05,  0.45,  0.30, -0.95],   # ActionForward
+                                        [ 0.60,  0.10,  0.05, -0.70],   # ActionPickup
+                                        [-0.55, -0.30, -0.40, -0.75],   # ActionDrop
+                                        [-0.80,  0.50,  0.15, -0.65],   # ActionToggle
+                                        [ 0.10, -0.15, -0.50, -0.50],   # ActionDone
+                                    ], device=self.device, dtype=self.emb.weight.dtype)
+                      
+                    
+                    self.emb.weight.copy_(tmp)
+                    
         else:
             init = torch.as_tensor(self.init_embs, 
                                    dtype=self.emb.weight.dtype, 
@@ -1286,7 +1332,7 @@ class VQOptionCriticAgent(BaseAgent):
             hyper_params=checkpoint["hyper_params"],
             num_envs=int(checkpoint["num_envs"]),
             feature_extractor_class=checkpoint["feature_extractor_class"],
-            init_option_lst=options_lst,
+            init_options_lst=options_lst,
             device=checkpoint["device"],
         )
 

@@ -13,14 +13,17 @@ def multi_exp_results():
     UnLockPickUp_VQ = "Runs/Train/MiniGrid-UnlockPickupLimitedColor-v0_/FullyObs_OneHotImageDirCarry/VQOptionCritic"
     agent_dict = {      
         "emb[onehot-d19]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[onehot-d19]"], name_string_anti_conditions=[]),
-        "emb[uniform-d8]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[uniform-d8]"], name_string_anti_conditions=[]),
+        # "emb[uniform-d8]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[uniform-d8]"], name_string_anti_conditions=[]),
         "emb[uniform-d4]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[uniform-d4]"], name_string_anti_conditions=[]),
+        
+        "emb[fixed-d4]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[repr[fixed-d4]]"], name_string_anti_conditions=[]),
+        # "emb[fixed-d7]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[repr[fixed-d7]]"], name_string_anti_conditions=[]),
         
     }
     
     
     
-    plot_experiments(agent_dict, "Runs/Figures", name=f"UnLockPickUp_VQ", 
+    plot_experiments(agent_dict, "Runs/Figures", name=f"UnLockPickUp_VQ_fixed[d4]", 
                      window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s", "ou_s", "uni_ou_s", "no_s"], plot_each=False)
     

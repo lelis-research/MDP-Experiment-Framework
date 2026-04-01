@@ -40,7 +40,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_LimitedColor_emb[repr[d19]-KL[0.00]-onehot-d19]" 
+NAME_TAG="Options_LimitedColor_emb[repr[fixed-d4]]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -111,15 +111,16 @@ INFO='{
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
 
-  "codebook_embedding_dim": 19,
+  "codebook_embedding_dim": 4,
   "option_count_to_add": 100,
   "option_learner_reset_at_add": false,
   "init_options_lst": "unlock_pickup_lst_limited_color_plus_actions",
   "codebook_similarity_metric": "l2",
-  "codebook_init_type": "uniform",
-  "codebook_update_type": "grad",
-  "init_options_emb": "'"$INIT_EMB_PATH"'"
+  "codebook_init_type": "fixed",
+  "codebook_update_type": "grad"
 }'
+#"init_options_emb": "'"$INIT_EMB_PATH"'"
+
 #categorical, continuous, all, actions, l2, cosine
 #432
 HP_SEARCH_SPACE='{

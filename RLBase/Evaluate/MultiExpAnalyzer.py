@@ -245,11 +245,15 @@ def gather_experiments(exp_dir, name_string_conditions=None, name_string_anti_co
         exp_path = os.path.join(exp_dir, exp)
         try:
             analyzer = SingleExpAnalyzer(exp_path=exp_path)
-            metrics_lst += analyzer.metrics
-            run_counter += len(analyzer.metrics)
-            file_counter += 1
+            if analyzer.metrics is not None:
+                metrics_lst += analyzer.metrics
+                run_counter += len(analyzer.metrics)
+                file_counter += 1
+            else:
+                no_metrics_file_lst.append(exp_path)
         except FileNotFoundError:
             no_metrics_file_lst.append(exp_path)
+        
         
 
     if file_counter == 0:

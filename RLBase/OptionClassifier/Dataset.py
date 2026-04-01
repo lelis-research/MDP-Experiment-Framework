@@ -21,7 +21,6 @@ class OptionRolloutDataset(Dataset):
     feature_type     : one of "last_start", "sf", "reverse_sf", "mean_enc", "action_hist"
     encoder          : Encoder instance (required for SF-based features), else None
     gamma            : discount factor used in SF features
-    num_actions      : number of primitive actions (for action_hist)
 
     Attributes
     ----------
@@ -37,12 +36,10 @@ class OptionRolloutDataset(Dataset):
         feature_type: str = "delta_last",
         encoder=None,
         gamma: float = 0.99,
-        num_actions: int = 7,
     ):
         self.feature_type = feature_type
         self.encoder      = encoder
         self.gamma        = gamma
-        self.num_actions  = num_actions
 
         # ---- load all records ------------------------------------------------
         records = []
@@ -68,15 +65,36 @@ class OptionRolloutDataset(Dataset):
         
         # ---- pre-compute features --------------------------------------------
         fn = FEATURE_FN_DICT.get(feature_type)
+        is_enc = feature_type.endswith("_enc")
 
         features = []
+        starts   = []
         for rec in records:
-            feat = fn(rec)
+            if is_enc:
+                feat = fn(rec, gamma=self.gamma, encoder=self.encoder)
+                obs  = rec["observations"]
+                obs0 = {k: torch.from_numpy(v[0:1].astype(np.float32)) for k, v in obs.items()}
+                with torch.no_grad():
+                    z0 = self.encoder(**obs0)   # (1, enc_dim)
+                start = {"x": z0.squeeze(0)}
+            else:
+                feat  = fn(rec, gamma=self.gamma)
+                obs   = rec["observations"]
+                start = {
+                    "onehot_image":     torch.from_numpy(obs["onehot_image"][0].astype(np.float32)),
+                    "onehot_direction": torch.from_numpy(obs["onehot_direction"][0].astype(np.float32)),
+                    "onehot_carrying":  torch.from_numpy(obs["onehot_carrying"][0].astype(np.float32)),
+                }
             features.append(feat)
+            starts.append(start)
 
         self.features = {
             key: torch.stack([f[key] for f in features], dim=0).float()
             for key in features[0].keys()
+        }
+        self.option_start = {
+            key: torch.stack([s[key] for s in starts], dim=0).float()
+            for key in starts[0].keys()
         }
         
         self.labels   = torch.tensor(
@@ -84,6 +102,7 @@ class OptionRolloutDataset(Dataset):
         )
         self.feature_dict = {key: val.shape[1:] for key, val in self.features.items()}
         self._option_lens = [len(r["actions"]) for r in records]
+        
 
     # ------------------------------------------------------------------
     @staticmethod
