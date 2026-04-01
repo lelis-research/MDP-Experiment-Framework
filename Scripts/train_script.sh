@@ -39,18 +39,17 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 # ------------------ SLURM array index ------------------
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
-#"Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
 # NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
-NAME_TAG="Options_LimitedColor_emb[repr[fixed-d4]]_$IDX"
+NAME_TAG="Options_Add[all]_Curr[100K]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
-AGENT="VQOptionCritic"
+AGENT="OptionPPO"
 ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 
 ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
-ENV_PARAMS='{}'
+ENV_PARAMS='{"curriculum_steps": 100000}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
@@ -64,15 +63,16 @@ STORE_TRANSITIONS=false
 CHECKPOINT_FREQ=0
 
 INFO='{
-  "block_critic_to_encoder": true,
+  "all_options": "unlock_pickup_all_lst",
+  "block_critic_to_encoder": false,
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-05,
-  "codebook_embedding_dim": 4,
+  "codebook_embedding_dim": 80,
   "codebook_embedding_high": 1.0,
   "codebook_embedding_low": -1.0,
   "codebook_eps": 1e-05,
-  "codebook_init_emb_range": 1e-05,
-  "codebook_init_type": "fixed",
+  "codebook_init_emb_range": 1.0,
+  "codebook_init_type": "onehot",
   "codebook_max_grad_norm": 1.0,
   "codebook_similarity_metric": "l2",
   "codebook_step_size": 0.0003,
@@ -111,8 +111,8 @@ INFO='{
   "hl_tau_init": 2.0,
   "hl_tau_min": 0.8,
   "hl_total_steps": 200000,
-  "init_options_lst": "unlock_pickup_lst_limited_color_plus_actions",
-  "option_count_to_add": 100,
+  "init_options_lst": "unlock_pickup_all_lst",
+  "option_count_to_add": 20,
   "option_learner_reset_at_add": false
 }'
 # ------------------------------

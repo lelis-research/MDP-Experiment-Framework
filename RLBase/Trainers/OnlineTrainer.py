@@ -725,7 +725,7 @@ class OnlineTrainer:
             list_of_runs where each entry is a flat list of episode metric dicts.
         """
         run_files = []
-        if not os.path.exists(os.path.join(exp_dir, "seed.txt")):
+        if not os.path.exists(os.path.join(exp_dir, "agent.txt")):
             return None
         
         for name in os.listdir(exp_dir):

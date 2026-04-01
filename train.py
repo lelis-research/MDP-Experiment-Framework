@@ -90,11 +90,18 @@ def main():
     experiment.multi_run(num_runs=args.num_runs, num_episodes=args.num_episodes, total_steps=args.total_steps,
                         seed_offset=args.seed, dump_transitions=args.store_transitions, 
                         checkpoint_freq=args.checkpoint_freq, num_workers=args.num_workers)
-
+    
     # Analyze and plot results
+    with open(os.path.join(exp_dir, 'agent.txt'), 'w') as f:
+        f.write(str(experiment.agent))
     analyzer = SingleExpAnalyzer(exp_path=exp_dir)
     analyzer.plot_combined(save_dir=exp_dir, show_legend=False)
-    analyzer.plot_combined(save_dir=exp_dir, show_legend=False, plt_configs=["cb_hm_first", "cb_hm_last"])
+    
+    try:
+        analyzer.plot_combined(save_dir=exp_dir, show_legend=False, plt_configs=["cb_hm_first", "cb_hm_last"])
+    except:
+        print("No CodeBook to plot")
+    
     analyzer.save_seeds(save_dir=exp_dir)
 
 if __name__ == "__main__":

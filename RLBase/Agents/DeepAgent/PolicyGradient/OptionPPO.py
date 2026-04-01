@@ -229,11 +229,11 @@ class OptionPPOAgent(PPOAgent):
     name = "OptionPPO"
     SUPPORTED_ACTION_SPACES = (Discrete, )
     
-    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_option_lst=None, device="cpu"):
+    def __init__(self, action_space, observation_space, hyper_params, num_envs, feature_extractor_class, init_options_lst=None, device="cpu"):
         super().__init__(action_space, observation_space, hyper_params, num_envs, feature_extractor_class, device=device)
 
         self.atomic_action_space = action_space
-        self.options_lst = [] if init_option_lst is None else init_option_lst
+        self.options_lst = [] if init_options_lst is None else init_options_lst
 
         # Augment action space with options
         action_option_space = Discrete(self.atomic_action_space.n + len(self.options_lst))

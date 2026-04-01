@@ -790,7 +790,7 @@ door_options = [
 ]
 
 
-manual_options = actions + goal_options + key_options + door_options
+manual_options = actions + key_options + door_options + box_pickup_options
 manual_option_lst1 = [
     GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
     GetNearestGoalOption(option_id=f"get_nearest_goal_red",hyper_params=HyperParameters(option_max_len=20, goal_color="red")),
@@ -946,5 +946,66 @@ MINIGRID_MANUAL_OPTIONS_PRESETS = {
     "unlock_pickup_lst_withcolor_plus_actions": unlock_pickup_lst_withcolor + actions,
     "unlock_pickup_lst_nocolor_plus_actions": unlock_pickup_lst_nocolor + actions,
     "unlock_pickup_lst_limited_color_plus_actions": unlock_pickup_lst_limited_color + actions,
+    
+    "unlock_pickup_all_lst": manual_options,
+    "actions": actions,
+}
+
+
+manual_emb = np.array([
+    # === 7 Primitive Actions ===
+    [ 0.05,  0.10,  0.08, -0.05,  0.02, -0.95, -0.88,  0.42],  # Left
+    [ 0.03,  0.08,  0.12,  0.04,  0.01, -0.92,  0.87,  0.38],  # Right
+    [ 0.07,  0.15, -0.06,  0.09, -0.03, -0.97,  0.05,  0.91],  # Forward
+    [ 0.82,  0.11,  0.05, -0.08,  0.04, -0.88,  0.48, -0.53],  # Pickup
+    [-0.45,  0.06, -0.03,  0.07, -0.02, -0.91, -0.52, -0.47],  # Drop
+    [-0.87,  0.09,  0.04,  0.06,  0.01, -0.85,  0.03, -0.88],  # Toggle
+    [ 0.02,  0.03,  0.01, -0.02,  0.00, -0.78,  0.06,  0.04],  # Done
+    # === 6 Key Pickup Options ===
+    [ 0.93,  0.95,  0.97,  0.08,  0.03,  0.92,  0.04, -0.02],  # pickup_key_red
+    [ 0.88,  0.91, -0.47,  0.84,  0.06,  0.95, -0.03,  0.05],  # pickup_key_green
+    [ 0.91,  0.87, -0.52, -0.83, -0.04,  0.89,  0.07,  0.01],  # pickup_key_blue
+    [ 0.86,  0.93, -0.96,  0.05,  0.02,  0.93, -0.06, -0.04],  # pickup_key_purple
+    [ 0.95,  0.89,  0.51,  0.85, -0.05,  0.87,  0.02,  0.06],  # pickup_key_yellow
+    [ 0.89,  0.92,  0.48, -0.87,  0.01,  0.91, -0.01, -0.03],  # pickup_key_grey
+    # === 18 Door Toggle Options ===
+    [-0.91,  0.06,  0.95,  0.10,  0.93,  0.88,  0.03,  0.02],  # toggle_door_red_open
+    [-0.88,  0.04,  0.92,  0.07,  0.05,  0.91, -0.02,  0.04],  # toggle_door_red_closed
+    [-0.93,  0.08,  0.97,  0.04, -0.90,  0.86,  0.05, -0.03],  # toggle_door_red_locked
+    [-0.86,  0.03, -0.48,  0.83,  0.91,  0.93, -0.04,  0.01],  # toggle_door_green_open
+    [-0.90,  0.07, -0.45,  0.87,  0.03,  0.87,  0.02, -0.05],  # toggle_door_green_closed
+    [-0.87,  0.05, -0.51,  0.85, -0.88,  0.90,  0.06,  0.03],  # toggle_door_green_locked
+    [-0.92,  0.02, -0.47, -0.85,  0.89,  0.85, -0.03, -0.02],  # toggle_door_blue_open
+    [-0.85,  0.09, -0.52, -0.82,  0.07,  0.92,  0.04,  0.06],  # toggle_door_blue_closed
+    [-0.89,  0.04, -0.49, -0.88, -0.92,  0.88, -0.05,  0.01],  # toggle_door_blue_locked
+    [-0.94,  0.06, -0.93,  0.06,  0.87,  0.91,  0.02, -0.04],  # toggle_door_purple_open
+    [-0.87,  0.03, -0.97,  0.03,  0.04,  0.86, -0.06,  0.05],  # toggle_door_purple_closed
+    [-0.91,  0.08, -0.95,  0.09, -0.85,  0.94,  0.03,  0.02],  # toggle_door_purple_locked
+    [-0.88,  0.05,  0.49,  0.86,  0.94,  0.89, -0.02, -0.06],  # toggle_door_yellow_open
+    [-0.93,  0.02,  0.53,  0.83,  0.06,  0.92,  0.05,  0.03],  # toggle_door_yellow_closed
+    [-0.86,  0.07,  0.47,  0.89, -0.91,  0.87, -0.04,  0.01],  # toggle_door_yellow_locked
+    [-0.90,  0.04,  0.52, -0.84,  0.88,  0.93,  0.03, -0.05],  # toggle_door_grey_open
+    [-0.85,  0.09,  0.48, -0.88,  0.02,  0.85, -0.01,  0.04],  # toggle_door_grey_closed
+    [-0.92,  0.06,  0.50, -0.81, -0.93,  0.90,  0.06, -0.02],  # toggle_door_grey_locked
+    # === 6 Box Pickup Options ===
+    [ 0.87, -0.93,  0.94,  0.07,  0.02,  0.91, -0.05,  0.03],  # pickup_box_red
+    [ 0.92, -0.88, -0.50,  0.85, -0.03,  0.86,  0.04, -0.06],  # pickup_box_green
+    [ 0.85, -0.91, -0.48, -0.87,  0.05,  0.93, -0.02,  0.01],  # pickup_box_blue
+    [ 0.90, -0.95, -0.95,  0.04, -0.01,  0.88,  0.06,  0.04],  # pickup_box_purple
+    [ 0.94, -0.86,  0.52,  0.88,  0.04,  0.90, -0.03, -0.05],  # pickup_box_yellow
+    [ 0.88, -0.90,  0.46, -0.85, -0.06,  0.94,  0.02,  0.02],  # pickup_box_grey
+])
+actions_emb = np.array([
+    [ 0.05,  0.10,  0.08, -0.05,  0.02, -0.95, -0.88,  0.42],  # Left
+    [ 0.03,  0.08,  0.12,  0.04,  0.01, -0.92,  0.87,  0.38],  # Right
+    [ 0.07,  0.15, -0.06,  0.09, -0.03, -0.97,  0.05,  0.91],  # Forward
+    [ 0.82,  0.11,  0.05, -0.08,  0.04, -0.88,  0.48, -0.53],  # Pickup
+    [-0.45,  0.06, -0.03,  0.07, -0.02, -0.91, -0.52, -0.47],  # Drop
+    [-0.87,  0.09,  0.04,  0.06,  0.01, -0.85,  0.03, -0.88],  # Toggle
+    [ 0.02,  0.03,  0.01, -0.02,  0.00, -0.78,  0.06,  0.04],  # Done
+])
+MINIGRID_MANUAL_EMB = {
+    "unlock_pickup_all_lst": manual_emb,
+    "actions": actions_emb,
 }
 

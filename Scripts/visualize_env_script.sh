@@ -5,8 +5,8 @@
 #SBATCH --time=0-00:02      # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH --account=aip-lelis
-#SBATCH --array=1-10
+#SBATCH --account=rrg-lelis
+#SBATCH --array=1-1
 
 set -euo pipefail
 
@@ -39,7 +39,7 @@ IDX=$SLURM_ARRAY_TASK_ID   # 1…300
 
 # ---------------Configs--------- 
 seed=$((IDX * 1))
-ENV="MiniGrid-SimpleCrossingS9N1-v0"
+ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 ENV_WRAPPING='["FullyObs", "FixedSeed"]'
 WRAPPING_PARAMS='[{}, {"seed":'$seed'}]'
 ENV_PARAMS='{}'

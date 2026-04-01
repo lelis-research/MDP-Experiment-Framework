@@ -363,7 +363,7 @@ AGENT_DICT = {
         ),
         get_num_envs(env),
         MirrorFeature,
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
+        init_options_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", None), []),
         device=device
     ),
     
@@ -464,7 +464,7 @@ AGENT_DICT = {
                 embedding_low = info.get("codebook_embedding_low", -1),
                 embedding_high = info.get("codebook_embedding_high", +1),
                 init_emb_range=info.get("codebook_init_emb_range", 1.0),
-                init_type=info.get("codebook_init_type", "uniform"), # uniform, onehot
+                init_type=info.get("codebook_init_type", "uniform"), # uniform, onehot, fixed
                 
                 similarity_metric=info.get("codebook_similarity_metric", "l2"), # cosine, l2, dot
                 
@@ -484,13 +484,14 @@ AGENT_DICT = {
             all_options = MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("all_options", None), []),
             count_to_add = info.get("option_count_to_add", 20),
             option_learner_reset_at_add=info.get("option_learner_reset_at_add", False),
-            all_embeddings = None,
+            all_embeddings = MINIGRID_MANUAL_EMB.get(info.get("all_options_emb", None), None),
             
         ),
         get_num_envs(env),
         MirrorFeature,
         init_options_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color_plus_actions"), []),
-        init_options_emb=np.load(info["init_options_emb"]) if info.get("init_options_emb") else None,
+        # init_options_emb=np.load(info["init_options_emb"]) if info.get("init_options_emb") else None,
+        init_options_emb=MINIGRID_MANUAL_EMB.get(info.get("init_options_lst_emb", "unlock_pickup_lst_limited_color_plus_actions"), None),
         device=device
     ),
     

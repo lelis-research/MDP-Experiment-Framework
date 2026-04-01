@@ -46,9 +46,6 @@ class SingleExpAnalyzer:
             raise ValueError("Both metrics and exp_path are None")
         if metrics is None:
             metrics = OnlineTrainer.load_all_run_metrics(exp_path)
-            # metrics_path = os.path.join(exp_path, "all_metrics.pkl")
-            # with open(metrics_path, "rb") as f:
-            #     metrics = pickle.load(f)
 
         self.exp_path = exp_path
         self.metrics = metrics
@@ -284,30 +281,16 @@ class SingleExpAnalyzer:
             ax.legend(loc="best", frameon=True)
         else:
             if show_legend:
-                # 1) tighten subplots FIRST
-                # fig.tight_layout()
-
-                # 2) collect legend items
                 handles, labels = ax.get_legend_handles_labels()
-
-                # 3) draw legend
-                legend = fig.legend(handles, labels, loc="upper center", ncols=1, frameon=True, bbox_to_anchor=(0.5, 0.965))
-
-                # 4) force draw so matplotlib knows legend size
-                fig.canvas.draw()
-
-                # 5) compute legend height in figure coordinates
-                legend_height = (legend.get_window_extent().transformed(fig.transFigure.inverted()).height) + 0.05
-                
-                # 6) push subplots below legend
-                fig.subplots_adjust(top=0.965 - legend_height)
+                fig.legend(handles, labels, loc="lower center", ncols=1, frameon=True,
+                           bbox_to_anchor=(0.5, 1.0), bbox_transform=fig.transFigure)
 
             # else:
             #     fig.tight_layout()
 
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
-            fig.savefig(os.path.join(save_dir, f"Combined_{plt_configs}.png"))
+            fig.savefig(os.path.join(save_dir, f"Combined_{plt_configs}.png"), bbox_inches="tight")
 
         if show:
             plt.show()

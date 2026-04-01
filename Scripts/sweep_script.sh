@@ -40,7 +40,7 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_LimitedColor_emb[repr[fixed-d4]]" 
+NAME_TAG="Options_Add[all]_Curr[100K]_CB[dim8-grad-l2]_Emb[llm]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
@@ -49,7 +49,7 @@ ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 
 ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
-ENV_PARAMS='{}'
+ENV_PARAMS='{"curriculum_steps": 100000}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
@@ -111,14 +111,24 @@ INFO='{
   "codebook_ema_decay": 0.99,
   "codebook_ema_eps": 1e-5,
 
-  "codebook_embedding_dim": 4,
-  "option_count_to_add": 100,
+  "codebook_embedding_dim": 8,
+  
+  "init_options_lst": "unlock_pickup_all_lst",
+  "all_options": "unlock_pickup_all_lst",
+
+  "init_options_lst_emb": "unlock_pickup_all_lst",
+  "all_options_emb": "unlock_pickup_all_lst",
+
   "option_learner_reset_at_add": false,
-  "init_options_lst": "unlock_pickup_lst_limited_color_plus_actions",
+  "option_count_to_add": 20,
+  
   "codebook_similarity_metric": "l2",
-  "codebook_init_type": "fixed",
+  "codebook_init_type": "onehot",
   "codebook_update_type": "grad"
 }'
+# "all_options_emb": "unlock_pickup_all_lst",
+# "init_options_lst_emb": "actions",
+
 #"init_options_emb": "'"$INIT_EMB_PATH"'"
 
 #categorical, continuous, all, actions, l2, cosine

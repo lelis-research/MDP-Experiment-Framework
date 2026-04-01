@@ -40,23 +40,23 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_WithColor" 
+NAME_TAG="Options_Add[all]_Curr[100K]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="OptionPPO"
-ENV="MiniGrid-Unlock-v0"
+ENV="MiniGrid-UnlockPickupLimitedColor-v0"
 
 ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
-ENV_PARAMS='{}'
+ENV_PARAMS='{"curriculum_steps": 100000}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=300_000
+TOTAL_STEPS=500_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=200
+EPISODE_MAX_STEPS=100
 
 INFO='{
   "gamma": 0.99,
@@ -93,7 +93,11 @@ INFO='{
   "mini_batch_size": 128,
   "num_epochs": 10, 
 
-  "init_option_lst": "unlock_pickup_lst_withcolor"
+  "init_options_lst": "unlock_pickup_all_lst",
+  "all_options": "unlock_pickup_all_lst",
+  "option_learner_reset_at_add": false,
+  "option_count_to_add": 20,
+  "option_add_policy": "recreate"
 }'
 #categorical, continuous, all, actions, l2, cosine
 #432
