@@ -22,23 +22,29 @@ def multi_exp_results():
         # "emb[fixed-d4]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[repr[fixed-d4]]"], name_string_anti_conditions=[]),
         # "emb[fixed-d7]": gather_experiments(UnLockPickUp_VQ, name_string_conditions=["emb[repr[fixed-d7]]"], name_string_anti_conditions=[]),
         
-        "PPO_Offline": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[all]_Curr[100K]"], name_string_anti_conditions=[]),
-        "PPO_Expand": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]"], name_string_anti_conditions=[]),
-        "PPO_Recreate": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[recreate]_Reset[false]_Count[20]_Curr[100K]"], name_string_anti_conditions=[]),
+        # "PPO_Offline": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[all]_Curr[100K]"], name_string_anti_conditions=[]),
+        # "PPO_Expand": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]"], name_string_anti_conditions=[]),
+        # "PPO_Recreate": gather_experiments(Online_UnlockPickup_PPO, name_string_conditions=["Options_Add[recreate]_Reset[false]_Count[20]_Curr[100K]"], name_string_anti_conditions=[]),
         
-        "VQ_LLM_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim8-grad-l2]_Emb[llm]"], name_string_anti_conditions=[]),
-        "VQ_LLM_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim8-grad-l2]_Emb[llm]"], name_string_anti_conditions=[]),
+        # "VQ_LLM_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim8-grad-l2]_Emb[llm]"], name_string_anti_conditions=[]),
+        # "VQ_LLM_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim8-grad-l2]_Emb[llm]"], name_string_anti_conditions=[]),
         
-        "VQ_Uniform_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim8-grad-l2]_Emb[uniform]"], name_string_anti_conditions=[]),
-        "VQ_Uniform_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim8-grad-l2]_Emb[uniform]"], name_string_anti_conditions=[]),
+        # "VQ_Uniform_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim8-grad-l2]_Emb[uniform]"], name_string_anti_conditions=[]),
+        # "VQ_Uniform_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim8-grad-l2]_Emb[uniform]"], name_string_anti_conditions=[]),
         
-        "VQ_OneHot_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim80-grad-l2]_Emb[onehot]"], name_string_anti_conditions=[]),
-        "VQ_OneHot_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim80-grad-l2]_Emb[onehot]"], name_string_anti_conditions=[]),
+        # "VQ_OneHot_Online": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[expand]_Reset[false]_Count[20]_Curr[100K]_CB[dim80-grad-l2]_Emb[onehot]"], name_string_anti_conditions=[]),
+        # "VQ_OneHot_Offline": gather_experiments(Online_UnLockPickUp_VQ, name_string_conditions=["Options_Add[all]_Curr[100K]_CB[dim80-grad-l2]_Emb[onehot]"], name_string_anti_conditions=[]),
+        
+        "Offline": gather_experiments(PPO_Maze, name_string_conditions=["Options_Add[all]"], name_string_anti_conditions=[]),
+        "recreate": gather_experiments(PPO_Maze, name_string_conditions=["Options_Add[recreate]_Count[20]_Reset[False]"], name_string_anti_conditions=[]),
+        "recreate-reset": gather_experiments(PPO_Maze, name_string_conditions=["Options_Add[recreate]_Count[20]_Reset[True]"], name_string_anti_conditions=[]),
+        "expand": gather_experiments(PPO_Maze, name_string_conditions=["Options_Add[expand]_Count[20]_Reset[False]"], name_string_anti_conditions=[]),
+        "expand-reset": gather_experiments(PPO_Maze, name_string_conditions=["Options_Add[expand]_Count[20]_Reset[True]"], name_string_anti_conditions=[]),
     }
     
     
     
-    plot_experiments(agent_dict, "Runs/Figures/UnlockPickup", name=f"UnLockPickUp_All", 
+    plot_experiments(agent_dict, "Runs/Figures/Maze", name=f"OptionPPO", 
                      window_size=1, show_ci=True, ignore_last=True, 
                      plt_configs=["r_s", "uni_ou_s", "no_s"], plot_each=False)
     

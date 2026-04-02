@@ -2,7 +2,7 @@
 #SBATCH --job-name=sweep-ppo
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G          # memory per node
-#SBATCH --time=0-2:00    # time (DD-HH:MM)
+#SBATCH --time=0-4:00    # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -40,23 +40,23 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 SEED=1
 # enc[conv]_cb[dim42-l2]_opt[offline-detailed-noNone]_emb[uniform]_dist[cat]
-NAME_TAG="Options_Add[all]_Curr[100K]" 
+NAME_TAG="Options_Add[expand]_Count[20]_Reset[True]" 
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="OptionPPO"
-ENV="MiniGrid-UnlockPickupLimitedColor-v0"
+ENV="MiniGrid-MazeRooms-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
+ENV_WRAPPING='["OneHotImageDirCarry"]'
 WRAPPING_PARAMS='[{}, {}]'
-ENV_PARAMS='{"curriculum_steps": 100000}'
+ENV_PARAMS='{}'
 
 NUM_WORKERS=2 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=2
-TOTAL_STEPS=500_000
+TOTAL_STEPS=1_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=100
+EPISODE_MAX_STEPS=1000
 
 INFO='{
   "gamma": 0.99,
@@ -93,11 +93,11 @@ INFO='{
   "mini_batch_size": 128,
   "num_epochs": 10, 
 
-  "init_options_lst": "unlock_pickup_all_lst",
-  "all_options": "unlock_pickup_all_lst",
-  "option_learner_reset_at_add": false,
+  "init_options_lst": "actions",
+  "all_options": "all",
+  "option_learner_reset_at_add": true,
   "option_count_to_add": 20,
-  "option_add_policy": "recreate"
+  "option_add_policy": "expand"
 }'
 #categorical, continuous, all, actions, l2, cosine
 #432

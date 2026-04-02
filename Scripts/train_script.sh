@@ -2,7 +2,7 @@
 #SBATCH --job-name=train
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=2G
-#SBATCH --time=0-03:00 # time (DD-HH:MM)
+#SBATCH --time=0-09:00 # time (DD-HH:MM)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 #SBATCH --account=rrg-lelis_cpu
@@ -40,23 +40,23 @@ export TORCH_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 IDX=$SLURM_ARRAY_TASK_ID
 SEED=$IDX
 # NAME_TAG="Baseline_emb[dim_16-init_u0.05]_sf[256]_obs[256_16]_dp[0.2]_inp[obs_emb]-nce[0.01-1.0]_$IDX"
-NAME_TAG="Options_Add[all]_Curr[100K]_$IDX"
+NAME_TAG="Options_Add[recreate]_Count[20]_Reset[True]_$IDX"
 
 # ---------------Configs---------
 CONFIG="config_agents_base"
 AGENT="OptionPPO"
-ENV="MiniGrid-UnlockPickupLimitedColor-v0"
+ENV="MiniGrid-MazeRooms-v0"
 
-ENV_WRAPPING='["FullyObs", "OneHotImageDirCarry"]'
-WRAPPING_PARAMS='[{}, {}]'
-ENV_PARAMS='{"curriculum_steps": 100000}'
+ENV_WRAPPING='["OneHotImageDirCarry"]'
+WRAPPING_PARAMS='[{}]'
+ENV_PARAMS='{}'
 
 NUM_WORKERS=1 # if you want to run in parallel equal to NUM_RUNS
 NUM_EPISODES=0
 NUM_RUNS=1
-TOTAL_STEPS=1_000_000
+TOTAL_STEPS=3_000_000
 NUM_ENVS=1
-EPISODE_MAX_STEPS=100
+EPISODE_MAX_STEPS=1000
 
 RENDER_MODE=""
 STORE_TRANSITIONS=false
@@ -65,8 +65,8 @@ CHECKPOINT_FREQ=0
 INFO='{
   "actor_eps": 1e-08,
   "actor_network": "MiniGrid/PPO/conv_imgdircarry_actor",
-  "actor_step_size": 0.0003,
-  "all_options": "unlock_pickup_all_lst",
+  "actor_step_size": 0.001,
+  "all_options": "all",
   "anneal_clip_range_actor": false,
   "anneal_clip_range_critic": false,
   "clip_range_actor_init": 0.2,
@@ -80,7 +80,7 @@ INFO='{
   "enable_transform_action": true,
   "entropy_coef": 0.01,
   "gamma": 0.99,
-  "init_options_lst": "unlock_pickup_all_lst",
+  "init_options_lst": "actions",
   "lamda": 0.95,
   "max_grad_norm": 0.5,
   "max_logstd": null,
@@ -89,7 +89,7 @@ INFO='{
   "num_epochs": 10,
   "option_add_policy": "recreate",
   "option_count_to_add": 20,
-  "option_learner_reset_at_add": false,
+  "option_learner_reset_at_add": true,
   "rollout_steps": 1024,
   "target_kl": null,
   "total_steps": 500000,

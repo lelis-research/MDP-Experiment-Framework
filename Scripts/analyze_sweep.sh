@@ -41,7 +41,7 @@ IDX=$((SLURM_ARRAY_TASK_ID + 0)) # offset to avoid conflicts with other sweeps
 
 
 # ---------------Configs---------
-EXP_DIR="Runs/Sweep/MiniGrid-UnlockPickupLimitedColor-v0_curriculum_steps-100000/FullyObs_OneHotImageDirCarry/OptionPPO/Options_Add[all]_Curr[100K]_seed[1]"
+EXP_DIR="Runs/Sweep/MiniGrid-MazeRooms-v0_/OneHotImageDirCarry/OptionPPO/Options_Add[recreate]_Count[20]_Reset[False]_seed[1]"
 RATIO=0.9
 AUC_TYPE="steps"
 

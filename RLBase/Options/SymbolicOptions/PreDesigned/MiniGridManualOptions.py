@@ -788,7 +788,7 @@ door_options = [
     for color in COLOR_NAMES #+ [None]
     for state in STATE_TO_IDX.keys()
 ]
-
+all_options = actions + goal_options + key_options + ball_options + box_pickup_options + box_toggle_options + door_options
 
 manual_options = actions + key_options + door_options + box_pickup_options
 manual_option_lst1 = [
@@ -949,6 +949,7 @@ MINIGRID_MANUAL_OPTIONS_PRESETS = {
     
     "unlock_pickup_all_lst": manual_options,
     "actions": actions,
+    "all": all_options,
 }
 
 
