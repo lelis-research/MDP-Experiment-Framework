@@ -21,6 +21,7 @@ class HumanAgent(BaseAgent):
 
         print("Action space:", action_space)
         print("Observation space:", observation_space)
+        self._last_admissible_commands = []
 
     # ----------------------------------------------------------
     # ACTION SELECTION
@@ -57,9 +58,12 @@ class HumanAgent(BaseAgent):
         print("Available Actions")
         print("=" * 40)
 
-        if hasattr(self.hp, "actions_enum"):
+        if hasattr(self.hp, "actions_enum") and self.hp.actions_enum is not None:
             actions_enum = [a.name for a in self.hp.actions_enum]
             print(actions_enum)
+        elif self._last_admissible_commands:
+            for i, cmd in enumerate(self._last_admissible_commands):
+                print(f"  {i}: {cmd}")
         else:
             print(f"Atomic actions: 0 .. {self.action_space.n - 1}")
 
@@ -82,12 +86,18 @@ class HumanAgent(BaseAgent):
     # OBSERVATION ANALYSIS (your requested change)
     # ----------------------------------------------------------
     def _analyze_obs(self, observation):
-        """
-        Only print observation['text'] if it exists (and is a string).
-        Otherwise print nothing.
-        """
-        if isinstance(observation, dict) and "text" in observation:
-            txt = observation["text"]
-            print("\n--- TEXT ---")
-            print(txt[0])
-            print("------------")
+        if isinstance(observation, dict):
+            if "obs" in observation and isinstance(observation["obs"], str):
+                print("\n" + observation["obs"])
+            elif "text" in observation and isinstance(observation["text"], str):
+                print("\n--- TEXT ---")
+                print(observation["text"])
+                print("------------")
+            if "admissible_commands" in observation:
+                cmds = observation["admissible_commands"]
+                if isinstance(cmds, str) and cmds:
+                    self._last_admissible_commands = cmds.split("\n")
+                elif isinstance(cmds, (list, tuple)):
+                    self._last_admissible_commands = [c for c in cmds if c]
+                else:
+                    self._last_admissible_commands = []

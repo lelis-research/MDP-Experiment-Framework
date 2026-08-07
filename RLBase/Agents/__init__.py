@@ -4,4 +4,5 @@ from .RandomAgent import *
 from .TabularAgent import *
 from .DeepAgent import *
 from .HumanAgent import *
+from .LLMAgent import *
 

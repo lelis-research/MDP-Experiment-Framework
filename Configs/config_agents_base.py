@@ -28,6 +28,7 @@ def get_device(preferred_device):
         device = "cpu"
     return device
 
+
 preferred_device = "cpu"  # cpu, mps, cuda
 device = get_device(preferred_device)
 
@@ -51,7 +52,7 @@ AGENT_DICT = {
         ), 
         get_num_envs(env),
         TabularFeature,
-        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "unlock_pickup_lst_limited_color"), []),
+        init_option_lst=MINIGRID_MANUAL_OPTIONS_PRESETS.get(info.get("init_options_lst", "all"), []),
         device=device
     ),
     
@@ -165,7 +166,7 @@ AGENT_DICT = {
             target_update_freq=info.get("target_update_freq", 20), 
             
             
-            value_network=NETWORK_PRESETS[info.get("value_network", "MiniGrid/DQN/mlp_noisy")],
+            value_network=NETWORK_PRESETS[info.get("value_network", "MiniGrid/DQN/conv")],
             step_size=info.get("step_size", 1e-3),
             enable_double_dqn_target=info.get("enable_double_dqn_target", True), # Double DQN
             enable_dueling_networks=info.get("enable_dueling_networks", False), # Dueling Net
@@ -173,7 +174,7 @@ AGENT_DICT = {
             max_grad_norm=info.get("max_grad_norm", None), # Clip Gradients
         ),
         get_num_envs(env),
-        OneHotFlattenFeature,
+        OneHotConvFeature,
         device=device,
     ),
     
@@ -495,4 +496,19 @@ AGENT_DICT = {
         device=device
     ),
     
-    }
+    # LLM Agents
+    LLMAgent.name: lambda env, info: LLMAgent(
+        get_env_action_space(env),
+        get_env_observation_space(env),
+        HyperParameters(
+            api_key=info.get("api_key", "sk-cf78e4a5461e4f308352b6b4d39d9b2b"),
+            model=info.get("model", "qwen3-235b"),
+            system_prompt=info.get("system_prompt", None),
+            max_tokens=info.get("max_tokens", 512),
+            temperature=info.get("temperature", 0.0),
+        ),
+        get_num_envs(env),
+        TabularFeature,
+        device=device
+    ),
+}

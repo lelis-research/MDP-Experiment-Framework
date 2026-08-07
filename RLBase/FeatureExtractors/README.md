@@ -11,6 +11,7 @@ Core base API (what every extractor provides):
 Shipped extractors:
 - `FlattenFeature` (`FlattenExtractor.py`): flattens supported spaces into a single vector `{"x": tensor}`.
 - `OneHotFlattenFeature` (`OneHotFlattenFeatureExtractor.py`): integer spaces one-hot encoded, flattened into `{"x": tensor}`.
+- `OneHotConvFeature` (`OneHotConvExtractor.py`): integer grid `Box` spaces one-hot encoded into channel-first `{"img": tensor}` for convolutional networks.
 - `OneHotKeepDimFeature` (`OneHotKeepDimExtractor.py`): integer spaces one-hot encoded while keeping spatial/structural dims; Dict inputs yield a dict of tensors with matching keys.
 - `TabularFeature` (`TabularExtractor.py`): flattens to a list of hashable tuples for exact tabular lookups (no output dict).
 

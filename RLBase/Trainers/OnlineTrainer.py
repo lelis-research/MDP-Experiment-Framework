@@ -443,6 +443,30 @@ class OnlineTrainer:
 
 
         pbar.close()
+
+        # Flush partial episodes for any env that never reached a done signal
+        for i in range(num_envs):
+            if ep_lengths[i] == 0:
+                continue
+            episodes_done += 1
+            metrics = {
+                "ep_return": float(ep_returns[i]),
+                "ep_length": int(ep_lengths[i]),
+                "frames": frames[i],
+                "transitions": transitions[i],
+                "actions": actions_log[i],
+                "agent_seed": seed,
+                "episode_index": episodes_done,
+                "agent_logs": self.concat_dicts_of_arrays(agent_logs[i], axis=0),
+                "partial": True,  # episode was cut short by step budget
+            }
+            metrics_buffer.append(metrics)
+            if self._keep_metrics_in_memory:
+                all_metrics.append(metrics)
+            if ep_returns[i] >= best_return:
+                best_return = ep_returns[i]
+                best_agent = agent.save()
+
         self._flush_metrics_buffer(run_idx, metrics_buffer)
         return all_metrics, best_agent
 

@@ -4,12 +4,20 @@ from .MiniGrid import get_env as get_minigrid_env, MINIGRID_ENV_LST
 from .Mujoco import get_env as get_mujoco_env, MUJOCO_ENV_LST
 from .Atari import get_env as get_atari_env, ATARI_ENV_LST
 from .Classic import get_env as get_classic_env, CLASSIC_ENV_LST
+from .Crafter import get_env as get_crafter_env, CRAFTER_ENV_LST
+from .SelfDesigned import (
+    get_env as get_self_designed_env,
+    SELF_DESIGNED_ENV_LST,
+)
 # from .MiniHack import get_env as get_minihack_env, MINIHACK_ENV_LST
+
 ENV_SOURCES = (
     ("MiniGrid", MINIGRID_ENV_LST, get_minigrid_env),
     ("Mujoco", MUJOCO_ENV_LST, get_mujoco_env),
     ("Atari", ATARI_ENV_LST, get_atari_env),
     ("Classic", CLASSIC_ENV_LST, get_classic_env),
+    ("Crafter", CRAFTER_ENV_LST, get_crafter_env),
+    ("SelfDesigned", SELF_DESIGNED_ENV_LST, get_self_designed_env),
     # ("MiniHack", MINIHACK_ENV_LST, get_minihack_env),
 )
 

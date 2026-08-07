@@ -2,6 +2,8 @@
 
 Environment families live under this folder (e.g., `MiniGrid`, `Atari`, `Classic`, `MiniHack`, `Mujoco`). Each family ships a `GetEnvironment.py`, `Wrappers.py`, optional `CustomEnvironments/`, and a README with family-specific notes.
 
+Project-specific environments that are not part of an external environment family live in `SelfDesigned/`. Import them with `from RLBase.Environments.SelfDesigned import SimpleGridEnv`, or use the unified loader with `SelfDesigned-SimpleGrid-v0`.
+
 Unified loader (`RLBase/Environments/GetEnvironment.py`):
 - `get_env(env_name, num_envs, max_steps=None, render_mode=None, env_params=None, wrapping_lst=None, wrapping_params=None)` finds the right family from `ENV_SOURCES`, builds `num_envs` copies via the family `get_env`, and returns a `SyncVectorEnv`.
 - `env_params` is forwarded to `gym.make`; `max_steps` and `render_mode` are only passed when provided. Wrappers are applied in order based on the family’s `WRAPPING_TO_WRAPPER` mapping.
